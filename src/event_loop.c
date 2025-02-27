@@ -9,7 +9,7 @@
 #include <spa/utils/list.h>
 
 #include "event_loop.h"
-#include "macros.h"
+#include "log.h"
 #include "xmalloc.h"
 
 #define EPOLL_MAX_EVENTS 16

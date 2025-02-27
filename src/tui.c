@@ -1,5 +1,5 @@
 #include "tui.h"
-#include "macros.h"
+#include "log.h"
 
 void tui_repaint_all(struct tui *tui, struct spa_list *node_list) {
     debug("tui: repainting and updating everything");

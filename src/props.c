@@ -2,7 +2,7 @@
 #include <spa/param/audio/raw-types.h>
 
 #include "props.h"
-#include "macros.h"
+#include "log.h"
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunused-variable"

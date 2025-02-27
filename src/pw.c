@@ -6,6 +6,7 @@
 
 #include "pw.h"
 #include "macros.h"
+#include "log.h"
 #include "props.h"
 #include "param_print.h"
 

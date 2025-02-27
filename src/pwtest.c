@@ -2,7 +2,7 @@
 #include <sys/signalfd.h>
 
 #include "pw.h"
-#include "macros.h"
+#include "log.h"
 
 #define EPOLL_MAX_EVENTS 16
 
