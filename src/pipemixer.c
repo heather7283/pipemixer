@@ -82,7 +82,7 @@ static int keyboard_handler(void *data, struct event_loop_item *item) {
                 }
                 break;
             case 'r':
-                tui_repaint_all(pipemixer->tui, &pipemixer->pw->audio_output_streams);
+                tui_repaint_all(pipemixer);
                 break;
             case 'q':
                 event_loop_quit(event_loop_item_get_loop(item));
@@ -130,7 +130,7 @@ static int pipewire_handler(void *data, struct event_loop_item *item) {
 
     pw_loop_iterate(pipemixer->pw->main_loop_loop, 0);
 
-    tui_repaint_all(pipemixer->tui, &pipemixer->pw->audio_output_streams);
+    tui_repaint_all(pipemixer);
 
     return 0;
 }

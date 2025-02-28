@@ -4,6 +4,7 @@
 #include <ncurses.h>
 
 #include "pw.h"
+#include "pipemixer.h"
 
 #define PAD_SIZE 1000 /* number of lines in the pad */
 #define MAX_SCREEN_WIDTH 512  /* surely nobody will have terminal window wider than that */
@@ -22,7 +23,7 @@ struct tui {
     int pad_pos;
 };
 
-void tui_repaint_all(struct tui *tui, struct spa_list *node_list);
+void tui_repaint_all(struct pipemixer *pipemixer);
 
 #endif /* #ifndef TUI_H */
 

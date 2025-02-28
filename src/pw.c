@@ -4,6 +4,7 @@
 #include <spa/utils/result.h>
 #include <spa/param/props.h>
 
+#include "thirdparty/stb_ds.h"
 #include "pw.h"
 #include "macros.h"
 #include "log.h"
@@ -11,9 +12,6 @@
 #include "param_print.h"
 
 static void node_cleanup(struct node *node) {
-    spa_list_remove(&node->all_nodes_link);
-    spa_list_remove(&node->link);
-
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
 
     if (node->info != NULL) {
@@ -143,17 +141,18 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         struct spa_list *target_list;
 
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
+        enum media_class media_class_value;
         if (media_class == NULL) {
             debug("empty media.class, not binding");
             return;
         } else if (streq(media_class, "Audio/Source")) {
-            target_list = &pw->audio_sources;
+            media_class_value = AUDIO_SOURCE;
         } else if (streq(media_class, "Audio/Sink")) {
-            target_list = &pw->audio_sinks;
+            media_class_value = AUDIO_SINK;
         } else if (streq(media_class, "Stream/Input/Audio")) {
-            target_list = &pw->audio_input_streams;
+            media_class_value = STREAM_INPUT_AUDIO;
         } else if (streq(media_class, "Stream/Output/Audio")) {
-            target_list = &pw->audio_output_streams;
+            media_class_value = STREAM_OUTPUT_AUDIO;
         } else {
             debug("not interested in media.class %s, not binding", media_class);
             return;
@@ -165,12 +164,12 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         new_node->id = id;
+        new_node->media_class = media_class_value;
         new_node->pw = pw;
         new_node->pw_node = pw_registry_bind(pw->registry, id, type, PW_VERSION_NODE, 0);
         pw_node_add_listener(new_node->pw_node, &new_node->listener, &node_events, new_node);
 
-        spa_list_insert(target_list, &new_node->link);
-        spa_list_insert(&pw->all_nodes, &new_node->all_nodes_link);
+        stbds_hmput(pw->nodes, new_node->id, new_node);
     }
 }
 
@@ -179,12 +178,10 @@ static void on_registry_global_remove(void *data, uint32_t id) {
 
     debug("registry global remove: id %d", id);
 
-    struct node *node = NULL;
-    spa_list_for_each(node, &pw->all_nodes, all_nodes_link) {
-        if (node->id == id) {
-            node_cleanup(node);
-            break;
-        }
+    struct node *node;
+    if ((node = stbds_hmget(pw->nodes, id)) != NULL) {
+        stbds_hmdel(pw->nodes, id);
+        node_cleanup(node);
     }
 }
 
@@ -195,12 +192,6 @@ static const struct pw_registry_events registry_events = {
 };
 
 int pipewire_init(struct pw *pw) {
-    spa_list_init(&pw->all_nodes);
-    spa_list_init(&pw->audio_sinks);
-    spa_list_init(&pw->audio_sources);
-    spa_list_init(&pw->audio_input_streams);
-    spa_list_init(&pw->audio_output_streams);
-
     pw_init(NULL, NULL);
 
     pw->main_loop = pw_main_loop_new(NULL /* properties */);
@@ -226,10 +217,15 @@ int pipewire_init(struct pw *pw) {
 }
 
 void pipewire_cleanup(struct pw *pw) {
-    struct node *node, *tmp_node;
-    spa_list_for_each_safe(node, tmp_node, &pw->all_nodes, all_nodes_link) {
+    struct node *node;
+    size_t i;
+    while ((i = stbds_hmlenu(pw->nodes)) > 0) {
+        node = pw->nodes[i - 1].value;
+        stbds_hmdel(pw->nodes, node->id);
         node_cleanup(node);
     }
+    stbds_hmfree(pw->nodes);
+
     pw_proxy_destroy((struct pw_proxy *)pw->registry);
     pw_core_disconnect(pw->core);
     pw_context_destroy(pw->context);

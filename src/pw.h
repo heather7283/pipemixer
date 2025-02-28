@@ -5,6 +5,13 @@
 
 #include "props.h"
 
+enum media_class {
+    AUDIO_SOURCE,
+    AUDIO_SINK,
+    STREAM_INPUT_AUDIO,
+    STREAM_OUTPUT_AUDIO,
+};
+
 #define MAX_STRING_LENGTH 64
 struct node {
     struct pw *pw;
@@ -13,15 +20,13 @@ struct node {
     struct spa_hook listener;
 
     uint32_t id;
+    enum media_class media_class;
     char media_name[MAX_STRING_LENGTH];
     char application_name[MAX_STRING_LENGTH];
     struct node_props props;
 
     /* don't remove */
     struct pw_node_info *info;
-
-    struct spa_list all_nodes_link;
-    struct spa_list link;
 };
 #undef MAX_STRING_LENGTH
 
@@ -38,11 +43,11 @@ struct pw {
     struct pw_registry *registry;
     struct spa_hook registry_listener;
 
-    struct spa_list all_nodes;
-    struct spa_list audio_sources;
-    struct spa_list audio_sinks;
-    struct spa_list audio_output_streams;
-    struct spa_list audio_input_streams;
+    /* stb_ds hashmap */
+    struct {
+        uint32_t key; /* id */
+        struct node *value;
+    } *nodes;
 };
 
 int pipewire_init(struct pw *pw);

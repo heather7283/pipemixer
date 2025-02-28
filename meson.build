@@ -16,7 +16,6 @@ ncursesw_dep = dependency('ncursesw')
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
 
-
 executable('pipemixer',
   'src/pipemixer.c',
   'src/tui.c',
@@ -26,6 +25,8 @@ executable('pipemixer',
   'src/pw.c',
   'src/param_print.c',
   'src/props.c',
+  'src/stb_ds_impl.c',
+  include_directories: ['thirdparty'],
   dependencies: [ncursesw_dep, pipewire_dep, m_dep],
   install: true)
 
@@ -37,6 +38,7 @@ executable('pwtest',
   'src/props.c',
   'src/event_loop.c',
   'src/xmalloc.c',
+  'src/stb_ds_impl.c',
   dependencies: [pipewire_dep, m_dep],
   install: false)
 

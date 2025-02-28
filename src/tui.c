@@ -3,6 +3,7 @@
 #include "tui.h"
 #include "macros.h"
 #include "log.h"
+#include "thirdparty/stb_ds.h"
 
 void tui_draw_node(struct tui *tui, struct node *node, int *pad_pos) {
     /*
@@ -51,14 +52,18 @@ void tui_draw_node(struct tui *tui, struct node *node, int *pad_pos) {
     }
 }
 
-void tui_repaint_all(struct tui *tui, struct spa_list *node_list) {
+void tui_repaint_all(struct pipemixer *pipemixer) {
+    struct tui *tui = pipemixer->tui;
+    struct pw *pw = pipemixer->pw;
+
     debug("tui: repainting and updating everything");
 
     WINDOW *pad = tui->pad_win;
     int pad_pos = 0;
 
     struct node *node;
-    spa_list_for_each(node, node_list, link) {
+    for (size_t i = 0; i < stbds_hmlenu(pw->nodes); i++) {
+        node = pw->nodes[i].value;
         tui_draw_node(tui, node, &pad_pos);
         //mvwprintw(pad, pad_pos++, 0, "(%d) %s: %s",
         //          node->id, node->application_name, node->media_name);

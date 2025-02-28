@@ -3,6 +3,7 @@
 
 #include "pw.h"
 #include "log.h"
+#include "thirdparty/stb_ds.h"
 
 #define EPOLL_MAX_EVENTS 16
 
@@ -50,6 +51,8 @@ int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
 
+    log_init(stderr, LOG_DEBUG);
+
     struct pw pw = {0};
     pipewire_init(&pw);
 
@@ -96,15 +99,16 @@ int main(int argc, char **argv) {
                     debug("received SIGUSR1");
 
                     struct node *node;
-                    spa_list_for_each(node, &pw.all_nodes, all_nodes_link) {
-                        info("node %d ", node->id);
+                    for (size_t i = 0; i < stbds_hmlenu(pw.nodes); i++) {
+                        node = pw.nodes[i].value;
+                        info("node %d (%d in hashmap)", node->id, i);
                         info("  mute: %s", node->props.mute ? "yes" : "no");
                         for (uint32_t i = 0; i < node->props.channel_count; i++) {
                             info("  channel %d (%s): %f",
                                  i, node->props.channel_map[i], node->props.channel_volumes[i]);
                         }
-                        info("  application.name: %ls", node->application_name);
-                        info("  media.name: %ls", node->media_name);
+                        info("  application.name: %s", node->application_name);
+                        info("  media.name: %s", node->media_name);
                     }
                     break;
                 default:
