@@ -1,9 +1,6 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#include <stdlib.h> /* abort */
-#include <stdio.h>  /* fprintf */
-
 #define ANSI_DIM    "\033[2m"
 #define ANSI_RED    "\033[031m"
 #define ANSI_YELLOW "\033[033m"
