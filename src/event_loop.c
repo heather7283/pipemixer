@@ -50,7 +50,7 @@ static bool fd_is_valid(int fd) {
 struct event_loop *event_loop_create(void) {
     debug("event loop: create");
 
-    struct event_loop *loop = xmalloc(sizeof(*loop));
+    struct event_loop *loop = xcalloc(1, sizeof(*loop));
 
     spa_list_init(&loop->items);
     spa_list_init(&loop->uncond_callbacks);
@@ -91,7 +91,7 @@ struct event_loop_item *event_loop_add_item(struct event_loop *loop, int fd,
                                             event_loop_callback_t callback, void *data) {
     debug("event loop: adding fd %d to event loop", fd);
 
-    struct event_loop_item *new_item = xmalloc(sizeof(*new_item));
+    struct event_loop_item *new_item = xcalloc(1, sizeof(*new_item));
     new_item->loop = loop;
     new_item->fd = fd;
     new_item->callback = callback;
@@ -142,7 +142,7 @@ struct event_loop_uncond *event_loop_add_uncond(struct event_loop *loop,
                                                 event_loop_uncond_callback_t callback, void *data) {
     debug("event loop: adding unconditional callback");
 
-    struct event_loop_uncond *new_item = xmalloc(sizeof(*new_item));
+    struct event_loop_uncond *new_item = xcalloc(1, sizeof(*new_item));
     new_item->callback = callback;
     new_item->data = data;
 
