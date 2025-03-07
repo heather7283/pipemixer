@@ -14,39 +14,37 @@
 #include "event_loop.h"
 #include "pw.h"
 
-static void handle_resize(struct tui *tui) {
+static void handle_resize(void) {
     // Get new dimensions
     endwin();
     refresh();
-    getmaxyx(stdscr, tui->term_height, tui->term_width);
+    getmaxyx(stdscr, tui.term_height, tui.term_width);
 
     // Resize top window
-    wresize(tui->bar_win, 1, tui->term_width);
-    mvwin(tui->bar_win, 0, 0);
+    wresize(tui.bar_win, 1, tui.term_width);
+    mvwin(tui.bar_win, 0, 0);
 
     // Clear and redraw
-    wclear(tui->bar_win);
-    mvwprintw(tui->bar_win, 0, 0, "Top Window - Status Bar (Terminal: %dx%d)",
-              tui->term_width, tui->term_height);
+    wclear(tui.bar_win);
+    mvwprintw(tui.bar_win, 0, 0, "Top Window - Status Bar (Terminal: %dx%d)",
+              tui.term_width, tui.term_height);
 
     // Make sure pad_pos is within valid range after resize
-    if (tui->pad_pos > PAD_SIZE - tui->term_height) {
-        tui->pad_pos = PAD_SIZE - tui->term_height;
+    if (tui.pad_pos > PAD_SIZE - tui.term_height) {
+        tui.pad_pos = PAD_SIZE - tui.term_height;
     }
-    if (tui->pad_pos < 0) {
-        tui->pad_pos = 0;
+    if (tui.pad_pos < 0) {
+        tui.pad_pos = 0;
     }
 
     // Refresh everything
     refresh();
-    wrefresh(tui->bar_win);
-    pnoutrefresh(tui->pad_win, tui->pad_pos, 0, 1, 0, tui->term_height - 1, tui->term_width - 1);
+    wrefresh(tui.bar_win);
+    pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0, tui.term_height - 1, tui.term_width - 1);
     doupdate();
 }
 
 static int keyboard_handler(void *data, struct event_loop_item *item) {
-    struct pipemixer *pipemixer = data;
-
     int ch;
     while (true) {
         errno = 0;
@@ -58,30 +56,30 @@ static int keyboard_handler(void *data, struct event_loop_item *item) {
             }
         }
 
-        getmaxyx(stdscr, pipemixer->tui->term_height, pipemixer->tui->term_width);
+        getmaxyx(stdscr, tui.term_height, tui.term_width);
 
         switch (ch) {
             case KEY_RESIZE:
                 /* idk why am I getting those even though I installed my own SIGWINCH handler */
                 break;
             case 'k':
-                if (pipemixer->tui->pad_pos > 0) {
-                    pipemixer->tui->pad_pos--;
-                    pnoutrefresh(pipemixer->tui->pad_win, pipemixer->tui->pad_pos, 0, 1, 0,
-                                 pipemixer->tui->term_height - 1, pipemixer->tui->term_width - 1);
+                if (tui.pad_pos > 0) {
+                    tui.pad_pos--;
+                    pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0,
+                                 tui.term_height - 1, tui.term_width - 1);
                     doupdate();
                 }
                 break;
             case 'j':
-                if (pipemixer->tui->pad_pos < PAD_SIZE - pipemixer->tui->term_height) {
-                    pipemixer->tui->pad_pos++;
-                    pnoutrefresh(pipemixer->tui->pad_win, pipemixer->tui->pad_pos, 0, 1, 0,
-                                 pipemixer->tui->term_height - 1, pipemixer->tui->term_width - 1);
+                if (tui.pad_pos < PAD_SIZE - tui.term_height) {
+                    tui.pad_pos++;
+                    pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0,
+                                 tui.term_height - 1, tui.term_width - 1);
                     doupdate();
                 }
                 break;
             case 'r':
-                tui_repaint_all(pipemixer);
+                tui_repaint_all();
                 break;
             case 'q':
                 event_loop_quit(event_loop_item_get_loop(item), 0);
@@ -93,8 +91,6 @@ static int keyboard_handler(void *data, struct event_loop_item *item) {
 }
 
 static int signals_handler(void *data, struct event_loop_item *item) {
-    struct tui *tui = data; /* I pass tui here so I can handle SIGWINCH (term resize) */
-
     debug("processing signals");
     struct signalfd_siginfo siginfo;
     if (read(event_loop_item_get_fd(item), &siginfo, sizeof(siginfo)) != sizeof(siginfo)) {
@@ -114,7 +110,7 @@ static int signals_handler(void *data, struct event_loop_item *item) {
     case SIGWINCH:
         debug("caught SIGWINCH, calling resize handler");
         //ungetch(KEY_RESIZE);
-        handle_resize(tui);
+        handle_resize();
         break;
     default:
         err("(BUG) unhandled signal received through signalfd: %d", siginfo.ssi_signo);
@@ -125,11 +121,9 @@ static int signals_handler(void *data, struct event_loop_item *item) {
 }
 
 static int pipewire_handler(void *data, struct event_loop_item *item) {
-    struct pipemixer *pipemixer = data;
-
     pw_loop_iterate(pw.main_loop_loop, 0);
 
-    tui_repaint_all(pipemixer);
+    tui_repaint_all();
 
     return 0;
 }
@@ -226,11 +220,6 @@ int main(int argc, char** argv) {
         log_init(log_stream, loglevel);
     }
 
-    struct tui tui = {0};
-    struct pipemixer pipemixer = {
-        .tui = &tui,
-    };
-
     struct event_loop *loop = event_loop_create();
     if (loop == NULL) {
         retcode = 1;
@@ -260,11 +249,11 @@ int main(int argc, char** argv) {
     tui.pad_win = newpad(PAD_SIZE, MAX_SCREEN_WIDTH);
 
     /* initial draw */
-    handle_resize(&tui);
+    handle_resize();
 
-    event_loop_add_item(loop, 0, keyboard_handler, &pipemixer); /* stdin */
-    event_loop_add_item(loop, signal_fd, signals_handler, &tui); /* passing tui for SIGWINCH */
-    event_loop_add_item(loop, pw.main_loop_loop_fd, pipewire_handler, &pipemixer);
+    event_loop_add_item(loop, 0, keyboard_handler, NULL); /* stdin */
+    event_loop_add_item(loop, signal_fd, signals_handler, NULL);
+    event_loop_add_item(loop, pw.main_loop_loop_fd, pipewire_handler, NULL);
     retcode = event_loop_run(loop);
 
 cleanup:

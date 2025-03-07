@@ -3,7 +3,6 @@
 
 #include <ncurses.h>
 
-#include "pw.h"
 #include "pipemixer.h"
 
 #define PAD_SIZE 1000 /* number of lines in the pad */
@@ -23,7 +22,9 @@ struct tui {
     int pad_pos;
 };
 
-void tui_repaint_all(struct pipemixer *pipemixer);
+extern struct tui tui;
+
+void tui_repaint_all(void);
 
 #endif /* #ifndef TUI_H */
 

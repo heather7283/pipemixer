@@ -2,11 +2,14 @@
 #include <wchar.h>
 
 #include "tui.h"
+#include "pw.h"
 #include "macros.h"
 #include "log.h"
 #include "thirdparty/stb_ds.h"
 
-void tui_draw_node(struct tui *tui, struct node *node, int *pad_pos) {
+struct tui tui = {0};
+
+void tui_draw_node(struct node *node, int *pad_pos) {
     /*
      * On a 80-character-wide term it will look like this:
      *                                                                                 80 chars
@@ -17,14 +20,14 @@ void tui_draw_node(struct tui *tui, struct node *node, int *pad_pos) {
      *                                          │    │                                 │
      *                                         vol.deco (6 + 3 at the end)
      */
-    int half_term_width = tui->term_width / 2;
+    int half_term_width = tui.term_width / 2;
     int volume_area_deco_width_left = 6;
     int volume_area_deco_width_right = 3;
     int volume_area_deco_width = volume_area_deco_width_left + volume_area_deco_width_right;
     int volume_area_width_max_without_deco = half_term_width - volume_area_deco_width;
     int volume_area_width_without_deco = (volume_area_width_max_without_deco / 15) * 15;
     int volume_area_width = volume_area_width_without_deco + volume_area_deco_width;
-    int info_area_width = tui->term_width - volume_area_width - 1;
+    int info_area_width = tui.term_width - volume_area_width - 1;
 
     for (uint32_t i = 0; i < node->props.channel_count; i++) {
         wchar_t volume_area[volume_area_width];
@@ -49,22 +52,19 @@ void tui_draw_node(struct tui *tui, struct node *node, int *pad_pos) {
 
         debug("%ls", volume_area);
 
-        mvwprintw(tui->pad_win, (*pad_pos)++, info_area_width + 1, "%ls", volume_area);
+        mvwprintw(tui.pad_win, (*pad_pos)++, info_area_width + 1, "%ls", volume_area);
     }
 }
 
-void tui_repaint_all(struct pipemixer *pipemixer) {
-    struct tui *tui = pipemixer->tui;
-
+void tui_repaint_all(void) {
     debug("tui: repainting and updating everything");
 
-    WINDOW *pad = tui->pad_win;
     int pad_pos = 0;
 
     struct node *node;
     for (size_t i = 0; i < stbds_hmlenu(pw.nodes); i++) {
         node = pw.nodes[i].value;
-        tui_draw_node(tui, node, &pad_pos);
+        tui_draw_node(node, &pad_pos);
         //mvwprintw(pad, pad_pos++, 0, "(%d) %s: %s",
         //          node->id, node->application_name, node->media_name);
         //for (uint32_t i = 0; i < node->props.channel_count; i++) {
@@ -74,7 +74,7 @@ void tui_repaint_all(struct pipemixer *pipemixer) {
         //mvwprintw(pad, pad_pos++, 0, "%*s", MAX_SCREEN_WIDTH, ""); /* fill with spaces */
     }
 
-    pnoutrefresh(tui->pad_win, tui->pad_pos, 0, 1, 0, tui->term_height - 1, tui->term_width - 1);
+    pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0, tui.term_height - 1, tui.term_width - 1);
     doupdate();
 }
 
