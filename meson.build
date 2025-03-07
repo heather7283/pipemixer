@@ -7,6 +7,8 @@ add_project_arguments('-Wno-gnu-statement-expression-from-macro-expansion', lang
 add_project_arguments('-Wno-gnu-zero-variadic-macro-arguments', language: 'c')
 add_project_arguments('-Wno-gnu-case-range', language: 'c')
 
+add_project_arguments('-Wno-unused-parameter', language: 'c')
+
 # needed for unicode support in curses
 add_project_arguments('-DNCURSES_WIDECHAR', language: 'c')
 
