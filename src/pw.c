@@ -10,6 +10,7 @@
 #include "log.h"
 #include "props.h"
 #include "param_print.h"
+#include "xmalloc.h"
 
 static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
@@ -158,10 +159,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
             return;
         }
 
-        struct node *new_node = calloc(1, sizeof(struct node));
-        if (new_node == NULL) {
-            die("failed to allocate memory for node struct");
-        }
+        struct node *new_node = xcalloc(1, sizeof(struct node));
 
         new_node->id = id;
         new_node->media_class = media_class_value;
