@@ -24,9 +24,6 @@ struct node {
     char media_name[MAX_STRING_LENGTH];
     char application_name[MAX_STRING_LENGTH];
     struct node_props props;
-
-    /* don't remove */
-    struct pw_node_info *info;
 };
 #undef MAX_STRING_LENGTH
 

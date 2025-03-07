@@ -15,10 +15,6 @@
 static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
 
-    if (node->info != NULL) {
-        pw_node_info_free(node->info);
-    }
-
     free(node);
 }
 
@@ -72,12 +68,6 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             //} /* else, conversion succeeded */
             snprintf(node->application_name, sizeof(node->application_name), "%s", v);
         }
-    }
-
-    /* DO NOT REMOVE, EVERYTHING WILL BREAK. TODO: figure out what does this actually do */
-    info = node->info = pw_node_info_update(node->info, info);
-    if (info == NULL) {
-        warn("node info: info is NULL after pw_node_info_update() (why?)");
     }
 
     if (info->change_mask & PW_NODE_CHANGE_MASK_PARAMS) {
