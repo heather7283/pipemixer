@@ -45,7 +45,6 @@ static void handle_resize(struct tui *tui) {
 }
 
 static int keyboard_handler(void *data, struct event_loop_item *item) {
-    //struct tui *tui = data;
     struct pipemixer *pipemixer = data;
 
     int ch;
@@ -128,7 +127,7 @@ static int signals_handler(void *data, struct event_loop_item *item) {
 static int pipewire_handler(void *data, struct event_loop_item *item) {
     struct pipemixer *pipemixer = data;
 
-    pw_loop_iterate(pipemixer->pw->main_loop_loop, 0);
+    pw_loop_iterate(pw.main_loop_loop, 0);
 
     tui_repaint_all(pipemixer);
 
@@ -228,9 +227,7 @@ int main(int argc, char** argv) {
     }
 
     struct tui tui = {0};
-    struct pw pw = {0};
     struct pipemixer pipemixer = {
-        .pw = &pw,
         .tui = &tui,
     };
 
@@ -245,7 +242,7 @@ int main(int argc, char** argv) {
         goto cleanup;
     }
 
-    pipewire_init(&pw);
+    pipewire_init();
 
     setlocale(LC_ALL, ""); /* needed for unicode support in ncurses */
 
@@ -283,7 +280,7 @@ cleanup:
     }
     endwin();
 
-    pipewire_cleanup(&pw);
+    pipewire_cleanup();
 
     if (log_stream != NULL) {
         fclose(log_stream);

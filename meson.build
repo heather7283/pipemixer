@@ -41,6 +41,7 @@ executable('pwtest',
   'src/event_loop.c',
   'src/xmalloc.c',
   'src/stb_ds_impl.c',
+  include_directories: ['thirdparty'],
   dependencies: [pipewire_dep, m_dep],
   install: false)
 

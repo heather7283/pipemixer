@@ -1,4 +1,5 @@
 #include <math.h>
+#include <wchar.h>
 
 #include "tui.h"
 #include "macros.h"
@@ -54,7 +55,6 @@ void tui_draw_node(struct tui *tui, struct node *node, int *pad_pos) {
 
 void tui_repaint_all(struct pipemixer *pipemixer) {
     struct tui *tui = pipemixer->tui;
-    struct pw *pw = pipemixer->pw;
 
     debug("tui: repainting and updating everything");
 
@@ -62,8 +62,8 @@ void tui_repaint_all(struct pipemixer *pipemixer) {
     int pad_pos = 0;
 
     struct node *node;
-    for (size_t i = 0; i < stbds_hmlenu(pw->nodes); i++) {
-        node = pw->nodes[i].value;
+    for (size_t i = 0; i < stbds_hmlenu(pw.nodes); i++) {
+        node = pw.nodes[i].value;
         tui_draw_node(tui, node, &pad_pos);
         //mvwprintw(pad, pad_pos++, 0, "(%d) %s: %s",
         //          node->id, node->application_name, node->media_name);

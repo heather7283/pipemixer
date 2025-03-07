@@ -53,8 +53,7 @@ int main(int argc, char **argv) {
 
     log_init(stderr, LOG_DEBUG);
 
-    struct pw pw = {0};
-    pipewire_init(&pw);
+    pipewire_init();
 
     int signal_fd = signalfd_init();
 
@@ -119,7 +118,7 @@ int main(int argc, char **argv) {
     }
 
 cleanup:
-    pipewire_cleanup(&pw);
+    pipewire_cleanup();
 
     return exit_status;
 }

@@ -14,8 +14,6 @@ enum media_class {
 
 #define MAX_STRING_LENGTH 64
 struct node {
-    struct pw *pw;
-
     struct pw_node *pw_node;
     struct spa_hook listener;
 
@@ -47,8 +45,10 @@ struct pw {
     } *nodes;
 };
 
-int pipewire_init(struct pw *pw);
-void pipewire_cleanup(struct pw *pw);
+extern struct pw pw;
+
+int pipewire_init(void);
+void pipewire_cleanup(void);
 
 #endif /* #ifndef PW_H */
 

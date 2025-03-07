@@ -12,6 +12,8 @@
 #include "param_print.h"
 #include "xmalloc.h"
 
+struct pw pw = {0};
+
 static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
 
@@ -104,7 +106,7 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         && ((struct spa_pod_object *)param)->body.type == SPA_TYPE_OBJECT_Props) {
 
         if (parse_node_props(param, &node->props) < 0) {
-            put_pod(node->pw, NULL, param);
+            //put_pod(&pw, NULL, param);
         }
     }
 }
@@ -116,10 +118,8 @@ static const struct pw_node_events node_events = {
 };
 
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
-                                  const char *type, uint32_t version,
-                                  const struct spa_dict *props) {
-    struct pw *pw = data;
-
+                               const char *type, uint32_t version,
+                               const struct spa_dict *props) {
     debug("registry global: id %d, perms "PW_PERMISSION_FORMAT", ver %d, type %s",
           id, PW_PERMISSION_ARGS(permissions), version, type);
     uint32_t i = 0;
@@ -129,8 +129,6 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
     }
 
     if (streq(type, PW_TYPE_INTERFACE_Node)) {
-        struct spa_list *target_list;
-
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         enum media_class media_class_value;
         if (media_class == NULL) {
@@ -153,22 +151,19 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
 
         new_node->id = id;
         new_node->media_class = media_class_value;
-        new_node->pw = pw;
-        new_node->pw_node = pw_registry_bind(pw->registry, id, type, PW_VERSION_NODE, 0);
+        new_node->pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
         pw_node_add_listener(new_node->pw_node, &new_node->listener, &node_events, new_node);
 
-        stbds_hmput(pw->nodes, new_node->id, new_node);
+        stbds_hmput(pw.nodes, new_node->id, new_node);
     }
 }
 
 static void on_registry_global_remove(void *data, uint32_t id) {
-    struct pw *pw = data;
-
     debug("registry global remove: id %d", id);
 
     struct node *node;
-    if ((node = stbds_hmget(pw->nodes, id)) != NULL) {
-        stbds_hmdel(pw->nodes, id);
+    if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
+        stbds_hmdel(pw.nodes, id);
         node_cleanup(node);
     }
 }
@@ -179,45 +174,45 @@ static const struct pw_registry_events registry_events = {
     .global_remove = on_registry_global_remove,
 };
 
-int pipewire_init(struct pw *pw) {
+int pipewire_init(void) {
     pw_init(NULL, NULL);
 
-    pw->main_loop = pw_main_loop_new(NULL /* properties */);
-    pw->main_loop_loop = pw_main_loop_get_loop(pw->main_loop);
-    pw->main_loop_loop_fd = pw_loop_get_fd(pw->main_loop_loop);
+    pw.main_loop = pw_main_loop_new(NULL /* properties */);
+    pw.main_loop_loop = pw_main_loop_get_loop(pw.main_loop);
+    pw.main_loop_loop_fd = pw_loop_get_fd(pw.main_loop_loop);
 
-    pw->context = pw_context_new(pw->main_loop_loop, NULL, 0);
-    if (pw->context == NULL) {
+    pw.context = pw_context_new(pw.main_loop_loop, NULL, 0);
+    if (pw.context == NULL) {
         err("failed to create pw_context: %s", strerror(errno));
         return -1;
     }
 
-    pw->core = pw_context_connect(pw->context, NULL, 0);
-    if (pw->core == NULL) {
+    pw.core = pw_context_connect(pw.context, NULL, 0);
+    if (pw.core == NULL) {
         err("failed to connect to pipewire: %s", strerror(errno));
         return -1;
     }
 
-    pw->registry = pw_core_get_registry(pw->core, PW_VERSION_REGISTRY, 0);
-    pw_registry_add_listener(pw->registry, &pw->registry_listener, &registry_events, pw);
+    pw.registry = pw_core_get_registry(pw.core, PW_VERSION_REGISTRY, 0);
+    pw_registry_add_listener(pw.registry, &pw.registry_listener, &registry_events, NULL);
 
     return 0;
 }
 
-void pipewire_cleanup(struct pw *pw) {
+void pipewire_cleanup(void) {
     struct node *node;
     size_t i;
-    while ((i = stbds_hmlenu(pw->nodes)) > 0) {
-        node = pw->nodes[i - 1].value;
-        stbds_hmdel(pw->nodes, node->id);
+    while ((i = stbds_hmlenu(pw.nodes)) > 0) {
+        node = pw.nodes[i - 1].value;
+        stbds_hmdel(pw.nodes, node->id);
         node_cleanup(node);
     }
-    stbds_hmfree(pw->nodes);
+    stbds_hmfree(pw.nodes);
 
-    pw_proxy_destroy((struct pw_proxy *)pw->registry);
-    pw_core_disconnect(pw->core);
-    pw_context_destroy(pw->context);
-    pw_main_loop_destroy(pw->main_loop);
+    pw_proxy_destroy((struct pw_proxy *)pw.registry);
+    pw_core_disconnect(pw.core);
+    pw_context_destroy(pw.context);
+    pw_main_loop_destroy(pw.main_loop);
     pw_deinit();
 }
 
