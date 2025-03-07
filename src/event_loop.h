@@ -24,8 +24,8 @@ struct event_loop_uncond *event_loop_add_uncond(struct event_loop *loop,
                                                 event_loop_uncond_callback_t callback, void *data);
 void event_loop_remove_uncond(struct event_loop_uncond *uncond);
 
-void event_loop_run(struct event_loop *loop);
-void event_loop_quit(struct event_loop *loop);
+int event_loop_run(struct event_loop *loop);
+void event_loop_quit(struct event_loop *loop, int retcode);
 
 #endif /* #ifndef EVENT_LOOP_H */
 

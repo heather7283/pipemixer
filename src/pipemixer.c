@@ -84,7 +84,7 @@ static int keyboard_handler(void *data, struct event_loop_item *item) {
                 tui_repaint_all(pipemixer);
                 break;
             case 'q':
-                event_loop_quit(event_loop_item_get_loop(item));
+                event_loop_quit(event_loop_item_get_loop(item), 0);
                 break;
         }
     }
@@ -105,11 +105,11 @@ static int signals_handler(void *data, struct event_loop_item *item) {
     switch (siginfo.ssi_signo) {
     case SIGINT:
         info("caught SIGINT, stopping main loop");
-        event_loop_quit(event_loop_item_get_loop(item));
+        event_loop_quit(event_loop_item_get_loop(item), 0);
         break;
     case SIGTERM:
         info("caught SIGTERM, stopping main loop");
-        event_loop_quit(event_loop_item_get_loop(item));
+        event_loop_quit(event_loop_item_get_loop(item), 0);
         break;
     case SIGWINCH:
         debug("caught SIGWINCH, calling resize handler");
@@ -265,7 +265,7 @@ int main(int argc, char** argv) {
     event_loop_add_item(loop, 0, keyboard_handler, &pipemixer); /* stdin */
     event_loop_add_item(loop, signal_fd, signals_handler, &tui); /* passing tui for SIGWINCH */
     event_loop_add_item(loop, pw.main_loop_loop_fd, pipewire_handler, &pipemixer);
-    event_loop_run(loop);
+    retcode = event_loop_run(loop);
 
 cleanup:
     if (loop != NULL) {

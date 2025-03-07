@@ -32,7 +32,8 @@ struct event_loop_uncond {
 };
 
 struct event_loop {
-    bool running;
+    bool should_quit;
+    int retcode;
     int epoll_fd;
 
     struct spa_list items;
@@ -100,8 +101,9 @@ struct event_loop_item *event_loop_add_item(struct event_loop *loop, int fd,
     epoll_event.events = EPOLLIN;
     epoll_event.data.fd = fd;
     if (epoll_ctl(loop->epoll_fd, EPOLL_CTL_ADD, fd, &epoll_event) < 0) {
+        int ret = errno;
         err("event loop: failed to add fd %d to epoll (%s)", fd, strerror(errno));
-        event_loop_quit(loop);
+        event_loop_quit(loop, ret);
     }
 
     spa_list_insert(&loop->items, &new_item->link);
@@ -116,8 +118,9 @@ void event_loop_remove_item(struct event_loop_item *item) {
 
     if (fd_is_valid(item->fd)) {
         if (epoll_ctl(item->loop->epoll_fd, EPOLL_CTL_DEL, item->fd, NULL) < 0) {
+            int ret = errno;
             err("event loop: failed to remove fd %d from epoll (%s)", item->fd, strerror(errno));
-            event_loop_quit(item->loop);
+            event_loop_quit(item->loop, ret);
         }
         close(item->fd);
     } else {
@@ -156,21 +159,23 @@ void event_loop_remove_uncond(struct event_loop_uncond *uncond) {
     free(uncond);
 }
 
-void event_loop_run(struct event_loop *loop) {
+int event_loop_run(struct event_loop *loop) {
     debug("event loop: run");
 
+    int ret = 0;
     int number_fds = -1;
     struct epoll_event events[EPOLL_MAX_EVENTS];
 
-    loop->running = true;
-    while (loop->running) {
+    loop->should_quit = false;
+    while (!loop->should_quit) {
         do {
             number_fds = epoll_wait(loop->epoll_fd, events, EPOLL_MAX_EVENTS, -1);
         } while (number_fds == -1 && errno == EINTR); /* epoll_wait failing with EINTR is normal */
 
         if (number_fds == -1) {
+            ret = errno;
             err("event loop: epoll_wait error (%s)", strerror(errno));
-            loop->running = false;
+            loop->retcode = ret;
             goto out;
         }
 
@@ -185,10 +190,10 @@ void event_loop_run(struct event_loop *loop) {
             spa_list_for_each_safe(item, item_tmp, &loop->items, link) {
                 if (item->fd == events[n].data.fd) {
                     match_found = true;
-                    int ret = item->callback(item->data, item);
+                    ret = item->callback(item->data, item);
                     if (ret < 0) {
                         err("event loop: callback returned non-zero, quitting");
-                        loop->running = false;
+                        loop->retcode = ret;
                         goto out;
                     }
                 };
@@ -201,22 +206,23 @@ void event_loop_run(struct event_loop *loop) {
 
         struct event_loop_uncond *uncond, *uncond_tmp;
         spa_list_for_each_safe(uncond, uncond_tmp, &loop->uncond_callbacks, link) {
-            int ret = uncond->callback(uncond->data, uncond);
+            ret = uncond->callback(uncond->data, uncond);
             if (ret < 0) {
                 err("event loop: unconditional callback returned non-zero, quitting");
-                loop->running = false;
+                loop->retcode = ret;
                 goto out;
             }
         }
     }
 
 out:
-    return;
+    return loop->retcode;
 }
 
-void event_loop_quit(struct event_loop *loop) {
+void event_loop_quit(struct event_loop *loop, int retcode) {
     debug("event loop: quit");
 
-    loop->running = false;
+    loop->should_quit = true;
+    loop->retcode = retcode;
 }
 
