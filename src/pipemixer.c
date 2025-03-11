@@ -1,3 +1,4 @@
+#include <sys/epoll.h>
 #include <sys/signalfd.h>
 #include <signal.h>
 #include <string.h>
@@ -10,9 +11,8 @@
 #include "pipemixer.h"
 #include "log.h"
 #include "tui.h"
-#include "macros.h"
-#include "event_loop.h"
 #include "pw.h"
+#include "thirdparty/event_loop.h"
 
 static void handle_resize(void) {
     // Get new dimensions
@@ -44,7 +44,7 @@ static void handle_resize(void) {
     doupdate();
 }
 
-static int keyboard_handler(void *data, struct event_loop_item *item) {
+static int keyboard_handler(struct event_loop_item *item, uint32_t events) {
     int ch;
     while (true) {
         errno = 0;
@@ -90,63 +90,28 @@ static int keyboard_handler(void *data, struct event_loop_item *item) {
     return 0;
 }
 
-static int signals_handler(void *data, struct event_loop_item *item) {
-    debug("processing signals");
-    struct signalfd_siginfo siginfo;
-    if (read(event_loop_item_get_fd(item), &siginfo, sizeof(siginfo)) != sizeof(siginfo)) {
-        err("failed to read signalfd_siginfo from signalfd: %s", strerror(errno));
-        return -1;
-    }
+static int siging_sigterm_handler(struct event_loop_item *item, int signal) {
+    info("caught signal %d, stopping main loop", signal);
 
-    switch (siginfo.ssi_signo) {
-    case SIGINT:
-        info("caught SIGINT, stopping main loop");
-        event_loop_quit(event_loop_item_get_loop(item), 0);
-        break;
-    case SIGTERM:
-        info("caught SIGTERM, stopping main loop");
-        event_loop_quit(event_loop_item_get_loop(item), 0);
-        break;
-    case SIGWINCH:
-        debug("caught SIGWINCH, calling resize handler");
-        //ungetch(KEY_RESIZE);
-        handle_resize();
-        break;
-    default:
-        err("(BUG) unhandled signal received through signalfd: %d", siginfo.ssi_signo);
-        return -1;
-    }
+    event_loop_quit(event_loop_item_get_loop(item), 0);
 
     return 0;
 }
 
-static int pipewire_handler(void *data, struct event_loop_item *item) {
+static int sigwinch_handler(struct event_loop_item *item, int signal) {
+    debug("caught SIGWINCH, calling resize handler");
+    //ungetch(KEY_RESIZE);
+    handle_resize();
+
+    return 0;
+}
+
+static int pipewire_handler(struct event_loop_item *item, uint32_t events) {
     pw_loop_iterate(pw.main_loop_loop, 0);
 
     tui_repaint_all();
 
     return 0;
-}
-
-static int signalfd_init(void) {
-    int fd;
-
-    sigset_t mask;
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGINT);
-    sigaddset(&mask, SIGTERM);
-    sigaddset(&mask, SIGWINCH);
-    if (sigprocmask(SIG_BLOCK, &mask, NULL) < 0) {
-        err("failed to block signals: %s", strerror(errno));
-        return -1;
-    }
-
-    if ((fd = signalfd(-1, &mask, SFD_CLOEXEC)) < 0) {
-        err("failed to set up signalfd: %s", strerror(errno));
-        return -1;
-    }
-
-    return fd;
 }
 
 void print_help_and_exit(FILE *stream, int exit_status) {
@@ -167,7 +132,6 @@ void print_help_and_exit(FILE *stream, int exit_status) {
 
 int main(int argc, char** argv) {
     int retcode = 0;
-    int signal_fd = -1;
 
     FILE *log_stream = NULL;
     int log_fd = -1;
@@ -226,11 +190,6 @@ int main(int argc, char** argv) {
         goto cleanup;
     }
 
-    if ((signal_fd = signalfd_init()) < 0) {
-        retcode = 1;
-        goto cleanup;
-    }
-
     pipewire_init();
 
     setlocale(LC_ALL, ""); /* needed for unicode support in ncurses */
@@ -251,9 +210,11 @@ int main(int argc, char** argv) {
     /* initial draw */
     handle_resize();
 
-    event_loop_add_item(loop, 0, keyboard_handler, NULL); /* stdin */
-    event_loop_add_item(loop, signal_fd, signals_handler, NULL);
-    event_loop_add_item(loop, pw.main_loop_loop_fd, pipewire_handler, NULL);
+    event_loop_add_pollable(loop, 0 /* stdin */, EPOLLIN, false, keyboard_handler, NULL);
+    event_loop_add_pollable(loop, pw.main_loop_loop_fd, EPOLLIN, false, pipewire_handler, NULL);
+    event_loop_add_signal(loop, SIGTERM, siging_sigterm_handler, NULL);
+    event_loop_add_signal(loop, SIGINT, siging_sigterm_handler, NULL);
+    event_loop_add_signal(loop, SIGWINCH, sigwinch_handler, NULL);
     retcode = event_loop_run(loop);
 
 cleanup:
