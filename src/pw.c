@@ -45,7 +45,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
 
         trace("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
 
-        if (streq(k, PW_KEY_MEDIA_NAME)) {
+        if (STREQ(k, PW_KEY_MEDIA_NAME)) {
             //size_t conv = mbstowcs(node->media_name, v, ARRAY_SIZE(node->media_name));
             //if (conv == ARRAY_SIZE(node->media_name)) {
             //    /* not enough space for string, add ellipsis and null-terminate */
@@ -57,7 +57,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             //    swprintf(node->media_name, ARRAY_SIZE(node->media_name), L"INVALID");
             //} /* else, conversion succeeded */
             snprintf(node->media_name, sizeof(node->media_name), "%s", v);
-        } else if (streq(k, PW_KEY_NODE_NAME)) {
+        } else if (STREQ(k, PW_KEY_NODE_NAME)) {
             //size_t conv = mbstowcs(node->application_name, v, ARRAY_SIZE(node->application_name));
             //if (conv == ARRAY_SIZE(node->application_name)) {
             //    /* not enough space for string, add ellipsis and null-terminate */
@@ -128,19 +128,19 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         trace("%c---%s: %s", (++i == props->n_items ? '\\' : '|'), item->key, item->value);
     }
 
-    if (streq(type, PW_TYPE_INTERFACE_Node)) {
+    if (STREQ(type, PW_TYPE_INTERFACE_Node)) {
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         enum media_class media_class_value;
         if (media_class == NULL) {
             debug("empty media.class, not binding");
             return;
-        } else if (streq(media_class, "Audio/Source")) {
+        } else if (STREQ(media_class, "Audio/Source")) {
             media_class_value = AUDIO_SOURCE;
-        } else if (streq(media_class, "Audio/Sink")) {
+        } else if (STREQ(media_class, "Audio/Sink")) {
             media_class_value = AUDIO_SINK;
-        } else if (streq(media_class, "Stream/Input/Audio")) {
+        } else if (STREQ(media_class, "Stream/Input/Audio")) {
             media_class_value = STREAM_INPUT_AUDIO;
-        } else if (streq(media_class, "Stream/Output/Audio")) {
+        } else if (STREQ(media_class, "Stream/Output/Audio")) {
             media_class_value = STREAM_OUTPUT_AUDIO;
         } else {
             debug("not interested in media.class %s, not binding", media_class);
