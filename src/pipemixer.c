@@ -218,9 +218,7 @@ int main(int argc, char** argv) {
     retcode = event_loop_run(loop);
 
 cleanup:
-    if (loop != NULL) {
-        event_loop_cleanup(loop);
-    }
+    event_loop_cleanup(loop);
 
     if (tui.bar_win != NULL) {
         delwin(tui.bar_win);
