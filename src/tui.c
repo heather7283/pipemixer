@@ -17,15 +17,15 @@ void tui_draw_node(struct tui_node_display *disp) {
     /*
      * On a 80-character-wide term it will look like this:
      *                                                                                 80 chars
-     *                                          volume area start (<= 50%)             │
-     *                                          │                                      │
-     * Chromium: Playback                       75  ─┌▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮---------------┐─ │
-     *                                          75  ─└▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮---------------┘─ │
-     *                                          │    │                                 │
-     *                                         vol.deco (6 + 3 at the end)
+     *                                    volume area start (<= 50%)                   │
+     *                                    │                                            │
+     * Chromium: Playback                 AUX68 75  ─┌▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮---------------┐─ │
+     *                                    AUX69 75  ─└▮▮▮▮▮▮▮▮▮▮▮▮▮▮▮---------------┘─ │
+     *                                    │          │                                 │
+     *                                    vol.deco (12 + 3 at the end)
      */
     int half_term_width = tui.term_width / 2;
-    int volume_area_deco_width_left = 6;
+    int volume_area_deco_width_left = 12;
     int volume_area_deco_width_right = 3;
     int volume_area_deco_width = volume_area_deco_width_left + volume_area_deco_width_right;
     int volume_area_width_max_without_deco = half_term_width - volume_area_deco_width;
@@ -44,7 +44,8 @@ void tui_draw_node(struct tui_node_display *disp) {
         int vol_int = (int)roundf(node->props.channel_volumes[i] * 100);
 
         swprintf(volume_area, ARRAY_SIZE(volume_area),
-                 L"%-3d %lc%lc%*ls%lc%lc",
+                 L"%5s %-3d %lc%lc%*ls%lc%lc",
+                 node->props.channel_map[i],
                  vol_int,
                  focused ? L'─' : L' ',
                  (i == 0 ? L'┌' : (i == node->props.channel_count - 1 ? L'└' : L'│')),
