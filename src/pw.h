@@ -2,14 +2,21 @@
 #define PW_H
 
 #include <pipewire/pipewire.h>
-
-#include "props.h"
+#include <spa/param/audio/raw-types.h>
 
 enum media_class {
     AUDIO_SOURCE,
     AUDIO_SINK,
     STREAM_INPUT_AUDIO,
     STREAM_OUTPUT_AUDIO,
+};
+
+struct node_props {
+    bool mute;
+    uint32_t channel_count;
+    /* so much wasted ram... TODO: can I optimize mem usage? */
+    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
+    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
 };
 
 #define MAX_STRING_LENGTH 64

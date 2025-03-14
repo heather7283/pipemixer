@@ -1,4 +1,5 @@
 #include <wchar.h>
+#include <math.h>
 #include <spa/param/audio/raw.h>
 #include <spa/pod/parser.h>
 #include <spa/utils/result.h>
@@ -7,9 +8,8 @@
 #include "thirdparty/stb_ds.h"
 #include "pw.h"
 #include "macros.h"
+#include "utils.h"
 #include "log.h"
-#include "props.h"
-#include "param_print.h"
 #include "xmalloc.h"
 
 struct pw pw = {0};
@@ -73,22 +73,10 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
     }
 
     if (info->change_mask & PW_NODE_CHANGE_MASK_PARAMS) {
-        /* DO NOT CHANGE THIS CODE. Stolen from pw-dump.c, I have no idea what it does */
         for (i = 0; i < info->n_params; i++) {
-            uint32_t id = info->params[i].id;
-
-            if (info->params[i].user == 0) {
-                continue;
-            }
-            info->params[i].user = 0;
-
-            if (!(info->params[i].flags & SPA_PARAM_INFO_READ)) {
-                continue;
-            }
-
-            int res = pw_node_enum_params(node->pw_node, ++info->params[i].seq, id, 0, -1, NULL);
-            if (SPA_RESULT_IS_ASYNC(res)) {
-                info->params[i].seq = res;
+            struct spa_param_info *param = &info->params[i];
+            if (param->id == SPA_PARAM_Props && param->flags & SPA_PARAM_INFO_READ) {
+                pw_node_enum_params(node->pw_node, 0, param->id, 0, -1, NULL);
             }
         }
     }
@@ -101,14 +89,32 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     debug("node %d param: id %d seq %d index %d next %d param %p",
           node->id, id, seq, index, next, (void *)param);
 
-    /* Parsing will fail sometimes. Ignore it. */
-    if (param->type == SPA_TYPE_Object
-        && ((struct spa_pod_object *)param)->body.type == SPA_TYPE_OBJECT_Props) {
-
-        if (parse_node_props(param, &node->props) < 0) {
-            //put_pod(&pw, NULL, param);
-        }
+    const struct spa_pod_prop *volumes_prop = spa_pod_find_prop(param, NULL,
+                                                                SPA_PROP_channelVolumes);
+    const struct spa_pod_prop *channels_prop = spa_pod_find_prop(param, NULL,
+                                                                 SPA_PROP_channelMap);
+    const struct spa_pod_prop *mute_prop = spa_pod_find_prop(param, NULL,
+                                                             SPA_PROP_mute);
+    if (volumes_prop == NULL || channels_prop == NULL || mute_prop == NULL) {
+        return;
     }
+
+    struct node_props *props = &node->props;
+
+    struct spa_pod *iter;
+    int i = 0;
+    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&channels_prop->value, iter) {
+        props->channel_map[i++] = channel_name_from_enum(*(enum spa_audio_channel *)iter);
+    }
+    i = 0;
+    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&volumes_prop->value, iter) {
+        float vol_cubed = *(float *)iter;
+        float vol = cbrtf(vol_cubed);
+        props->channel_volumes[i++] = vol;
+    }
+    props->channel_count = i;
+
+    spa_pod_get_bool(&mute_prop->value, &props->mute);
 }
 
 static const struct pw_node_events node_events = {
