@@ -82,22 +82,6 @@ int tui_repaint_all(void) {
     return 0;
 }
 
-//int tui_handle_resize(void) {
-//    debug("tui: handle_resize");
-//
-//    tui.term_height = getmaxy(stdscr);
-//    tui.term_width = getmaxx(stdscr);
-//
-//    wresize(tui.bar_win, 1, tui.term_width);
-//    mvwin(tui.bar_win, 0, 0);
-//    mvwprintw(tui.bar_win, 0, 0,
-//              "Top Window - Status Bar (Terminal: %dx%d)", tui.term_width, tui.term_height);
-//
-//    pnoutrefresh(tui.pad_win, 0 /* scroll */, 0, 1, 0, tui.term_height - 1, tui.term_width - 1);
-//
-//    return 0;
-//}
-
 int tui_create_layout(void) {
     debug("tui: create_layout");
 
