@@ -2,6 +2,7 @@
 #define TUI_H
 
 #include <ncurses.h>
+#include <spa/utils/list.h>
 
 #include "pipemixer.h"
 
@@ -20,11 +21,28 @@ struct tui {
 
     WINDOW *pad_win;
     int pad_pos;
+
+    struct spa_list node_displays;
+
+    bool needs_redo_layout;
+    bool needs_resize;
+};
+
+struct tui_node_display {
+    uint32_t node_id;
+    WINDOW *win;
+
+    struct spa_list link;
 };
 
 extern struct tui tui;
 
-void tui_repaint_all(void);
+int tui_init(void);
+int tui_cleanup(void);
+
+int tui_repaint_all(void);
+int tui_handle_resize(void);
+int tui_create_layout(void);
 
 #endif /* #ifndef TUI_H */
 

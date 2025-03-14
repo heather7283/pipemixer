@@ -1,3 +1,4 @@
+#include <sys/ioctl.h>
 #include <sys/epoll.h>
 #include <sys/signalfd.h>
 #include <signal.h>
@@ -14,76 +15,18 @@
 #include "pw.h"
 #include "thirdparty/event_loop.h"
 
-static void handle_resize(void) {
-    // Get new dimensions
-    endwin();
-    refresh();
-    getmaxyx(stdscr, tui.term_height, tui.term_width);
-
-    // Resize top window
-    wresize(tui.bar_win, 1, tui.term_width);
-    mvwin(tui.bar_win, 0, 0);
-
-    // Clear and redraw
-    wclear(tui.bar_win);
-    mvwprintw(tui.bar_win, 0, 0, "Top Window - Status Bar (Terminal: %dx%d)",
-              tui.term_width, tui.term_height);
-
-    // Make sure pad_pos is within valid range after resize
-    if (tui.pad_pos > PAD_SIZE - tui.term_height) {
-        tui.pad_pos = PAD_SIZE - tui.term_height;
-    }
-    if (tui.pad_pos < 0) {
-        tui.pad_pos = 0;
-    }
-
-    // Refresh everything
-    refresh();
-    wrefresh(tui.bar_win);
-    pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0, tui.term_height - 1, tui.term_width - 1);
-    doupdate();
-}
-
 static int keyboard_handler(struct event_loop_item *item, uint32_t events) {
     int ch;
-    while (true) {
-        errno = 0;
-        if ((ch = getch()) == ERR) {
-            if (errno == EINTR) {
-                continue;
-            } else {
-                break;
-            }
-        }
-
-        getmaxyx(stdscr, tui.term_height, tui.term_width);
+    while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
+        debug("keyboard: char %c", ch);
 
         switch (ch) {
-            case KEY_RESIZE:
-                /* idk why am I getting those even though I installed my own SIGWINCH handler */
-                break;
-            case 'k':
-                if (tui.pad_pos > 0) {
-                    tui.pad_pos--;
-                    pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0,
-                                 tui.term_height - 1, tui.term_width - 1);
-                    doupdate();
-                }
-                break;
-            case 'j':
-                if (tui.pad_pos < PAD_SIZE - tui.term_height) {
-                    tui.pad_pos++;
-                    pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0,
-                                 tui.term_height - 1, tui.term_width - 1);
-                    doupdate();
-                }
-                break;
-            case 'r':
-                tui_repaint_all();
-                break;
-            case 'q':
-                event_loop_quit(event_loop_item_get_loop(item), 0);
-                break;
+        case KEY_RESIZE:
+            warn("WHY AM I GETTING KEY_RESIZE ???");
+            break;
+        case 'q':
+            event_loop_quit(event_loop_item_get_loop(item), 0);
+            break;
         }
     }
 
@@ -100,8 +43,20 @@ static int siging_sigterm_handler(struct event_loop_item *item, int signal) {
 
 static int sigwinch_handler(struct event_loop_item *item, int signal) {
     debug("caught SIGWINCH, calling resize handler");
-    //ungetch(KEY_RESIZE);
-    handle_resize();
+
+    struct winsize winsize;
+    if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
+        err("failed to get new window size: %s", strerror(errno));
+        return -1;
+    }
+
+    resize_term(winsize.ws_row, winsize.ws_col);
+    tui.term_height = getmaxy(stdscr);
+    tui.term_width = getmaxx(stdscr);
+    debug("new window dimensions %d lines %d columns", tui.term_height, tui.term_width);
+
+    tui_create_layout();
+    tui_repaint_all();
 
     return 0;
 }
@@ -109,6 +64,7 @@ static int sigwinch_handler(struct event_loop_item *item, int signal) {
 static int pipewire_handler(struct event_loop_item *item, uint32_t events) {
     pw_loop_iterate(pw.main_loop_loop, 0);
 
+    tui_create_layout();
     tui_repaint_all();
 
     return 0;
@@ -198,23 +154,9 @@ int main(int argc, char** argv) {
 
     pipewire_init();
 
-    setlocale(LC_ALL, ""); /* needed for unicode support in ncurses */
-
-    initscr();
-    cbreak();
-    noecho();
-    nodelay(stdscr, TRUE); /* getch() will fail instead of blocking waiting for input */
-    keypad(stdscr, TRUE);
-
-    getmaxyx(stdscr, tui.term_height, tui.term_width);
-
-    tui.bar_win = newwin(1, tui.term_width, 0, 0);
-    wrefresh(tui.bar_win);
-
-    tui.pad_win = newpad(PAD_SIZE, MAX_SCREEN_WIDTH);
-
-    /* initial draw */
-    handle_resize();
+    tui_init();
+    tui_create_layout();
+    tui_repaint_all();
 
     event_loop_add_pollable(loop, 0 /* stdin */, EPOLLIN, false, keyboard_handler, NULL);
     event_loop_add_pollable(loop, pw.main_loop_loop_fd, EPOLLIN, false, pipewire_handler, NULL);
@@ -226,13 +168,7 @@ int main(int argc, char** argv) {
 cleanup:
     event_loop_cleanup(loop);
 
-    if (tui.bar_win != NULL) {
-        delwin(tui.bar_win);
-    }
-    if (tui.pad_win != NULL) {
-        delwin(tui.pad_win);
-    }
-    endwin();
+    tui_cleanup();
 
     pipewire_cleanup();
 

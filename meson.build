@@ -44,3 +44,9 @@ executable('pwtest',
   dependencies: [pipewire_dep, m_dep],
   install: false)
 
+executable('ncurses_test',
+  'src/ncurses_test.c',
+  include_directories: ['thirdparty'],
+  dependencies: [ncursesw_dep, pipewire_dep, m_dep],
+  install: false)
+
