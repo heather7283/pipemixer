@@ -48,9 +48,9 @@ void tui_draw_node(struct tui_node_display *disp) {
                  node->props.channel_map[i],
                  vol_int,
                  disp->focused ? L'─' : L' ',
-                 (i == 0 ? L'┌' : (i == node->props.channel_count - 1 ? L'└' : L'│')),
+                 (i == 0 ? L'┌' : (i == node->props.channel_count - 1 ? L'└' : L'├')),
                  volume_area_width_without_deco, L"", /* empty space */
-                 (i == 0 ? L'┐' : (i == node->props.channel_count - 1 ? L'┘' : L'│')),
+                 (i == 0 ? L'┐' : (i == node->props.channel_count - 1 ? L'┘' : L'┤')),
                  disp->focused ? L'─' : L' ');
 
         int thresh = vol_int * volume_area_width_without_deco / 150;
