@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
     static const struct option longopts[] = {
         { "log-fd",      required_argument, NULL, 'L' },
         { "loglevel",    required_argument, NULL, 'l' },
-        { "color",       required_argument, NULL, 'C' },
+        { "color",       no_argument,       NULL, 'C' },
         { "help",        no_argument,       NULL, 'h' },
         { 0 }
     };
