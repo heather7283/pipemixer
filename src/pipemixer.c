@@ -124,6 +124,7 @@ void print_help_and_exit(FILE *stream, int exit_status) {
         "command line options:\n"
         "    -l, --loglevel   one of DEBUG, INFO, WARN, ERROR, QUIET\n"
         "    -L, --log-fd     write log to this fd (must be open for writing)\n"
+        "    -C, --color      force logging with colors\n"
         "    -h, --help       print this help message and exit\n";
 
     fputs(help_string, stream);
@@ -136,11 +137,13 @@ int main(int argc, char** argv) {
     FILE *log_stream = NULL;
     int log_fd = -1;
     enum log_loglevel loglevel = LOG_DEBUG;
+    bool log_force_colors = false;
 
-    static const char shortopts[] = "L:l:h";
+    static const char shortopts[] = "L:l:Ch";
     static const struct option longopts[] = {
         { "log-fd",      required_argument, NULL, 'L' },
         { "loglevel",    required_argument, NULL, 'l' },
+        { "color",       required_argument, NULL, 'C' },
         { "help",        no_argument,       NULL, 'h' },
         { 0 }
     };
@@ -165,6 +168,9 @@ int main(int argc, char** argv) {
                 exit(1);
             }
             break;
+        case 'C':
+            log_force_colors = true;
+            break;
         case 'h':
             print_help_and_exit(stdout, 0);
             break;
@@ -181,7 +187,7 @@ int main(int argc, char** argv) {
             exit(1);
         }
 
-        log_init(log_stream, loglevel);
+        log_init(log_stream, loglevel, log_force_colors);
     }
 
     struct event_loop *loop = event_loop_create();

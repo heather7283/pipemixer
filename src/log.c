@@ -33,10 +33,10 @@ enum log_loglevel log_str_to_loglevel(const char *str) {
     }
 }
 
-void log_init(FILE *stream, enum log_loglevel level) {
+void log_init(FILE *stream, enum log_loglevel level, bool force_colors) {
     log_config.stream = stream;
     log_config.loglevel = level;
-    log_config.colors = isatty(fileno(stream));
+    log_config.colors = force_colors ? true : isatty(fileno(stream));
 }
 
 void log_print(enum log_loglevel level, char *message, ...) {

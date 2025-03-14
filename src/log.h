@@ -20,7 +20,7 @@ enum log_loglevel {
 
 enum log_loglevel log_str_to_loglevel(const char *str);
 
-void log_init(FILE *stream, enum log_loglevel level);
+void log_init(FILE *stream, enum log_loglevel level, bool force_colors);
 void log_print(enum log_loglevel level, char *msg, ...);
 
 /* TODO: replace usage of those macros with log_print */

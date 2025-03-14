@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
 
     setlocale(LC_ALL, "");
 
-    log_init(stderr, LOG_DEBUG);
+    log_init(stderr, LOG_DEBUG, false);
 
     pipewire_init();
 
