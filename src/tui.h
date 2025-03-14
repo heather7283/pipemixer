@@ -32,6 +32,8 @@ struct tui_node_display {
     uint32_t node_id;
     WINDOW *win;
 
+    bool focused;
+
     struct spa_list link;
 };
 
@@ -43,6 +45,9 @@ int tui_cleanup(void);
 int tui_repaint_all(void);
 int tui_handle_resize(void);
 int tui_create_layout(void);
+
+void tui_focus_next(void);
+void tui_focus_prev(void);
 
 #endif /* #ifndef TUI_H */
 

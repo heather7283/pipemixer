@@ -12,7 +12,8 @@ struct tui tui = {0};
 
 void tui_draw_node(struct tui_node_display *disp) {
     struct node *node = stbds_hmget(pw.nodes, disp->node_id);
-    //debug("drawing node %d", node->id);
+
+    debug("drawing node %d, disp.focused %d", node->id, disp->focused);
 
     /*
      * On a 80-character-wide term it will look like this:
@@ -40,18 +41,17 @@ void tui_draw_node(struct tui_node_display *disp) {
     for (uint32_t i = 0; i < node->props.channel_count; i++) {
         wchar_t volume_area[volume_area_width];
 
-        bool focused = false;
         int vol_int = (int)roundf(node->props.channel_volumes[i] * 100);
 
         swprintf(volume_area, ARRAY_SIZE(volume_area),
                  L"%5s %-3d %lc%lc%*ls%lc%lc",
                  node->props.channel_map[i],
                  vol_int,
-                 focused ? L'─' : L' ',
+                 disp->focused ? L'─' : L' ',
                  (i == 0 ? L'┌' : (i == node->props.channel_count - 1 ? L'└' : L'│')),
                  volume_area_width_without_deco, L"", /* empty space */
                  (i == 0 ? L'┐' : (i == node->props.channel_count - 1 ? L'┘' : L'│')),
-                 focused ? L'─' : L' ');
+                 disp->focused ? L'─' : L' ');
 
         int thresh = vol_int * volume_area_width_without_deco / 150;
         for (int j = 0; j < volume_area_width_without_deco; j++) {
@@ -108,8 +108,9 @@ int tui_create_layout(void) {
     for (size_t i = stbds_hmlenu(pw.nodes); i > 0; i--) {
         struct node *node = pw.nodes[i - 1].value;
 
-        struct tui_node_display *node_display = xmalloc(sizeof(*node_display));
+        struct tui_node_display *node_display = xcalloc(1, sizeof(*node_display));
         node_display->node_id = node->id;
+        node_display->focused = i == stbds_hmlenu(pw.nodes);
 
         int subwin_height = node->props.channel_count + 3;
         node_display->win = subpad(tui.pad_win, subwin_height, tui.term_width, pos_y, 0);
@@ -119,6 +120,30 @@ int tui_create_layout(void) {
     }
 
     return 0;
+}
+
+void tui_focus_next(void) {
+    struct tui_node_display *disp, *disp_next = NULL;
+    spa_list_for_each_reverse(disp, &tui.node_displays, link) {
+        if (disp_next != NULL && disp->focused) {
+            disp->focused = false;
+            disp_next->focused = true;
+        }
+
+        disp_next = disp;
+    }
+}
+
+void tui_focus_prev(void) {
+    struct tui_node_display *disp, *disp_prev = NULL;
+    spa_list_for_each(disp, &tui.node_displays, link) {
+        if (disp_prev != NULL && disp->focused) {
+            disp->focused = false;
+            disp_prev->focused = true;
+        }
+
+        disp_prev = disp;
+    }
 }
 
 int tui_init(void) {
