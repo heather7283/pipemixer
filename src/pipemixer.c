@@ -9,7 +9,6 @@
 #include <getopt.h>
 #include <ncurses.h>
 
-#include "pipemixer.h"
 #include "log.h"
 #include "tui.h"
 #include "pw.h"

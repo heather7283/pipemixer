@@ -4,8 +4,6 @@
 #include <ncurses.h>
 #include <spa/utils/list.h>
 
-#include "pipemixer.h"
-
 #define PAD_SIZE 1000 /* number of lines in the pad */
 #define MAX_SCREEN_WIDTH 512  /* surely nobody will have terminal window wider than that */
 
