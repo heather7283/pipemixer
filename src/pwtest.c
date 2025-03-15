@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
                             info("  channel %d (%s): %f",
                                  i, node->props.channel_map[i], node->props.channel_volumes[i]);
                         }
-                        info("  application.name: %s", node->application_name);
+                        info("  node.name: %s", node->node_name);
                         info("  media.name: %s", node->media_name);
                     }
                     break;

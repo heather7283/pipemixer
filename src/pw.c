@@ -17,7 +17,7 @@ struct pw pw = {0};
 static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
 
-    free(node->application_name);
+    free(node->node_name);
     free(node->media_name);
 
     free(node);
@@ -54,9 +54,14 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
                 node->media_name = L"INVALID";
             }
         } else if (STREQ(k, PW_KEY_NODE_NAME)) {
-            node->application_name = mbstowcsdup(v);
-            if (node->application_name == NULL) {
-                node->application_name = L"INVALID";
+            node->node_name = mbstowcsdup(v);
+            if (node->node_name == NULL) {
+                node->node_name = L"INVALID";
+            }
+        } else if (STREQ(k, PW_KEY_NODE_DESCRIPTION)) {
+            node->node_description = mbstowcsdup(v);
+            if (node->node_description == NULL) {
+                node->node_description = L"INVALID";
             }
         }
     }
