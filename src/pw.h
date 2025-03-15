@@ -19,7 +19,6 @@ struct node_props {
     const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
 };
 
-#define MAX_STRING_LENGTH 64
 struct node {
     struct pw_node *pw_node;
     struct spa_hook listener;
@@ -31,7 +30,6 @@ struct node {
     wchar_t *node_description;
     struct node_props props;
 };
-#undef MAX_STRING_LENGTH
 
 struct pw {
     struct pw_main_loop *main_loop;
