@@ -18,8 +18,6 @@
 static int keyboard_handler(struct event_loop_item *item, uint32_t events) {
     int ch;
     while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
-        debug("keyboard: char %c", ch);
-
         switch (ch) {
         case KEY_RESIZE:
             warn("WHY AM I GETTING KEY_RESIZE ???");

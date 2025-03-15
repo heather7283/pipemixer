@@ -13,8 +13,6 @@ struct tui tui = {0};
 void tui_draw_node(struct tui_node_display *disp) {
     struct node *node = stbds_hmget(pw.nodes, disp->node_id);
 
-    debug("drawing node %d, disp.focused %d", node->id, disp->focused);
-
     /*
      * On a 80-character-wide term it will look like this:
      *                                                                                 80 chars
