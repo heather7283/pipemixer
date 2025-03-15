@@ -31,6 +31,7 @@ void tui_draw_node(struct tui_node_display *disp) {
     int volume_area_width_without_deco = (volume_area_width_max_without_deco / 15) * 15;
     int volume_area_width = volume_area_width_without_deco + volume_area_deco_width;
     int info_area_width = tui.term_width - volume_area_width - 1;
+    int volume_area_start = info_area_width + 1;
 
     wchar_t line[tui.term_width - 2];
     swprintf(line, ARRAY_SIZE(line), L"(%d) %ls: %ls",
@@ -43,15 +44,29 @@ void tui_draw_node(struct tui_node_display *disp) {
         wchar_t volume_area[volume_area_width];
 
         int vol_int = (int)roundf(node->props.channel_volumes[i] * 100);
+        wchar_t border_char_left, border_char_right;
+        if (node->props.channel_count == 1) {
+            border_char_left = L'╶';
+            border_char_right = L'╴';
+        } else if (i == 0) {
+            border_char_left = L'┌';
+            border_char_right = L'┐';
+        } else if (i == node->props.channel_count - 1) {
+            border_char_left = L'└';
+            border_char_right = L'┘';
+        } else {
+            border_char_left = L'├';
+            border_char_right = L'┤';
+        }
 
         swprintf(volume_area, ARRAY_SIZE(volume_area),
                  L"%5s %-3d %lc%lc%*ls%lc%lc",
                  node->props.channel_map[i],
                  vol_int,
                  disp->focused ? L'─' : L' ',
-                 (i == 0 ? L'┌' : (i == node->props.channel_count - 1 ? L'└' : L'├')),
+                 border_char_left,
                  volume_area_width_without_deco, L"", /* empty space */
-                 (i == 0 ? L'┐' : (i == node->props.channel_count - 1 ? L'┘' : L'┤')),
+                 border_char_right,
                  disp->focused ? L'─' : L' ');
 
         int thresh = vol_int * volume_area_width_without_deco / 150;
@@ -60,7 +75,7 @@ void tui_draw_node(struct tui_node_display *disp) {
             *p = j < thresh ? L'#' : L'-';
         }
 
-        mvwprintw(disp->win, i + 2, info_area_width + 1, "%ls", volume_area);
+        mvwprintw(disp->win, i + 2, volume_area_start, "%ls", volume_area);
     }
 }
 
