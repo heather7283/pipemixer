@@ -13,6 +13,7 @@
 #include "tui.h"
 #include "pw.h"
 #include "thirdparty/event_loop.h"
+#include "thirdparty/stb_ds.h"
 
 static int keyboard_handler(struct event_loop_item *item, uint32_t events) {
     int ch;
@@ -30,6 +31,12 @@ static int keyboard_handler(struct event_loop_item *item, uint32_t events) {
             if (tui_focus_next()) {
                 tui_repaint_all();
             }
+            break;
+        case 'l':
+            node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), 0.01);
+            break;
+        case 'h':
+            node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), -0.01);
             break;
         case 'q':
             event_loop_quit(event_loop_item_get_loop(item), 0);

@@ -21,6 +21,7 @@ struct tui {
     int pad_pos;
 
     struct spa_list node_displays;
+    struct tui_node_display *focused_node_display;
 
     bool needs_redo_layout;
     bool needs_resize;

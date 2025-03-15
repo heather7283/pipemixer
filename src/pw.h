@@ -58,5 +58,7 @@ extern struct pw pw;
 int pipewire_init(void);
 void pipewire_cleanup(void);
 
+void node_change_volume(struct node *node, float delta);
+
 #endif /* #ifndef PW_H */
 

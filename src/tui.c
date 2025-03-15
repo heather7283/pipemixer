@@ -104,6 +104,13 @@ int tui_repaint_all(void) {
 int tui_create_layout(void) {
     debug("tui: create_layout");
 
+    uint32_t prev_focused_id;
+    if (tui.focused_node_display != NULL) {
+        prev_focused_id = tui.focused_node_display->node_id;
+    } else {
+        prev_focused_id = 0;
+    }
+
     if (tui.bar_win != NULL) {
         delwin(tui.bar_win);
         tui.bar_win = NULL;
@@ -123,19 +130,32 @@ int tui_create_layout(void) {
     tui.pad_win = newpad(stbds_hmlenu(pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3), tui.term_width);
     nodelay(tui.pad_win, TRUE);
 
+    bool focused_found = false;
     int pos_y = 0;
     for (size_t i = stbds_hmlenu(pw.nodes); i > 0; i--) {
         struct node *node = pw.nodes[i - 1].value;
 
         struct tui_node_display *node_display = xcalloc(1, sizeof(*node_display));
         node_display->node_id = node->id;
-        node_display->focused = i == stbds_hmlenu(pw.nodes);
+        if (!focused_found && prev_focused_id == node_display->node_id) {
+            node_display->focused = true;
+            tui.focused_node_display = node_display;
+            focused_found = true;
+        }
 
         int subwin_height = node->props.channel_count + 3;
         node_display->win = subpad(tui.pad_win, subwin_height, tui.term_width, pos_y, 0);
         pos_y += subwin_height;
 
         spa_list_insert(&tui.node_displays, &node_display->link);
+    }
+    if (!focused_found) {
+        struct tui_node_display *disp;
+        spa_list_for_each_reverse(disp, &tui.node_displays, link) {
+            disp->focused = true;
+            tui.focused_node_display = disp;
+            break;
+        }
     }
 
     return 0;
@@ -147,6 +167,7 @@ bool tui_focus_next(void) {
         if (disp_next != NULL && disp->focused) {
             disp->focused = false;
             disp_next->focused = true;
+            tui.focused_node_display = disp_next;
             return true;
         }
 
@@ -162,6 +183,7 @@ bool tui_focus_prev(void) {
         if (disp_prev != NULL && disp->focused) {
             disp->focused = false;
             disp_prev->focused = true;
+            tui.focused_node_display = disp_prev;
             return true;
         }
 

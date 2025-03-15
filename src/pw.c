@@ -1,7 +1,7 @@
 #include <wchar.h>
 #include <math.h>
 #include <spa/param/audio/raw.h>
-#include <spa/pod/parser.h>
+#include <spa/pod/builder.h>
 #include <spa/utils/result.h>
 #include <spa/param/props.h>
 
@@ -13,6 +13,26 @@
 #include "xmalloc.h"
 
 struct pw pw = {0};
+
+void node_change_volume(struct node *node, float delta) {
+    uint8_t buffer[4096];
+    struct spa_pod_builder b;
+    spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+    float cubed_volumes[node->props.channel_count];
+    for (uint32_t i = 0; i < node->props.channel_count; i++) {
+        float volume = node->props.channel_volumes[i] + delta;
+        cubed_volumes[i] = volume * volume * volume;
+    }
+
+    struct spa_pod *pod;
+    pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
+                                     SPA_PARAM_Props, SPA_PROP_channelVolumes,
+                                     SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
+                                                   ARRAY_SIZE(cubed_volumes), cubed_volumes));
+
+    pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
+}
 
 static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
