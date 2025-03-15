@@ -25,12 +25,14 @@ static int keyboard_handler(struct event_loop_item *item, uint32_t events) {
             warn("WHY AM I GETTING KEY_RESIZE ???");
             break;
         case 'j':
-            tui_focus_prev();
-            tui_repaint_all();
+            if (tui_focus_prev()) {
+                tui_repaint_all();
+            }
             break;
         case 'k':
-            tui_focus_next();
-            tui_repaint_all();
+            if (tui_focus_next()) {
+                tui_repaint_all();
+            }
             break;
         case 'q':
             event_loop_quit(event_loop_item_get_loop(item), 0);

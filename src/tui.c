@@ -122,28 +122,34 @@ int tui_create_layout(void) {
     return 0;
 }
 
-void tui_focus_next(void) {
+bool tui_focus_next(void) {
     struct tui_node_display *disp, *disp_next = NULL;
     spa_list_for_each_reverse(disp, &tui.node_displays, link) {
         if (disp_next != NULL && disp->focused) {
             disp->focused = false;
             disp_next->focused = true;
+            return true;
         }
 
         disp_next = disp;
     }
+
+    return false;
 }
 
-void tui_focus_prev(void) {
+bool tui_focus_prev(void) {
     struct tui_node_display *disp, *disp_prev = NULL;
     spa_list_for_each(disp, &tui.node_displays, link) {
         if (disp_prev != NULL && disp->focused) {
             disp->focused = false;
             disp_prev->focused = true;
+            return true;
         }
 
         disp_prev = disp;
     }
+
+    return false;
 }
 
 int tui_init(void) {

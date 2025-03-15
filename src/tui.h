@@ -46,8 +46,10 @@ int tui_repaint_all(void);
 int tui_handle_resize(void);
 int tui_create_layout(void);
 
-void tui_focus_next(void);
-void tui_focus_prev(void);
+/* true if focus changed */
+bool tui_focus_next(void);
+/* true if focus changed */
+bool tui_focus_prev(void);
 
 #endif /* #ifndef TUI_H */
 
