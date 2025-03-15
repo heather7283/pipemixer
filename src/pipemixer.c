@@ -78,7 +78,10 @@ static int sigwinch_handler(struct event_loop_item *item, int signal) {
 static int pipewire_handler(struct event_loop_item *item, uint32_t events) {
     pw_loop_iterate(pw.main_loop_loop, 0);
 
-    tui_create_layout();
+    if (pw.node_list_changed) {
+        tui_create_layout();
+        pw.node_list_changed = false;
+    }
     tui_repaint_all();
 
     return 0;

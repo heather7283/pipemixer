@@ -95,6 +95,8 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             }
         }
     }
+
+    node->changed = true;
 }
 
 static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
@@ -129,6 +131,8 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
     props->channel_count = i;
     spa_pod_get_bool(&mute_prop->value, &props->mute);
+
+    node->changed = true;
 }
 
 static const struct pw_node_events node_events = {
@@ -175,6 +179,8 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         pw_node_add_listener(new_node->pw_node, &new_node->listener, &node_events, new_node);
 
         stbds_hmput(pw.nodes, new_node->id, new_node);
+
+        pw.node_list_changed = true;
     }
 }
 
@@ -185,6 +191,8 @@ static void on_registry_global_remove(void *data, uint32_t id) {
     if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
         stbds_hmdel(pw.nodes, id);
         node_cleanup(node);
+
+        pw.node_list_changed = true;
     }
 }
 
