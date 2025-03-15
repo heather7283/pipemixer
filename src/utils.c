@@ -117,6 +117,10 @@ const char *channel_name_from_enum(enum spa_audio_channel chan) {
 }
 
 wchar_t *mbstowcsdup(const char *src) {
+    if (src == NULL) {
+        return NULL;
+    }
+
     size_t max_bytes = 512;
     size_t max_len = max_bytes / sizeof(wchar_t);
 
