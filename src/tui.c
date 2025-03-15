@@ -34,10 +34,11 @@ void tui_draw_node(struct tui_node_display *disp) {
     int volume_area_start = info_area_width + 1;
 
     wchar_t line[tui.term_width - 2];
-    swprintf(line, ARRAY_SIZE(line), L"(%d) %ls: %ls",
+    swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls",
              node->id,
              node->node_description ? node->node_description : node->node_name,
-             node->media_name);
+             node->media_name != NULL ? ": " : "",
+             node->media_name != NULL ? node->media_name : L"");
     mvwaddwstr(disp->win, 1, 1, line);
 
     box(disp->win, 0, 0);
