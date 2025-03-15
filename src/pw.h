@@ -29,8 +29,6 @@ struct node {
     wchar_t *node_name;
     wchar_t *node_description;
     struct node_props props;
-
-    bool changed;
 };
 
 struct pw {
@@ -51,8 +49,6 @@ struct pw {
         uint32_t key; /* id */
         struct node *value;
     } *nodes;
-
-    bool node_list_changed;
 };
 
 extern struct pw pw;
