@@ -38,6 +38,7 @@ static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
 
     free(node->node_name);
+    free(node->node_description);
     free(node->media_name);
 
     free(node);
