@@ -1,4 +1,8 @@
+#include <stdlib.h>
+
 #include "utils.h"
+#include "xmalloc.h"
+#include "log.h"
 
 const char *channel_name_from_enum(enum spa_audio_channel chan) {
     switch (chan) {
@@ -110,5 +114,25 @@ const char *channel_name_from_enum(enum spa_audio_channel chan) {
 
     default: return "?????";
     }
+}
+
+wchar_t *mbstowcsdup(const char *src) {
+    size_t max_bytes = 512;
+    size_t max_len = max_bytes / sizeof(wchar_t);
+
+    wchar_t *dst = xmalloc(max_bytes);
+
+    size_t ret = mbsrtowcs(dst, &src, max_len, NULL);
+    if (ret == (size_t)-1) {
+        warn("failed to convert string to wide string");
+        free(dst);
+        return NULL;
+    }
+
+    if (src != NULL) {
+        dst[max_len - 1] = L'\0';
+    }
+
+    return dst;
 }
 

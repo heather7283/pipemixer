@@ -26,8 +26,8 @@ struct node {
 
     uint32_t id;
     enum media_class media_class;
-    char media_name[MAX_STRING_LENGTH];
-    char application_name[MAX_STRING_LENGTH];
+    wchar_t *media_name;
+    wchar_t *application_name;
     struct node_props props;
 };
 #undef MAX_STRING_LENGTH

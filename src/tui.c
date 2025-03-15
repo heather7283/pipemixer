@@ -32,7 +32,10 @@ void tui_draw_node(struct tui_node_display *disp) {
     int volume_area_width = volume_area_width_without_deco + volume_area_deco_width;
     int info_area_width = tui.term_width - volume_area_width - 1;
 
-    mvwprintw(disp->win, 1, 1, "(%d) %s: %s", node->id, node->application_name, node->media_name);
+    wchar_t line[tui.term_width - 2];
+    swprintf(line, ARRAY_SIZE(line), L"(%d) %ls: %ls",
+             node->id, node->application_name, node->media_name);
+    mvwaddwstr(disp->win, 1, 1, line);
 
     box(disp->win, 0, 0);
 

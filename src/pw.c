@@ -17,6 +17,9 @@ struct pw pw = {0};
 static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
 
+    free(node->application_name);
+    free(node->media_name);
+
     free(node);
 }
 
@@ -46,29 +49,15 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
         trace("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
 
         if (STREQ(k, PW_KEY_MEDIA_NAME)) {
-            //size_t conv = mbstowcs(node->media_name, v, ARRAY_SIZE(node->media_name));
-            //if (conv == ARRAY_SIZE(node->media_name)) {
-            //    /* not enough space for string, add ellipsis and null-terminate */
-            //    node->media_name[ARRAY_SIZE(node->media_name) - 1] = L'\0';
-            //    node->media_name[ARRAY_SIZE(node->media_name) - 2] = L'…';
-            //} else if (conv == (size_t)-1) {
-            //    /* invalid sequence was encountered */
-            //    err("invalid sequence when converting %s to wide string", v);
-            //    swprintf(node->media_name, ARRAY_SIZE(node->media_name), L"INVALID");
-            //} /* else, conversion succeeded */
-            snprintf(node->media_name, sizeof(node->media_name), "%s", v);
+            node->media_name = mbstowcsdup(v);
+            if (node->media_name == NULL) {
+                node->media_name = L"INVALID";
+            }
         } else if (STREQ(k, PW_KEY_NODE_NAME)) {
-            //size_t conv = mbstowcs(node->application_name, v, ARRAY_SIZE(node->application_name));
-            //if (conv == ARRAY_SIZE(node->application_name)) {
-            //    /* not enough space for string, add ellipsis and null-terminate */
-            //    node->application_name[ARRAY_SIZE(node->application_name) - 1] = L'\0';
-            //    node->application_name[ARRAY_SIZE(node->application_name) - 2] = L'…';
-            //} else if (conv == (size_t)-1) {
-            //    /* invalid sequence was encountered */
-            //    err("invalid sequence when converting %s to wide string", v);
-            //    swprintf(node->application_name, ARRAY_SIZE(node->application_name), L"INVALID");
-            //} /* else, conversion succeeded */
-            snprintf(node->application_name, sizeof(node->application_name), "%s", v);
+            node->application_name = mbstowcsdup(v);
+            if (node->application_name == NULL) {
+                node->application_name = L"INVALID";
+            }
         }
     }
 
@@ -113,7 +102,6 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         props->channel_volumes[i++] = vol;
     }
     props->channel_count = i;
-
     spa_pod_get_bool(&mute_prop->value, &props->mute);
 }
 
