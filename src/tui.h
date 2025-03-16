@@ -31,6 +31,7 @@ struct tui_node_display {
     uint32_t node_id;
     WINDOW *win;
 
+    int pos, height;
     bool focused;
 
     struct spa_list link;

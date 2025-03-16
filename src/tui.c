@@ -90,7 +90,8 @@ int tui_repaint_all(void) {
         tui_draw_node(node_display);
     }
 
-    mvwprintw(tui.bar_win, 0, 0, "Status Bar (Terminal: %dx%d)", tui.term_width, tui.term_height);
+    mvwprintw(tui.bar_win, 0, 0, "Status Bar (Terminal: %dx%d, Scroll %d)",
+              tui.term_width, tui.term_height, tui.pad_pos);
     wclrtoeol(tui.bar_win);
     wnoutrefresh(tui.bar_win);
 
@@ -145,6 +146,8 @@ int tui_create_layout(void) {
 
         int subwin_height = node->props.channel_count + 3;
         node_display->win = subpad(tui.pad_win, subwin_height, tui.term_width, pos_y, 0);
+        node_display->pos = pos_y;
+        node_display->height = subwin_height;
         pos_y += subwin_height;
 
         spa_list_insert(&tui.node_displays, &node_display->link);
@@ -168,6 +171,11 @@ bool tui_focus_next(void) {
             disp->focused = false;
             disp_next->focused = true;
             tui.focused_node_display = disp_next;
+
+            if (tui.pad_pos > disp_next->pos) {
+                tui.pad_pos = disp_next->pos;
+            }
+
             return true;
         }
 
@@ -184,6 +192,15 @@ bool tui_focus_prev(void) {
             disp->focused = false;
             disp_prev->focused = true;
             tui.focused_node_display = disp_prev;
+
+            debug("tui_focus_prev: disp_prev->pos %d disp_prev->height %d tui.term_height %d",
+                  disp_prev->pos, disp_prev->height, tui.term_height);
+            /*            w           +      x      -        y       <         z */
+            if ((tui.term_height - 1) + tui.pad_pos - disp_prev->pos < disp_prev->height) {
+                /*    x     =         z         -           w           +       y */
+                tui.pad_pos = disp_prev->height - (tui.term_height - 1) + disp_prev->pos;
+            }
+
             return true;
         }
 
