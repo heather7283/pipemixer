@@ -50,7 +50,7 @@ void tui_draw_node(struct tui_node_display *disp) {
              node->node_description ? node->node_description : node->node_name,
              node->media_name != NULL ? ": " : "",
              node->media_name != NULL ? node->media_name : L"");
-    mvwaddwstr(disp->win, 1, 1, line);
+    mvwaddnwstr(disp->win, 1, 1, line, tui.term_width - 2);
 
     box(disp->win, 0, 0);
 
