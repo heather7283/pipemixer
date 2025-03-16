@@ -40,6 +40,10 @@ void tui_draw_node(struct tui_node_display *disp) {
     int info_area_width = tui.term_width - volume_area_width - 1;
     int volume_area_start = info_area_width + 1;
 
+    if (disp->focused) {
+        wattron(disp->win, A_BOLD);
+    }
+
     wchar_t line[tui.term_width - 2];
     swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls",
              node->id,
@@ -85,13 +89,17 @@ void tui_draw_node(struct tui_node_display *disp) {
         int pair = DEFAULT;
         for (int j = 0; j < volume_area_width_without_deco; j++) {
             if (j % step == 0) {
-                wattrset(disp->win, COLOR_PAIR(++pair));
+                wattroff(disp->win, COLOR_PAIR(pair));
+                pair += 1;
+                wattron(disp->win, COLOR_PAIR(pair));
             }
             mvwaddwstr(disp->win, i + 2, volume_area_start + volume_area_deco_width_left + j,
                        (j < thresh) ? L"#" : L"-");
         }
-        wattrset(disp->win, COLOR_PAIR(DEFAULT));
+        wattroff(disp->win, COLOR_PAIR(pair));
     }
+
+    wattroff(disp->win, A_BOLD);
 }
 
 int tui_repaint_all(void) {
