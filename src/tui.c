@@ -8,6 +8,13 @@
 #include "xmalloc.h"
 #include "thirdparty/stb_ds.h"
 
+enum color_pair {
+    DEFAULT = 0,
+    GREEN = 1,
+    YELLOW = 2,
+    RED = 3,
+};
+
 struct tui tui = {0};
 
 void tui_draw_node(struct tui_node_display *disp) {
@@ -71,14 +78,19 @@ void tui_draw_node(struct tui_node_display *disp) {
                  volume_area_width_without_deco, L"", /* empty space */
                  border_char_right,
                  disp->focused ? L'─' : L' ');
+        mvwprintw(disp->win, i + 2, volume_area_start, "%ls", volume_area);
 
         int thresh = vol_int * volume_area_width_without_deco / 150;
+        int step = volume_area_width_without_deco / 3;
+        int pair = DEFAULT;
         for (int j = 0; j < volume_area_width_without_deco; j++) {
-            wchar_t *p = volume_area + volume_area_deco_width_left + j;
-            *p = j < thresh ? L'#' : L'-';
+            if (j % step == 0) {
+                wattrset(disp->win, COLOR_PAIR(++pair));
+            }
+            mvwaddwstr(disp->win, i + 2, volume_area_start + volume_area_deco_width_left + j,
+                       (j < thresh) ? L"#" : L"-");
         }
-
-        mvwprintw(disp->win, i + 2, volume_area_start, "%ls", volume_area);
+        wattrset(disp->win, COLOR_PAIR(DEFAULT));
     }
 }
 
@@ -218,6 +230,11 @@ int tui_init(void) {
     cbreak();
     noecho();
     curs_set(0);
+
+    start_color();
+    init_pair(GREEN, COLOR_GREEN, COLOR_BLACK);
+    init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);
+    init_pair(RED, COLOR_RED, COLOR_BLACK);
 
     nodelay(stdscr, TRUE); /* getch() will fail instead of blocking waiting for input */
     keypad(stdscr, TRUE);
