@@ -13,6 +13,7 @@ enum color_pair {
     GREEN = 1,
     YELLOW = 2,
     RED = 3,
+    GRAY = 4,
 };
 
 struct tui tui = {0};
@@ -42,6 +43,9 @@ void tui_draw_node(struct tui_node_display *disp) {
 
     if (disp->focused) {
         wattron(disp->win, A_BOLD);
+    }
+    if (node->props.mute) {
+        wattron(disp->win, COLOR_PAIR(GRAY));
     }
 
     wchar_t line[tui.term_width - 2];
@@ -88,7 +92,7 @@ void tui_draw_node(struct tui_node_display *disp) {
         int step = volume_area_width_without_deco / 3;
         int pair = DEFAULT;
         for (int j = 0; j < volume_area_width_without_deco; j++) {
-            if (j % step == 0) {
+            if (j % step == 0 && !node->props.mute) {
                 wattroff(disp->win, COLOR_PAIR(pair));
                 pair += 1;
                 wattron(disp->win, COLOR_PAIR(pair));
@@ -100,6 +104,7 @@ void tui_draw_node(struct tui_node_display *disp) {
     }
 
     wattroff(disp->win, A_BOLD);
+    wattroff(disp->win, COLOR_PAIR(GRAY));
 }
 
 int tui_repaint_all(void) {
@@ -243,6 +248,7 @@ int tui_init(void) {
     init_pair(GREEN, COLOR_GREEN, COLOR_BLACK);
     init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);
     init_pair(RED, COLOR_RED, COLOR_BLACK);
+    init_pair(GRAY, 8, COLOR_BLACK);
 
     nodelay(stdscr, TRUE); /* getch() will fail instead of blocking waiting for input */
     keypad(stdscr, TRUE);
