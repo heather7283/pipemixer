@@ -9,6 +9,7 @@ enum media_class {
     AUDIO_SINK,
     STREAM_INPUT_AUDIO,
     STREAM_OUTPUT_AUDIO,
+    MEDIA_CLASS_END,
 };
 
 struct node_props {

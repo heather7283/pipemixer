@@ -4,18 +4,16 @@
 #include <ncurses.h>
 #include <spa/utils/list.h>
 
+#include "pw.h"
+
 #define PAD_SIZE 1000 /* number of lines in the pad */
 #define MAX_SCREEN_WIDTH 512  /* surely nobody will have terminal window wider than that */
-
-enum tui_active_tab {
-    SOURCES, SINKS, OUTPUT_STREAMS, INPUT_STREAMS,
-};
 
 struct tui {
     int term_height, term_width;
 
     WINDOW *bar_win;
-    enum tui_active_tab active_tab;
+    enum media_class active_tab;
 
     WINDOW *pad_win;
     int pad_pos;
@@ -50,6 +48,8 @@ int tui_create_layout(void);
 bool tui_focus_next(void);
 /* true if focus changed */
 bool tui_focus_prev(void);
+
+void tui_next_tab(void);
 
 #endif /* #ifndef TUI_H */
 

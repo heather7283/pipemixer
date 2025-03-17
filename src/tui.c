@@ -115,8 +115,8 @@ int tui_repaint_all(void) {
         tui_draw_node(node_display);
     }
 
-    mvwprintw(tui.bar_win, 0, 0, "Status Bar (Terminal: %dx%d, Scroll %d)",
-              tui.term_width, tui.term_height, tui.pad_pos);
+    mvwprintw(tui.bar_win, 0, 0, "Status Bar (Terminal: %dx%d, Scroll %d, Tab %d)",
+              tui.term_width, tui.term_height, tui.pad_pos, tui.active_tab);
     wclrtoeol(tui.bar_win);
     wnoutrefresh(tui.bar_win);
 
@@ -161,6 +161,9 @@ int tui_create_layout(void) {
     int pos_y = 0;
     for (size_t i = stbds_hmlenu(pw.nodes); i > 0; i--) {
         struct node *node = pw.nodes[i - 1].value;
+        if (node->media_class != tui.active_tab) {
+            continue;
+        }
 
         struct tui_node_display *node_display = xcalloc(1, sizeof(*node_display));
         node_display->node_id = node->id;
@@ -232,6 +235,13 @@ bool tui_focus_prev(void) {
     }
 
     return false;
+}
+
+void tui_next_tab(void) {
+    tui.active_tab += 1;
+    if (tui.active_tab == MEDIA_CLASS_END) {
+        tui.active_tab = 0;
+    }
 }
 
 int tui_init(void) {
