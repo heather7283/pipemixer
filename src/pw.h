@@ -12,6 +12,13 @@ enum media_class {
     MEDIA_CLASS_END,
 };
 
+struct device {
+    struct pw_device *pw_device;
+    struct spa_hook listener;
+
+    uint32_t id;
+};
+
 struct node_props {
     bool mute;
     bool soft_mute;

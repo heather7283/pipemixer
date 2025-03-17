@@ -14,6 +14,50 @@
 
 struct pw pw = {0};
 
+static void on_device_info(void *data, const struct pw_device_info *info) {
+    struct device *device = data;
+
+    debug("device info: id %d, %d params%s,%s change "
+          BYTE_BINARY_FORMAT,
+          info->id,
+          info->n_params,
+          info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS ? " C" : "",
+          info->change_mask & PW_DEVICE_CHANGE_MASK_PROPS ? " props," : "",
+          BYTE_BINARY_ARGS(info->change_mask));
+
+    uint32_t i = 0;
+    const struct spa_dict_item *item;
+    spa_dict_for_each(item, info->props) {
+        const char *k = item->key;
+        const char *v = item->value;
+
+        trace("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
+    }
+
+    if (info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) {
+        for (i = 0; i < info->n_params; i++) {
+            struct spa_param_info *param = &info->params[i];
+            if (param->id == SPA_PARAM_Props && param->flags & SPA_PARAM_INFO_READ) {
+                pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
+            }
+        }
+    }
+}
+
+static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
+                            uint32_t next, const struct spa_pod *param) {
+    struct device *device = data;
+
+    debug("device %d param: id %d seq %d index %d next %d param %p",
+          device->id, id, seq, index, next, (void *)param);
+}
+
+static const struct pw_device_events device_events = {
+    PW_VERSION_DEVICE_EVENTS,
+    .info = on_device_info,
+    .param = on_device_param,
+};
+
 void node_toggle_mute(struct node *node) {
     if (node->media_class == AUDIO_SOURCE || node->media_class == AUDIO_SINK) {
         warn("mute is not implemented for AUDIO_SOURCE and AUDIO_SINK because pipewire is pain");
@@ -203,6 +247,24 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         pw_node_add_listener(new_node->pw_node, &new_node->listener, &node_events, new_node);
 
         stbds_hmput(pw.nodes, new_node->id, new_node);
+    } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
+        const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
+        if (media_class == NULL) {
+            debug("empty media.class, not binding");
+            return;
+        } else if (STREQ(media_class, "Audio/Device")) {
+            /* no-op */
+        } else {
+            debug("not interested in media.class %s, not binding", media_class);
+            return;
+        }
+
+        struct device *new_device = xcalloc(1, sizeof(*new_device));
+
+        new_device->id = id;
+        new_device->pw_device = pw_registry_bind(pw.registry, id, type, PW_VERSION_DEVICE, 0);
+        pw_device_add_listener(new_device->pw_device, &new_device->listener,
+                               &device_events, new_device);
     }
 }
 
