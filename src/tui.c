@@ -154,7 +154,8 @@ int tui_create_layout(void) {
 
     tui.bar_win = newwin(1, tui.term_width, 0, 0);
     tui.pad_win = newpad(stbds_hmlenu(pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3), tui.term_width);
-    nodelay(tui.pad_win, TRUE);
+    nodelay(tui.pad_win, TRUE); /* getch() will fail instead of blocking waiting for input */
+    keypad(tui.pad_win, TRUE);
 
     bool focused_found = false;
     int pos_y = 0;
@@ -247,9 +248,6 @@ int tui_init(void) {
     init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);
     init_pair(RED, COLOR_RED, COLOR_BLACK);
     init_pair(GRAY, 8, COLOR_BLACK);
-
-    nodelay(stdscr, TRUE); /* getch() will fail instead of blocking waiting for input */
-    keypad(stdscr, TRUE);
 
     spa_list_init(&tui.node_displays);
     tui.term_width = getmaxx(stdscr);
