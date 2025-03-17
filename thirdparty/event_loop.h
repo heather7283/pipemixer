@@ -21,7 +21,7 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- * event_loop.h version 0.5.1
+ * event_loop.h version 0.6.0
  * last version is available at: https://github.com/heather7283/event_loop.h
  *
  * This is a single-header library that provides simple event loop abstraction built on epoll.
@@ -39,6 +39,7 @@
  *   They must expand to printf()-like function, for example:
  *   #define EVENT_LOOP_LOG_DEBUG(fmt, ...) fprintf(stderr, "event loop: " fmt "\n", ##__VA_ARGS__)
  *     EVENT_LOOP_LOG_DEBUG(fmt, ...)
+ *     EVENT_LOOP_LOG_INFO(fmt, ...)
  *     EVENT_LOOP_LOG_WARN(fmt, ...)
  *     EVENT_LOOP_LOG_ERR(fmt, ...)
  */
@@ -60,11 +61,15 @@
  * doing this to avoid compiler warning:
  * passing no argument for the '...' parameter of a variadic macro is a C23 extension
  */
-#if !defined(EVENT_LOOP_DEBUG) || !defined(EVENT_LOOP_WARN) || !defined(EVENT_LOOP_ERR)
+#if !defined(EVENT_LOOP_DEBUG)  || !defined(EVENT_LOOP_INFO) || \
+    !defined(EVENT_LOOP_WARN) || !defined(EVENT_LOOP_ERR)
     #include <stdio.h> /* printf() */
 #endif
 #if !defined(EVENT_LOOP_LOG_DEBUG)
     #define EVENT_LOOP_LOG_DEBUG(fmt, ...) if (0) printf(fmt, ##__VA_ARGS__)
+#endif
+#if !defined(EVENT_LOOP_LOG_INFO)
+    #define EVENT_LOOP_LOG_INFO(fmt, ...) if (0) printf(fmt, ##__VA_ARGS__)
 #endif
 #if !defined(EVENT_LOOP_LOG_WARN)
     #define EVENT_LOOP_LOG_WARN(fmt, ...) if (0) printf(fmt, ##__VA_ARGS__)
@@ -315,7 +320,7 @@ int event_loop_signal_handler(struct event_loop_item *item, uint32_t events) {
 }
 
 struct event_loop *event_loop_create(void) {
-    EVENT_LOOP_LOG_DEBUG("create");
+    EVENT_LOOP_LOG_INFO("creating event loop");
     int save_errno = 0;
 
     struct event_loop *loop = EVENT_LOOP_CALLOC(1, sizeof(*loop));
@@ -365,7 +370,7 @@ void event_loop_cleanup(struct event_loop *loop) {
         return;
     }
 
-    EVENT_LOOP_LOG_DEBUG("cleanup");
+    EVENT_LOOP_LOG_INFO("cleaning up event loop");
 
     struct event_loop_item *item, *item_tmp;
     EVENT_LOOP_LL_FOR_EACH_SAFE(item, item_tmp, &loop->unconditional_items, link) {
@@ -392,7 +397,7 @@ struct event_loop_item *event_loop_add_pollable(struct event_loop *loop,
     struct event_loop_item *new_item = NULL;
     int save_errno = 0;
 
-    EVENT_LOOP_LOG_DEBUG("adding pollable callback to event loop, fd %d, events %X", fd, events);
+    EVENT_LOOP_LOG_INFO("adding pollable callback to event loop, fd %d, events %X", fd, events);
 
     new_item = EVENT_LOOP_CALLOC(1, sizeof(*new_item));
     if (new_item == NULL) {
@@ -432,7 +437,7 @@ struct event_loop_item *event_loop_add_unconditional(struct event_loop *loop, in
     struct event_loop_item *new_item = NULL;
     int save_errno = 0;
 
-    EVENT_LOOP_LOG_DEBUG("adding unconditional callback with prio %d to event loop", priority);
+    EVENT_LOOP_LOG_INFO("adding unconditional callback with prio %d to event loop", priority);
 
     new_item = EVENT_LOOP_CALLOC(1, sizeof(*new_item));
     if (new_item == NULL) {
@@ -486,7 +491,7 @@ struct event_loop_item *event_loop_add_signal(struct event_loop *loop, int signa
     sigset_t save_loop_sigset = loop->sigset;
     bool need_reset_handler = false;
 
-    EVENT_LOOP_LOG_DEBUG("adding signal callback for signal %d", signal);
+    EVENT_LOOP_LOG_INFO("adding signal callback for signal %d", signal);
 
     if (sigprocmask(SIG_BLOCK /* ignored */, NULL, &save_global_sigset) < 0) {
         save_errno = errno;
@@ -575,14 +580,14 @@ void event_loop_remove_callback(struct event_loop_item *item) {
     case POLLABLE: {
         int fd = item->as.pollable.fd;
 
-        EVENT_LOOP_LOG_DEBUG("removing pollable callback for fd %d from event loop", fd);
+        EVENT_LOOP_LOG_INFO("removing pollable callback for fd %d from event loop", fd);
 
         if (epoll_ctl(item->loop->epoll_fd, EPOLL_CTL_DEL, fd, NULL) < 0) {
             EVENT_LOOP_LOG_WARN("failed to remove fd %d from epoll: %s", fd, strerror(errno));
         }
 
         if (item->as.pollable.autoclose) {
-            EVENT_LOOP_LOG_DEBUG("closing fd %d", fd);
+            EVENT_LOOP_LOG_INFO("closing fd %d", fd);
             if (close(fd) < 0) {
                 EVENT_LOOP_LOG_WARN("closing fd %d failed: %s (was it closed somewhere else?)",
                                     fd, strerror(errno));
@@ -591,7 +596,7 @@ void event_loop_remove_callback(struct event_loop_item *item) {
         break;
     }
     case UNCONDITIONAL: {
-        EVENT_LOOP_LOG_DEBUG("removing unconditional callback with prio %d from event loop",
+        EVENT_LOOP_LOG_INFO("removing unconditional callback with prio %d from event loop",
                              item->as.unconditional.priority);
         break;
     }
@@ -599,7 +604,7 @@ void event_loop_remove_callback(struct event_loop_item *item) {
         int signal = item->as.signal.sig;
         struct event_loop *loop = item->loop;
 
-        EVENT_LOOP_LOG_DEBUG("removing signal callback for signal %d from event loop", signal);
+        EVENT_LOOP_LOG_INFO("removing signal callback for signal %d from event loop", signal);
 
         sigdelset(&loop->sigset, signal);
         int ret = signalfd(loop->signal_fd, &loop->sigset, 0);
@@ -644,7 +649,7 @@ int event_loop_item_get_fd(struct event_loop_item *item) {
 }
 
 int event_loop_run(struct event_loop *loop) {
-    EVENT_LOOP_LOG_DEBUG("run");
+    EVENT_LOOP_LOG_INFO("running event loop");
 
     int ret = 0;
     int number_fds = -1;
@@ -698,7 +703,7 @@ out:
 }
 
 void event_loop_quit(struct event_loop *loop, int retcode) {
-    EVENT_LOOP_LOG_DEBUG("quit");
+    EVENT_LOOP_LOG_INFO("quitting event loop");
 
     loop->should_quit = true;
     loop->retcode = retcode;
