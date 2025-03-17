@@ -140,3 +140,21 @@ wchar_t *mbstowcsdup(const char *src) {
     return dst;
 }
 
+size_t wcstrimcols(wchar_t *str, size_t col) {
+    size_t width = 0;
+    size_t n_chars = 0;
+
+    wchar_t *p = str;
+    wchar_t c;
+    while ((c = *p) != L'\0') {
+        if ((width += wcwidth(c)) > col) {
+            *p = L'\0';
+            break;
+        }
+        n_chars += 1;
+        p += 1;
+    }
+
+    return n_chars;
+}
+

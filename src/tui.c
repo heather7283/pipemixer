@@ -6,6 +6,7 @@
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "utils.h"
 #include "thirdparty/stb_ds.h"
 
 enum color_pair {
@@ -54,6 +55,7 @@ void tui_draw_node(struct tui_node_display *disp) {
              node->node_description ? node->node_description : node->node_name,
              node->media_name != NULL ? ": " : "",
              node->media_name != NULL ? node->media_name : L"");
+    wcstrimcols(line, tui.term_width - 2);
     mvwaddnwstr(disp->win, 1, 1, line, tui.term_width - 2);
 
     box(disp->win, 0, 0);

@@ -9,11 +9,12 @@ add_project_arguments('-Wno-gnu-case-range', language: 'c')
 
 add_project_arguments('-Wno-unused-parameter', language: 'c')
 
-# needed for unicode support in curses
-add_project_arguments('-DNCURSES_WIDECHAR', language: 'c')
-
 pipewire_dep = dependency('libpipewire-0.3')
 ncursesw_dep = dependency('ncursesw')
+
+# needed for unicode support in curses + wcwidth()
+add_project_arguments('-D_XOPEN_SOURCE=700', language: 'c')
+add_project_arguments('-Wno-macro-redefined', language: 'c')
 
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
