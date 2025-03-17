@@ -218,8 +218,6 @@ bool tui_focus_prev(void) {
             disp_prev->focused = true;
             tui.focused_node_display = disp_prev;
 
-            debug("tui_focus_prev: disp_prev->pos %d disp_prev->height %d tui.term_height %d",
-                  disp_prev->pos, disp_prev->height, tui.term_height);
             /*            w           +      x      -        y       <         z */
             if ((tui.term_height - 1) + tui.pad_pos - disp_prev->pos < disp_prev->height) {
                 /*    x     =         z         -           w           +       y */
