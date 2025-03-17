@@ -288,6 +288,10 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
             tui_create_layout();
             tui_repaint_all();
             break;
+        case 'm':
+            node_toggle_mute(stbds_hmget(pw.nodes, tui.focused_node_display->node_id));
+            tui_repaint_all();
+            break;
         case 'l':
             node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), 0.01);
             break;

@@ -14,6 +14,19 @@
 
 struct pw pw = {0};
 
+void node_toggle_mute(struct node *node) {
+    uint8_t buffer[1024];
+    struct spa_pod_builder b;
+    spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+    struct spa_pod *pod;
+    pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
+                                     SPA_PARAM_Props, SPA_PROP_mute,
+                                     SPA_POD_Bool(!node->props.mute));
+
+    pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
+}
+
 void node_change_volume(struct node *node, float delta) {
     uint8_t buffer[4096];
     struct spa_pod_builder b;
@@ -110,7 +123,10 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                                                                  SPA_PROP_channelMap);
     const struct spa_pod_prop *mute_prop = spa_pod_find_prop(param, NULL,
                                                              SPA_PROP_mute);
-    if (volumes_prop == NULL || channels_prop == NULL || mute_prop == NULL) {
+    const struct spa_pod_prop *soft_mute_prop = spa_pod_find_prop(param, NULL,
+                                                                  SPA_PROP_softMute);
+    if (volumes_prop == NULL || channels_prop == NULL
+        || mute_prop == NULL || soft_mute_prop == NULL) {
         return;
     }
 
@@ -129,6 +145,7 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
     props->channel_count = i;
     spa_pod_get_bool(&mute_prop->value, &props->mute);
+    spa_pod_get_bool(&soft_mute_prop->value, &props->soft_mute);
 }
 
 static const struct pw_node_events node_events = {

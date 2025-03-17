@@ -14,6 +14,7 @@ enum media_class {
 
 struct node_props {
     bool mute;
+    bool soft_mute;
     uint32_t channel_count;
     /* so much wasted ram... TODO: can I optimize mem usage? */
     float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
@@ -57,6 +58,7 @@ extern struct pw pw;
 int pipewire_init(void);
 void pipewire_cleanup(void);
 
+void node_toggle_mute(struct node *node);
 void node_change_volume(struct node *node, float delta);
 
 #endif /* #ifndef PW_H */
