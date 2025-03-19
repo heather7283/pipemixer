@@ -25,13 +25,6 @@ void log_print(enum log_loglevel level, char *msg, ...);
 
 /* TODO: replace usage of those macros with log_print */
 
-#define trace(fmt, ...) \
-    do { \
-        log_print(LOG_DEBUG, \
-                  "%s:%-3d " fmt, \
-                  __FILE__, __LINE__, ##__VA_ARGS__); \
-    } while (0)
-
 #define debug(fmt, ...) \
     do { \
         log_print(LOG_DEBUG, \
@@ -59,15 +52,6 @@ void log_print(enum log_loglevel level, char *msg, ...);
         log_print(LOG_ERROR, \
                   "E %s:%-3d " fmt, \
                   __FILE__, __LINE__, ##__VA_ARGS__); \
-    } while (0)
-
-/* TODO: don't use die, do proper error handling */
-#define die(fmt, ...) \
-    do { \
-        log_print(LOG_ERROR, \
-                  "%s:%-3d " fmt, \
-                  __FILE__, __LINE__, ##__VA_ARGS__); \
-        abort(); \
     } while (0)
 
 #endif /* ifndef LOG_H */

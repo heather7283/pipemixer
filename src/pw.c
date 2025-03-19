@@ -43,7 +43,7 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
         const char *k = item->key;
         const char *v = item->value;
 
-        trace("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
+        debug("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
     }
 
     if (info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) {
@@ -186,7 +186,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
         const char *k = item->key;
         const char *v = item->value;
 
-        trace("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
+        debug("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
 
         if (STREQ(k, PW_KEY_MEDIA_NAME)) {
             node->media_name = mbstowcsdup(v);
@@ -268,7 +268,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
     uint32_t i = 0;
     const struct spa_dict_item *item;
     spa_dict_for_each(item, props) {
-        trace("%c---%s: %s", (++i == props->n_items ? '\\' : '|'), item->key, item->value);
+        debug("%c---%s: %s", (++i == props->n_items ? '\\' : '|'), item->key, item->value);
     }
 
     if (STREQ(type, PW_TYPE_INTERFACE_Node)) {
