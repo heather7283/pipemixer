@@ -15,6 +15,84 @@
 
 struct pw pw = {0};
 
+void node_toggle_mute(struct node *node) {
+    if (!node->has_device) {
+        uint8_t buffer[1024];
+        struct spa_pod_builder b;
+        spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+        struct spa_pod *pod;
+        pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
+                                         SPA_PARAM_Props, SPA_PROP_mute,
+                                         SPA_POD_Bool(!node->props.mute));
+
+        pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
+    } else {
+        struct device *device = stbds_hmget(pw.devices, node->device_id);
+        if (device == NULL) {
+            warn("tried to change mute state of node %d with associated device, "
+                 "but no device with id %d was found", node->id, node->device_id);
+            return;
+        }
+
+        bool found = false;
+        struct route *route;
+        spa_list_for_each(route, &device->routes, link) {
+            if (route->device == node->card_profile_device) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            warn("route with device %d was not found", node->card_profile_device);
+            return;
+        }
+
+        uint8_t buffer[1024];
+        struct spa_pod_builder b;
+        spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+        struct spa_pod *props =
+            spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props, SPA_PARAM_Props,
+                                       SPA_PROP_mute, SPA_POD_Bool(!node->props.mute));
+
+        struct spa_pod* param =
+            spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route,
+                                       SPA_PARAM_ROUTE_device, SPA_POD_Int(route->device),
+                                       SPA_PARAM_ROUTE_index, SPA_POD_Int(route->index),
+                                       SPA_PARAM_ROUTE_props, SPA_POD_PodObject(props),
+                                       SPA_PARAM_ROUTE_save, SPA_POD_Bool(true));
+
+        pw_device_set_param(device->pw_device, SPA_PARAM_Route, 0, param);
+    }
+}
+
+void node_change_volume(struct node *node, float delta) {
+    if (node->media_class == AUDIO_SOURCE || node->media_class == AUDIO_SINK) {
+        warn("change volume is broken for AUDIO_SOURCE and AUDIO_SINK "
+             "because pipewire is retarded");
+        return;
+    }
+
+    uint8_t buffer[4096];
+    struct spa_pod_builder b;
+    spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+    float cubed_volumes[node->props.channel_count];
+    for (uint32_t i = 0; i < node->props.channel_count; i++) {
+        float volume = node->props.channel_volumes[i] + delta;
+        cubed_volumes[i] = volume * volume * volume;
+    }
+
+    struct spa_pod *pod;
+    pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
+                                     SPA_PARAM_Props, SPA_PROP_channelVolumes,
+                                     SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
+                                     ARRAY_SIZE(cubed_volumes), cubed_volumes));
+
+    pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
+}
+
 static void device_routes_cleanup(struct device *device) {
     struct route *route, *route_tmp;
     spa_list_for_each_safe(route, route_tmp, &device->routes, link) {
@@ -127,50 +205,6 @@ static const struct pw_device_events device_events = {
     .info = on_device_info,
     .param = on_device_param,
 };
-
-void node_toggle_mute(struct node *node) {
-    if (node->media_class == AUDIO_SOURCE || node->media_class == AUDIO_SINK) {
-        warn("mute is not implemented for AUDIO_SOURCE and AUDIO_SINK because pipewire is pain");
-        return;
-    }
-
-    uint8_t buffer[1024];
-    struct spa_pod_builder b;
-    spa_pod_builder_init(&b, buffer, sizeof(buffer));
-
-    struct spa_pod *pod;
-    pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
-                                     SPA_PARAM_Props, SPA_PROP_mute,
-                                     SPA_POD_Bool(!node->props.mute));
-
-    pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
-}
-
-void node_change_volume(struct node *node, float delta) {
-    if (node->media_class == AUDIO_SOURCE || node->media_class == AUDIO_SINK) {
-        warn("change volume is broken for AUDIO_SOURCE and AUDIO_SINK "
-             "because pipewire is retarded");
-        return;
-    }
-
-    uint8_t buffer[4096];
-    struct spa_pod_builder b;
-    spa_pod_builder_init(&b, buffer, sizeof(buffer));
-
-    float cubed_volumes[node->props.channel_count];
-    for (uint32_t i = 0; i < node->props.channel_count; i++) {
-        float volume = node->props.channel_volumes[i] + delta;
-        cubed_volumes[i] = volume * volume * volume;
-    }
-
-    struct spa_pod *pod;
-    pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
-                                     SPA_PARAM_Props, SPA_PROP_channelVolumes,
-                                     SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
-                                                   ARRAY_SIZE(cubed_volumes), cubed_volumes));
-
-    pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
-}
 
 static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
@@ -326,7 +360,6 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         struct node *new_node = xcalloc(1, sizeof(struct node));
-
         new_node->id = id;
         new_node->media_class = media_class_value;
         new_node->pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
