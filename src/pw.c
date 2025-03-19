@@ -15,6 +15,11 @@
 struct pw pw = {0};
 
 void node_toggle_mute(struct node *node) {
+    if (node->media_class == AUDIO_SOURCE || node->media_class == AUDIO_SINK) {
+        warn("mute is not implemented for AUDIO_SOURCE and AUDIO_SINK because pipewire is pain");
+        return;
+    }
+
     uint8_t buffer[1024];
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));
