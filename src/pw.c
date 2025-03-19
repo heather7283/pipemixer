@@ -10,7 +10,6 @@
 #include "macros.h"
 #include "utils.h"
 #include "log.h"
-#include "param_print.h"
 #include "xmalloc.h"
 
 struct pw pw = {0};
@@ -193,8 +192,6 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
 
     debug("device %d param: id %d seq %d index %d next %d param %p",
           device->id, id, seq, index, next, (void *)param);
-
-    put_pod(&pw, "ROUTE", param);
 
     const struct spa_pod_prop *index_prop = spa_pod_find_prop(param, NULL,
                                                               SPA_PARAM_ROUTE_index);
