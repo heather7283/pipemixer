@@ -45,12 +45,5 @@ int tui_update(struct event_loop_item *loop_item);
 int tui_handle_resize(struct event_loop_item *item, int signal);
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events);
 
-/* true if focus changed */
-bool tui_focus_next(void);
-/* true if focus changed */
-bool tui_focus_prev(void);
-
-void tui_next_tab(void);
-
 #endif /* #ifndef TUI_H */
 
