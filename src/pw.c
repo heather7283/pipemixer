@@ -104,7 +104,7 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
 }
 
 static const struct pw_device_events device_events = {
-    PW_VERSION_DEVICE_EVENTS,
+    .version = PW_VERSION_DEVICE_EVENTS,
     .info = on_device_info,
     .param = on_device_param,
 };
@@ -255,7 +255,7 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 }
 
 static const struct pw_node_events node_events = {
-    PW_VERSION_NODE_EVENTS,
+    .version = PW_VERSION_NODE_EVENTS,
     .info = on_node_info,
     .param = on_node_param,
 };
@@ -338,7 +338,7 @@ static void on_registry_global_remove(void *data, uint32_t id) {
 }
 
 static const struct pw_registry_events registry_events = {
-    PW_VERSION_REGISTRY_EVENTS,
+    .version = PW_VERSION_REGISTRY_EVENTS,
     .global = on_registry_global,
     .global_remove = on_registry_global_remove,
 };
