@@ -106,14 +106,12 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     int i = 0;
     SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&channels_prop->value, iter) {
         props->channel_map[i++] = channel_name_from_enum(*(enum spa_audio_channel *)iter);
-        info("%s", channel_name_from_enum(*(enum spa_audio_channel *)iter));
     }
     i = 0;
     SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&volumes_prop->value, iter) {
         float vol_cubed = *(float *)iter;
         float vol = cbrtf(vol_cubed);
         props->channel_volumes[i++] = vol;
-        info("%f", vol);
     }
     props->channel_count = i;
     spa_pod_get_bool(&mute_prop->value, &props->mute);
@@ -220,6 +218,26 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             node->node_description = mbstowcsdup(v);
             if (node->node_description == NULL) {
                 node->node_description = L"INVALID";
+            }
+        } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
+            node->has_device = true;
+
+            errno = 0;
+            uint32_t device_id = strtoul(v, NULL, 10);
+            if (errno != 0) {
+                warn("failed to convert device.id %s to integer", v);
+                node->device_id = 0xDEADBEEF;
+            } else {
+                node->device_id = device_id;
+            }
+        } else if (STREQ(k, "card.profile.device")) {
+            errno = 0;
+            uint32_t card_profile_device = strtoul(v, NULL, 10);
+            if (errno != 0) {
+                warn("failed to convert card.profile.device %s to integer", v);
+                node->card_profile_device = 0xDEADBEEF;
+            } else {
+                node->card_profile_device = card_profile_device;
             }
         }
     }
