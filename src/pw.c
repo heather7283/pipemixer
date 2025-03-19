@@ -100,8 +100,11 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     }
 
     struct route *new_route = xcalloc(1, sizeof(*new_route));
-    struct route_props *props = &new_route->props;
 
+    spa_pod_get_int(&index_prop->value, &new_route->index);
+    spa_pod_get_int(&device_prop->value, &new_route->device);
+
+    struct route_props *props = &new_route->props;
     struct spa_pod *iter;
     int i = 0;
     SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&channels_prop->value, iter) {

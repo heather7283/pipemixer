@@ -20,7 +20,7 @@ struct route_props {
 };
 
 struct route {
-    uint32_t device, index;
+    int32_t device, index;
 
     struct route_props props;
 
