@@ -57,7 +57,7 @@ struct node {
 
     bool has_device;
     uint32_t device_id;
-    uint32_t card_profile_device;
+    int32_t card_profile_device;
 };
 
 struct pw {
