@@ -19,6 +19,16 @@ enum color_pair {
 
 struct tui tui = {0};
 
+static const char *media_class_name(enum media_class class) {
+    switch (class) {
+    case STREAM_OUTPUT_AUDIO: return "Playback";
+    case STREAM_INPUT_AUDIO: return "Recording";
+    case AUDIO_SINK: return "Output Devices";
+    case AUDIO_SOURCE: return "Input Devices";
+    default: return "Invalid";
+    }
+}
+
 void tui_draw_node(struct tui_node_display *disp) {
     struct node *node = stbds_hmget(pw.nodes, disp->node_id);
 
@@ -117,8 +127,8 @@ int tui_repaint_all(void) {
         tui_draw_node(node_display);
     }
 
-    mvwprintw(tui.bar_win, 0, 0, "Status Bar (Terminal: %dx%d, Scroll %d, Tab %d)",
-              tui.term_width, tui.term_height, tui.pad_pos, tui.active_tab);
+    mvwprintw(tui.bar_win, 0, 0, "Status Bar (Terminal: %dx%d, Scroll %d, Tab %s)",
+              tui.term_width, tui.term_height, tui.pad_pos, media_class_name(tui.active_tab));
     wclrtoeol(tui.bar_win);
     wnoutrefresh(tui.bar_win);
 
