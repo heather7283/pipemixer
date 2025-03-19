@@ -119,19 +119,30 @@ void tui_draw_node(struct tui_node_display *disp) {
     wattroff(disp->win, COLOR_PAIR(GRAY));
 }
 
+void tui_draw_status_bar(void) {
+    wmove(tui.bar_win, 0, 0);
+    enum media_class tab = MEDIA_CLASS_START;
+    while (++tab != MEDIA_CLASS_END) {
+        wattron(tui.bar_win, (tab == tui.active_tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
+        wattron(tui.bar_win, (tab == tui.active_tab) ? A_BOLD : 0);
+        waddstr(tui.bar_win, media_class_name(tab));
+        wattroff(tui.bar_win, (tab == tui.active_tab) ? A_BOLD : 0);
+        wattroff(tui.bar_win, (tab == tui.active_tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
+        waddstr(tui.bar_win, "   ");
+    }
+    wclrtoeol(tui.bar_win);
+}
+
 int tui_repaint_all(void) {
     debug("tui: repainting and updating everything");
+
+    tui_draw_status_bar();
+    wnoutrefresh(tui.bar_win);
 
     struct tui_node_display *node_display;
     spa_list_for_each(node_display, &tui.node_displays, link) {
         tui_draw_node(node_display);
     }
-
-    mvwprintw(tui.bar_win, 0, 0, "Status Bar (Terminal: %dx%d, Scroll %d, Tab %s)",
-              tui.term_width, tui.term_height, tui.pad_pos, media_class_name(tui.active_tab));
-    wclrtoeol(tui.bar_win);
-    wnoutrefresh(tui.bar_win);
-
     pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0, tui.term_height - 1, tui.term_width - 1);
 
     doupdate();
@@ -250,9 +261,8 @@ bool tui_focus_prev(void) {
 }
 
 void tui_next_tab(void) {
-    tui.active_tab += 1;
-    if (tui.active_tab == MEDIA_CLASS_END) {
-        tui.active_tab = 0;
+    if (++tui.active_tab == MEDIA_CLASS_END) {
+        tui.active_tab = MEDIA_CLASS_START + 1;
     }
 }
 
@@ -335,6 +345,8 @@ int tui_init(void) {
     spa_list_init(&tui.node_displays);
     tui.term_width = getmaxx(stdscr);
     tui.term_height = getmaxy(stdscr);
+
+    tui.active_tab = MEDIA_CLASS_START + 1;
 
     return 0;
 }

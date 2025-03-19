@@ -5,6 +5,7 @@
 #include <spa/param/audio/raw-types.h>
 
 enum media_class {
+    MEDIA_CLASS_START,
     STREAM_OUTPUT_AUDIO,
     STREAM_INPUT_AUDIO,
     AUDIO_SOURCE,
