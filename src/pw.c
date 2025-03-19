@@ -15,13 +15,18 @@
 
 struct pw pw = {0};
 
+static void device_routes_cleanup(struct device *device) {
+    struct route *route, *route_tmp;
+    spa_list_for_each_safe(route, route_tmp, &device->routes, link) {
+        spa_list_remove(&route->link);
+        free(route);
+    }
+}
+
 static void device_cleanup(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
-    struct route *route, *route_tmp;
-    spa_list_for_each_safe(route, route_tmp, &device->routes, link) {
-        free(route);
-    }
+    device_routes_cleanup(device);
 
     free(device);
 }
@@ -50,6 +55,7 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
         for (i = 0; i < info->n_params; i++) {
             struct spa_param_info *param = &info->params[i];
             if (param->id == SPA_PARAM_Route && param->flags & SPA_PARAM_INFO_READ) {
+                device_routes_cleanup(device);
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
             }
         }
@@ -63,14 +69,25 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     debug("device %d param: id %d seq %d index %d next %d param %p",
           device->id, id, seq, index, next, (void *)param);
 
-    put_pod(&pw, "ABOBA", param);
+    put_pod(&pw, "ROUTE", param);
 
-    const struct spa_pod *prop = (struct spa_pod *)spa_pod_find_prop(param, NULL, SPA_PARAM_Props);
-    if (prop == NULL) {
+    const struct spa_pod_prop *index_prop = spa_pod_find_prop(param, NULL,
+                                                              SPA_PARAM_ROUTE_index);
+    const struct spa_pod_prop *device_prop = spa_pod_find_prop(param, NULL,
+                                                               SPA_PARAM_ROUTE_device);
+    if (index_prop == NULL || device_prop == NULL) {
+        warn("didn't find index and device in route object");
         return;
     }
-    put_pod(&pw, "prop", prop);
 
+    /* don't even ask, this is pipewire */
+    const struct spa_pod_prop *prop_ = spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_props);
+    if (prop_ == NULL) {
+        warn("didn't find props in route object");
+        return;
+    }
+
+    const struct spa_pod *prop = &prop_->value;
     const struct spa_pod_prop *volumes_prop = spa_pod_find_prop(prop, NULL,
                                                                 SPA_PROP_channelVolumes);
     const struct spa_pod_prop *channels_prop = spa_pod_find_prop(prop, NULL,
@@ -78,6 +95,7 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     const struct spa_pod_prop *mute_prop = spa_pod_find_prop(prop, NULL,
                                                              SPA_PROP_mute);
     if (volumes_prop == NULL || channels_prop == NULL || mute_prop == NULL) {
+        warn("didn't find volumes, channels or mute in route object's props");
         return;
     }
 
