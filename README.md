@@ -1,6 +1,6 @@
 # (WIP) pipemixer
 This is a TUI volume control application for [pipewire]. Heavily inspired by
-[pulsemixer].
+[pulsemixer] and [pwvucontrol].
 
 ## Building
 ```
@@ -19,3 +19,4 @@ meson compile -C build
 
 [pipewire]: https://pipewire.org/
 [pulsemixer]: https://github.com/GeorgeFilipkin/pulsemixer
+[pwvucontrol]: https://github.com/saivert/pwvucontrol
