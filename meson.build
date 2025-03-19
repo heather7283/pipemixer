@@ -1,6 +1,7 @@
 project('pipemixer', 'c',
-  version : '0.1.0',
-  default_options : ['warning_level=3'])
+  version: '0.1.0',
+  license: 'GPL-3.0-or-later',
+  default_options: ['warning_level=3'])
 
 # stupid gnuware (pipewire)
 add_project_arguments('-Wno-gnu-statement-expression-from-macro-expansion', language: 'c')
