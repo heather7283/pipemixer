@@ -7,9 +7,6 @@
 #include "pw.h"
 #include "thirdparty/event_loop.h"
 
-#define PAD_SIZE 1000 /* number of lines in the pad */
-#define MAX_SCREEN_WIDTH 512  /* surely nobody will have terminal window wider than that */
-
 struct tui {
     int term_height, term_width;
 
