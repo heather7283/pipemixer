@@ -202,44 +202,10 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
         return;
     }
 
-    /* don't even ask, this is pipewire */
-    const struct spa_pod_prop *prop_ = spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_props);
-    if (prop_ == NULL) {
-        warn("didn't find props in route object");
-        return;
-    }
-
-    const struct spa_pod *prop = &prop_->value;
-    const struct spa_pod_prop *volumes_prop = spa_pod_find_prop(prop, NULL,
-                                                                SPA_PROP_channelVolumes);
-    const struct spa_pod_prop *channels_prop = spa_pod_find_prop(prop, NULL,
-                                                                 SPA_PROP_channelMap);
-    const struct spa_pod_prop *mute_prop = spa_pod_find_prop(prop, NULL,
-                                                             SPA_PROP_mute);
-    if (volumes_prop == NULL || channels_prop == NULL || mute_prop == NULL) {
-        warn("didn't find volumes, channels or mute in route object's props");
-        return;
-    }
-
     struct route *new_route = xcalloc(1, sizeof(*new_route));
 
     spa_pod_get_int(&index_prop->value, &new_route->index);
     spa_pod_get_int(&device_prop->value, &new_route->device);
-
-    struct route_props *props = &new_route->props;
-    struct spa_pod *iter;
-    int i = 0;
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&channels_prop->value, iter) {
-        props->channel_map[i++] = channel_name_from_enum(*(enum spa_audio_channel *)iter);
-    }
-    i = 0;
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&volumes_prop->value, iter) {
-        float vol_cubed = *(float *)iter;
-        float vol = cbrtf(vol_cubed);
-        props->channel_volumes[i++] = vol;
-    }
-    props->channel_count = i;
-    spa_pod_get_bool(&mute_prop->value, &props->mute);
 
     spa_list_insert(&device->routes, &new_route->link);
 }

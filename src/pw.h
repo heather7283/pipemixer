@@ -13,17 +13,8 @@ enum media_class {
     MEDIA_CLASS_END,
 };
 
-struct route_props {
-    bool mute;
-    uint32_t channel_count;
-    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
-    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
-};
-
 struct route {
     int32_t device, index;
-
-    struct route_props props;
 
     struct spa_list link;
 };
