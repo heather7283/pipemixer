@@ -27,7 +27,7 @@ static int pipewire_handler(struct event_loop_item *item, uint32_t events) {
 }
 
 void print_help_and_exit(FILE *stream, int exit_status) {
-    const char* help_string =
+    const char *help_string =
         "pipemixer - pipewire volume control\n"
         "\n"
         "usage:\n"
@@ -43,7 +43,7 @@ void print_help_and_exit(FILE *stream, int exit_status) {
     exit(exit_status);
 }
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
     int retcode = 0;
 
     FILE *log_stream = NULL;
