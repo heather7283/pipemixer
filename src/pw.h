@@ -12,11 +12,28 @@ enum media_class {
     MEDIA_CLASS_END,
 };
 
+struct route_props {
+    bool mute;
+    uint32_t channel_count;
+    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
+    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
+};
+
+struct route {
+    uint32_t device, index;
+
+    struct route_props props;
+
+    struct spa_list link;
+};
+
 struct device {
     struct pw_device *pw_device;
     struct spa_hook listener;
 
     uint32_t id;
+
+    struct spa_list routes;
 };
 
 struct node_props {
@@ -38,6 +55,11 @@ struct node {
     wchar_t *node_name;
     wchar_t *node_description;
     struct node_props props;
+
+    bool has_device;
+    uint32_t device_id;
+    uint32_t card_profile_device;
+    struct device *device;
 };
 
 struct pw {
@@ -53,11 +75,15 @@ struct pw {
     struct pw_registry *registry;
     struct spa_hook registry_listener;
 
-    /* stb_ds hashmap */
+    /* stb_ds hashmaps */
     struct {
         uint32_t key; /* id */
         struct node *value;
     } *nodes;
+    struct {
+        uint32_t key; /* id */
+        struct device *value;
+    } *devices;
 };
 
 extern struct pw pw;

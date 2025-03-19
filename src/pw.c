@@ -10,9 +10,21 @@
 #include "macros.h"
 #include "utils.h"
 #include "log.h"
+#include "param_print.h"
 #include "xmalloc.h"
 
 struct pw pw = {0};
+
+static void device_cleanup(struct device *device) {
+    pw_proxy_destroy((struct pw_proxy *)device->pw_device);
+
+    struct route *route, *route_tmp;
+    spa_list_for_each_safe(route, route_tmp, &device->routes, link) {
+        free(route);
+    }
+
+    free(device);
+}
 
 static void on_device_info(void *data, const struct pw_device_info *info) {
     struct device *device = data;
@@ -37,7 +49,7 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
     if (info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) {
         for (i = 0; i < info->n_params; i++) {
             struct spa_param_info *param = &info->params[i];
-            if (param->id == SPA_PARAM_Props && param->flags & SPA_PARAM_INFO_READ) {
+            if (param->id == SPA_PARAM_Route && param->flags & SPA_PARAM_INFO_READ) {
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
             }
         }
@@ -50,6 +62,45 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
 
     debug("device %d param: id %d seq %d index %d next %d param %p",
           device->id, id, seq, index, next, (void *)param);
+
+    put_pod(&pw, "ABOBA", param);
+
+    const struct spa_pod *prop = (struct spa_pod *)spa_pod_find_prop(param, NULL, SPA_PARAM_Props);
+    if (prop == NULL) {
+        return;
+    }
+    put_pod(&pw, "prop", prop);
+
+    const struct spa_pod_prop *volumes_prop = spa_pod_find_prop(prop, NULL,
+                                                                SPA_PROP_channelVolumes);
+    const struct spa_pod_prop *channels_prop = spa_pod_find_prop(prop, NULL,
+                                                                 SPA_PROP_channelMap);
+    const struct spa_pod_prop *mute_prop = spa_pod_find_prop(prop, NULL,
+                                                             SPA_PROP_mute);
+    if (volumes_prop == NULL || channels_prop == NULL || mute_prop == NULL) {
+        return;
+    }
+
+    struct route *new_route = xcalloc(1, sizeof(*new_route));
+    struct route_props *props = &new_route->props;
+
+    struct spa_pod *iter;
+    int i = 0;
+    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&channels_prop->value, iter) {
+        props->channel_map[i++] = channel_name_from_enum(*(enum spa_audio_channel *)iter);
+        info("%s", channel_name_from_enum(*(enum spa_audio_channel *)iter));
+    }
+    i = 0;
+    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&volumes_prop->value, iter) {
+        float vol_cubed = *(float *)iter;
+        float vol = cbrtf(vol_cubed);
+        props->channel_volumes[i++] = vol;
+        info("%f", vol);
+    }
+    props->channel_count = i;
+    spa_pod_get_bool(&mute_prop->value, &props->mute);
+
+    spa_list_insert(&device->routes, &new_route->link);
 }
 
 static const struct pw_device_events device_events = {
@@ -260,11 +311,14 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         struct device *new_device = xcalloc(1, sizeof(*new_device));
+        spa_list_init(&new_device->routes);
 
         new_device->id = id;
         new_device->pw_device = pw_registry_bind(pw.registry, id, type, PW_VERSION_DEVICE, 0);
         pw_device_add_listener(new_device->pw_device, &new_device->listener,
                                &device_events, new_device);
+
+        stbds_hmput(pw.devices, new_device->id, new_device);
     }
 }
 
@@ -275,6 +329,11 @@ static void on_registry_global_remove(void *data, uint32_t id) {
     if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
         stbds_hmdel(pw.nodes, id);
         node_cleanup(node);
+    }
+    struct device *device;
+    if ((device = stbds_hmget(pw.devices, id)) != NULL) {
+        stbds_hmdel(pw.devices, id);
+        device_cleanup(device);
     }
 }
 
@@ -310,14 +369,23 @@ int pipewire_init(void) {
 }
 
 void pipewire_cleanup(void) {
-    struct node *node;
     size_t i;
+
+    struct node *node;
     while ((i = stbds_hmlenu(pw.nodes)) > 0) {
         node = pw.nodes[i - 1].value;
         stbds_hmdel(pw.nodes, node->id);
         node_cleanup(node);
     }
     stbds_hmfree(pw.nodes);
+
+    struct device *device;
+    while ((i = stbds_hmlenu(pw.devices)) > 0) {
+        device = pw.devices[i - 1].value;
+        stbds_hmdel(pw.devices, device->id);
+        device_cleanup(device);
+    }
+    stbds_hmfree(pw.devices);
 
     pw_proxy_destroy((struct pw_proxy *)pw.registry);
     pw_core_disconnect(pw.core);
