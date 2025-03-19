@@ -1,19 +1,13 @@
-#include <sys/ioctl.h>
-#include <sys/epoll.h>
-#include <sys/signalfd.h>
-#include <signal.h>
 #include <string.h>
-#include <locale.h>
 #include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <ncurses.h>
 
 #include "log.h"
-#include "tui.h"
 #include "pw.h"
+#include "tui.h"
 #include "thirdparty/event_loop.h"
-#include "thirdparty/stb_ds.h"
 
 static int sigint_sigterm_handler(struct event_loop_item *item, int signal) {
     info("caught signal %d, stopping main loop", signal);
