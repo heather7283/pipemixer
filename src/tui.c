@@ -297,6 +297,7 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
             tui_focus_next();
             break;
         case 't':
+        case '\t':
             tui_next_tab();
             break;
         case 'm':
