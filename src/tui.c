@@ -90,7 +90,7 @@ void tui_draw_node(struct tui_node_display *disp) {
         }
 
         swprintf(volume_area, ARRAY_SIZE(volume_area),
-                 L"%5s %-3d %lc%lc%*ls%lc%lc",
+                 L"%5s %-3d %lc%lc%*ls%lc%lc ",
                  node->props.channel_map[i],
                  vol_int,
                  disp->focused ? L'─' : L' ',
