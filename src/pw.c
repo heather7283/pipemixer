@@ -68,29 +68,70 @@ void node_toggle_mute(struct node *node) {
 }
 
 void node_change_volume(struct node *node, float delta) {
-    if (node->media_class == AUDIO_SOURCE || node->media_class == AUDIO_SINK) {
-        warn("change volume is broken for AUDIO_SOURCE and AUDIO_SINK "
-             "because pipewire is retarded");
-        return;
+    if (!node->has_device) {
+        uint8_t buffer[4096];
+        struct spa_pod_builder b;
+        spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+        float cubed_volumes[node->props.channel_count];
+        for (uint32_t i = 0; i < node->props.channel_count; i++) {
+            float volume = node->props.channel_volumes[i] + delta;
+            cubed_volumes[i] = volume * volume * volume;
+        }
+
+        struct spa_pod *pod;
+        pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
+                                         SPA_PARAM_Props, SPA_PROP_channelVolumes,
+                                         SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
+                                         ARRAY_SIZE(cubed_volumes), cubed_volumes));
+
+        pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
+    } else {
+        struct device *device = stbds_hmget(pw.devices, node->device_id);
+        if (device == NULL) {
+            warn("tried to change volume of node %d with associated device, "
+                 "but no device with id %d was found", node->id, node->device_id);
+            return;
+        }
+
+        bool found = false;
+        struct route *route;
+        spa_list_for_each(route, &device->routes, link) {
+            if (route->device == node->card_profile_device) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            warn("route with device %d was not found", node->card_profile_device);
+            return;
+        }
+
+        uint8_t buffer[4096];
+        struct spa_pod_builder b;
+        spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+        float cubed_volumes[node->props.channel_count];
+        for (uint32_t i = 0; i < node->props.channel_count; i++) {
+            float volume = node->props.channel_volumes[i] + delta;
+            cubed_volumes[i] = volume * volume * volume;
+        }
+
+        struct spa_pod *props =
+            spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props, SPA_PARAM_Props,
+                                       SPA_PROP_channelVolumes,
+                                       SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
+                                                     ARRAY_SIZE(cubed_volumes), cubed_volumes));
+
+        struct spa_pod* param =
+            spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route,
+                                       SPA_PARAM_ROUTE_device, SPA_POD_Int(route->device),
+                                       SPA_PARAM_ROUTE_index, SPA_POD_Int(route->index),
+                                       SPA_PARAM_ROUTE_props, SPA_POD_PodObject(props),
+                                       SPA_PARAM_ROUTE_save, SPA_POD_Bool(true));
+
+        pw_device_set_param(device->pw_device, SPA_PARAM_Route, 0, param);
     }
-
-    uint8_t buffer[4096];
-    struct spa_pod_builder b;
-    spa_pod_builder_init(&b, buffer, sizeof(buffer));
-
-    float cubed_volumes[node->props.channel_count];
-    for (uint32_t i = 0; i < node->props.channel_count; i++) {
-        float volume = node->props.channel_volumes[i] + delta;
-        cubed_volumes[i] = volume * volume * volume;
-    }
-
-    struct spa_pod *pod;
-    pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
-                                     SPA_PARAM_Props, SPA_PROP_channelVolumes,
-                                     SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
-                                     ARRAY_SIZE(cubed_volumes), cubed_volumes));
-
-    pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
 }
 
 static void device_routes_cleanup(struct device *device) {
