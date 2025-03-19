@@ -5,6 +5,7 @@
 #include <spa/utils/list.h>
 
 #include "pw.h"
+#include "thirdparty/event_loop.h"
 
 #define PAD_SIZE 1000 /* number of lines in the pad */
 #define MAX_SCREEN_WIDTH 512  /* surely nobody will have terminal window wider than that */
@@ -41,8 +42,10 @@ int tui_init(void);
 int tui_cleanup(void);
 
 int tui_repaint_all(void);
-int tui_handle_resize(void);
 int tui_create_layout(void);
+
+int tui_handle_resize(struct event_loop_item *item, int signal);
+int tui_handle_keyboard(struct event_loop_item *item, uint32_t events);
 
 /* true if focus changed */
 bool tui_focus_next(void);

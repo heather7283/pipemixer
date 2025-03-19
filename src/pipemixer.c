@@ -15,67 +15,10 @@
 #include "thirdparty/event_loop.h"
 #include "thirdparty/stb_ds.h"
 
-static int keyboard_handler(struct event_loop_item *item, uint32_t events) {
-    int ch;
-    while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
-        switch (ch) {
-        case KEY_RESIZE:
-            warn("WHY AM I GETTING KEY_RESIZE ???");
-            break;
-        case 'j':
-            if (tui_focus_prev()) {
-                tui_repaint_all();
-            }
-            break;
-        case 'k':
-            if (tui_focus_next()) {
-                tui_repaint_all();
-            }
-            break;
-        case 't':
-            tui_next_tab();
-            tui_create_layout();
-            tui_repaint_all();
-            break;
-        case 'l':
-            node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), 0.01);
-            break;
-        case 'h':
-            node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), -0.01);
-            break;
-        case 'q':
-            event_loop_quit(event_loop_item_get_loop(item), 0);
-            break;
-        }
-    }
-
-    return 0;
-}
-
 static int siging_sigterm_handler(struct event_loop_item *item, int signal) {
     info("caught signal %d, stopping main loop", signal);
 
     event_loop_quit(event_loop_item_get_loop(item), 0);
-
-    return 0;
-}
-
-static int sigwinch_handler(struct event_loop_item *item, int signal) {
-    debug("caught SIGWINCH, calling resize handler");
-
-    struct winsize winsize;
-    if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
-        err("failed to get new window size: %s", strerror(errno));
-        return -1;
-    }
-
-    resize_term(winsize.ws_row, winsize.ws_col);
-    tui.term_height = getmaxy(stdscr);
-    tui.term_width = getmaxx(stdscr);
-    debug("new window dimensions %d lines %d columns", tui.term_height, tui.term_width);
-
-    tui_create_layout();
-    tui_repaint_all();
 
     return 0;
 }
@@ -177,11 +120,11 @@ int main(int argc, char** argv) {
     tui_create_layout();
     tui_repaint_all();
 
-    event_loop_add_pollable(loop, 0 /* stdin */, EPOLLIN, false, keyboard_handler, NULL);
+    event_loop_add_pollable(loop, 0 /* stdin */, EPOLLIN, false, tui_handle_keyboard, NULL);
     event_loop_add_pollable(loop, pw.main_loop_loop_fd, EPOLLIN, false, pipewire_handler, NULL);
     event_loop_add_signal(loop, SIGTERM, siging_sigterm_handler, NULL);
     event_loop_add_signal(loop, SIGINT, siging_sigterm_handler, NULL);
-    event_loop_add_signal(loop, SIGWINCH, sigwinch_handler, NULL);
+    event_loop_add_signal(loop, SIGWINCH, tui_handle_resize, NULL);
     retcode = event_loop_run(loop);
 
 cleanup:

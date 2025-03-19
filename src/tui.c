@@ -246,6 +246,63 @@ void tui_next_tab(void) {
     }
 }
 
+int tui_handle_resize(struct event_loop_item *item, int signal) {
+    debug("window resized");
+
+    struct winsize winsize;
+    if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
+        err("failed to get new window size: %s", strerror(errno));
+        return -1;
+    }
+
+    resize_term(winsize.ws_row, winsize.ws_col);
+    tui.term_height = getmaxy(stdscr);
+    tui.term_width = getmaxx(stdscr);
+    debug("new window dimensions %d lines %d columns", tui.term_height, tui.term_width);
+
+    tui_create_layout();
+    tui_repaint_all();
+
+    return 0;
+}
+
+int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
+    int ch;
+    while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
+        switch (ch) {
+        case KEY_RESIZE:
+            warn("WHY AM I GETTING KEY_RESIZE ???");
+            break;
+        case 'j':
+            if (tui_focus_prev()) {
+                tui_repaint_all();
+            }
+            break;
+        case 'k':
+            if (tui_focus_next()) {
+                tui_repaint_all();
+            }
+            break;
+        case 't':
+            tui_next_tab();
+            tui_create_layout();
+            tui_repaint_all();
+            break;
+        case 'l':
+            node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), 0.01);
+            break;
+        case 'h':
+            node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), -0.01);
+            break;
+        case 'q':
+            event_loop_quit(event_loop_item_get_loop(item), 0);
+            break;
+        }
+    }
+
+    return 0;
+}
+
 int tui_init(void) {
     setlocale(LC_ALL, ""); /* needed for unicode support in ncurses */
 
