@@ -16,6 +16,12 @@
 struct pw pw = {0};
 
 void node_toggle_mute(struct node *node) {
+    /*
+     * I can't just set mute on a Node that has a Device associated with it.
+     * I need to find the Route property of a Device that has the same value of
+     * device field as card.profile.device field of the Node. Then, I take
+     * device and index fields of the Route and use them in set_param request.
+     */
     if (!node->has_device) {
         uint8_t buffer[1024];
         struct spa_pod_builder b;
