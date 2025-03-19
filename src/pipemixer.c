@@ -108,7 +108,10 @@ int main(int argc, char** argv) {
         goto cleanup;
     }
 
-    pipewire_init();
+    if (pipewire_init() < 0) {
+        retcode = 1;
+        goto cleanup;
+    }
 
     tui_init();
     tui_create_layout();
