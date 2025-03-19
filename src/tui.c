@@ -280,9 +280,6 @@ int tui_handle_resize(struct event_loop_item *item, int signal) {
     tui.term_width = getmaxx(stdscr);
     debug("new window dimensions %d lines %d columns", tui.term_height, tui.term_width);
 
-    tui_create_layout();
-    tui_repaint_all();
-
     return 0;
 }
 
@@ -294,23 +291,16 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
             warn("WHY AM I GETTING KEY_RESIZE ???");
             break;
         case 'j':
-            if (tui_focus_prev()) {
-                tui_repaint_all();
-            }
+            tui_focus_prev();
             break;
         case 'k':
-            if (tui_focus_next()) {
-                tui_repaint_all();
-            }
+            tui_focus_next();
             break;
         case 't':
             tui_next_tab();
-            tui_create_layout();
-            tui_repaint_all();
             break;
         case 'm':
             node_toggle_mute(stbds_hmget(pw.nodes, tui.focused_node_display->node_id));
-            tui_repaint_all();
             break;
         case 'l':
             node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), 0.01);
@@ -323,6 +313,13 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
             break;
         }
     }
+
+    return 0;
+}
+
+int tui_update(struct event_loop_item *loop_item) {
+    tui_create_layout();
+    tui_repaint_all();
 
     return 0;
 }

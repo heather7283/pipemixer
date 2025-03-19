@@ -114,14 +114,13 @@ int main(int argc, char **argv) {
     }
 
     tui_init();
-    tui_create_layout();
-    tui_repaint_all();
 
     event_loop_add_pollable(loop, 0 /* stdin */, EPOLLIN, false, tui_handle_keyboard, NULL);
     event_loop_add_pollable(loop, pw.main_loop_loop_fd, EPOLLIN, false, pipewire_handler, NULL);
     event_loop_add_signal(loop, SIGTERM, sigint_sigterm_handler, NULL);
     event_loop_add_signal(loop, SIGINT, sigint_sigterm_handler, NULL);
     event_loop_add_signal(loop, SIGWINCH, tui_handle_resize, NULL);
+    event_loop_add_unconditional(loop, 0, tui_update, NULL);
     retcode = event_loop_run(loop);
 
 cleanup:

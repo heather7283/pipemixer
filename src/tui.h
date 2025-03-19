@@ -41,6 +41,7 @@ int tui_cleanup(void);
 int tui_repaint_all(void);
 int tui_create_layout(void);
 
+int tui_update(struct event_loop_item *loop_item);
 int tui_handle_resize(struct event_loop_item *item, int signal);
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events);
 
