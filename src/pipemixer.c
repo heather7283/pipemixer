@@ -15,7 +15,7 @@
 #include "thirdparty/event_loop.h"
 #include "thirdparty/stb_ds.h"
 
-static int siging_sigterm_handler(struct event_loop_item *item, int signal) {
+static int sigint_sigterm_handler(struct event_loop_item *item, int signal) {
     info("caught signal %d, stopping main loop", signal);
 
     event_loop_quit(event_loop_item_get_loop(item), 0);
@@ -122,8 +122,8 @@ int main(int argc, char** argv) {
 
     event_loop_add_pollable(loop, 0 /* stdin */, EPOLLIN, false, tui_handle_keyboard, NULL);
     event_loop_add_pollable(loop, pw.main_loop_loop_fd, EPOLLIN, false, pipewire_handler, NULL);
-    event_loop_add_signal(loop, SIGTERM, siging_sigterm_handler, NULL);
-    event_loop_add_signal(loop, SIGINT, siging_sigterm_handler, NULL);
+    event_loop_add_signal(loop, SIGTERM, sigint_sigterm_handler, NULL);
+    event_loop_add_signal(loop, SIGINT, sigint_sigterm_handler, NULL);
     event_loop_add_signal(loop, SIGWINCH, tui_handle_resize, NULL);
     retcode = event_loop_run(loop);
 
