@@ -33,6 +33,12 @@ void node_toggle_mute(struct node *node) {
 }
 
 void node_change_volume(struct node *node, float delta) {
+    if (node->media_class == AUDIO_SOURCE || node->media_class == AUDIO_SINK) {
+        warn("change volume is broken for AUDIO_SOURCE and AUDIO_SINK "
+             "because pipewire is retarded");
+        return;
+    }
+
     uint8_t buffer[4096];
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));
