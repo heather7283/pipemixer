@@ -337,10 +337,11 @@ int tui_init(void) {
     curs_set(0);
 
     start_color();
-    init_pair(GREEN, COLOR_GREEN, COLOR_BLACK);
-    init_pair(YELLOW, COLOR_YELLOW, COLOR_BLACK);
-    init_pair(RED, COLOR_RED, COLOR_BLACK);
-    init_pair(GRAY, 8, COLOR_BLACK);
+    use_default_colors();
+    init_pair(GREEN, COLOR_GREEN, -1);
+    init_pair(YELLOW, COLOR_YELLOW, -1);
+    init_pair(RED, COLOR_RED, -1);
+    init_pair(GRAY, 8, -1);
 
     spa_list_init(&tui.node_displays);
     tui.term_width = getmaxx(stdscr);
