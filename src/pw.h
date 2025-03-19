@@ -38,7 +38,6 @@ struct device {
 
 struct node_props {
     bool mute;
-    bool soft_mute;
     uint32_t channel_count;
     /* so much wasted ram... TODO: can I optimize mem usage? */
     float channel_volumes[SPA_AUDIO_MAX_CHANNELS];

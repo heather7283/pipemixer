@@ -229,10 +229,7 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                                                                  SPA_PROP_channelMap);
     const struct spa_pod_prop *mute_prop = spa_pod_find_prop(param, NULL,
                                                              SPA_PROP_mute);
-    const struct spa_pod_prop *soft_mute_prop = spa_pod_find_prop(param, NULL,
-                                                                  SPA_PROP_softMute);
-    if (volumes_prop == NULL || channels_prop == NULL
-        || mute_prop == NULL || soft_mute_prop == NULL) {
+    if (volumes_prop == NULL || channels_prop == NULL || mute_prop == NULL) {
         return;
     }
 
@@ -251,7 +248,6 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
     props->channel_count = i;
     spa_pod_get_bool(&mute_prop->value, &props->mute);
-    spa_pod_get_bool(&soft_mute_prop->value, &props->soft_mute);
 }
 
 static const struct pw_node_events node_events = {
