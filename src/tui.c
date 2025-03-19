@@ -62,9 +62,9 @@ void tui_draw_node(struct tui_node_display *disp) {
     wchar_t line[tui.term_width - 2];
     swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls",
              node->id,
-             node->node_description ? node->node_description : node->node_name,
-             node->media_name != NULL ? ": " : "",
-             node->media_name != NULL ? node->media_name : L"");
+             node->node_name,
+             wcsempty(node->media_name) ? "" : ": ",
+             wcsempty(node->media_name) ? L"" : node->media_name);
     wcstrimcols(line, tui.term_width - 2);
     mvwaddnwstr(disp->win, 1, 1, line, tui.term_width - 2);
 

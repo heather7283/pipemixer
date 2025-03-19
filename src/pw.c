@@ -219,10 +219,6 @@ static const struct pw_device_events device_events = {
 static void node_cleanup(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
 
-    free(node->node_name);
-    free(node->node_description);
-    free(node->media_name);
-
     free(node);
 }
 
@@ -252,20 +248,30 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
         debug("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
 
         if (STREQ(k, PW_KEY_MEDIA_NAME)) {
-            node->media_name = mbstowcsdup(v);
-            if (node->media_name == NULL) {
-                node->media_name = L"INVALID";
+            size_t ret = mbsrtowcs(node->media_name, &v, ARRAY_SIZE(node->media_name), NULL);
+            node->media_name[ARRAY_SIZE(node->media_name) - 1] = L'\0';
+            if (ret == (size_t)-1) {
+                wcsncpy(node->media_name, L"INVALID", ARRAY_SIZE(node->media_name));
             }
+            node->changed = true;
         } else if (STREQ(k, PW_KEY_NODE_NAME)) {
-            node->node_name = mbstowcsdup(v);
-            if (node->node_name == NULL) {
-                node->node_name = L"INVALID";
+            if (!wcsempty(node->node_name)) {
+                continue;
             }
+            size_t ret = mbsrtowcs(node->node_name, &v, ARRAY_SIZE(node->node_name), NULL);
+            node->node_name[ARRAY_SIZE(node->node_name) - 1] = L'\0';
+            if (ret == (size_t)-1) {
+                wcsncpy(node->node_name, L"INVALID", ARRAY_SIZE(node->node_name));
+            }
+            node->changed = true;
         } else if (STREQ(k, PW_KEY_NODE_DESCRIPTION)) {
-            node->node_description = mbstowcsdup(v);
-            if (node->node_description == NULL) {
-                node->node_description = L"INVALID";
+            /* node.description is better than node.name so overwrite it */
+            size_t ret = mbsrtowcs(node->node_name, &v, ARRAY_SIZE(node->node_name), NULL);
+            node->node_name[ARRAY_SIZE(node->node_name) - 1] = L'\0';
+            if (ret == (size_t)-1) {
+                wcsncpy(node->node_name, L"INVALID", ARRAY_SIZE(node->node_name));
             }
+            node->changed = true;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
             node->has_device = true;
 
@@ -331,6 +337,8 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
     props->channel_count = i;
     spa_pod_get_bool(&mute_prop->value, &props->mute);
+
+    node->changed = true;
 }
 
 static const struct pw_node_events node_events = {

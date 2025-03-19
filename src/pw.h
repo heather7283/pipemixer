@@ -42,14 +42,20 @@ struct node {
 
     uint32_t id;
     enum media_class media_class;
-    wchar_t *media_name;
-    wchar_t *node_name;
-    wchar_t *node_description;
+    wchar_t media_name[128];
+    wchar_t node_name[128];
     struct node_props props;
 
     bool has_device;
     uint32_t device_id;
     int32_t card_profile_device;
+
+    /*
+     * Can channel count of a node be changed without recreating the node?
+     * If yes, it won't be so simple because node display height can change...
+     * But for now assume this is not possible.
+     */
+    bool changed;
 };
 
 struct pw {
