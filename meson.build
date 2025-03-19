@@ -33,21 +33,3 @@ executable('pipemixer',
   dependencies: [ncursesw_dep, pipewire_dep, m_dep],
   install: true)
 
-executable('pwtest',
-  'src/pwtest.c',
-  'src/log.c',
-  'src/pw.c',
-  'src/param_print.c',
-  'src/xmalloc.c',
-  'src/utils.c',
-  'src/stb_ds_impl.c',
-  include_directories: ['thirdparty'],
-  dependencies: [pipewire_dep, m_dep],
-  install: false)
-
-executable('ncurses_test',
-  'src/ncurses_test.c',
-  include_directories: ['thirdparty'],
-  dependencies: [ncursesw_dep, pipewire_dep, m_dep],
-  install: false)
-
