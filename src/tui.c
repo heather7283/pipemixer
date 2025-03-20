@@ -342,9 +342,11 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
             warn("WHY AM I GETTING KEY_RESIZE ???");
             break;
         case 'j':
+        case KEY_DOWN:
             tui_focus_prev();
             break;
         case 'k':
+        case KEY_UP:
             tui_focus_next();
             break;
         case 't':
@@ -355,9 +357,11 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
             node_toggle_mute(stbds_hmget(pw.nodes, tui.focused_node_display->node_id));
             break;
         case 'l':
+        case KEY_RIGHT:
             node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), 0.01);
             break;
         case 'h':
+        case KEY_LEFT:
             node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), -0.01);
             break;
         case 'q':
