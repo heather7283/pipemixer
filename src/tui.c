@@ -2,7 +2,6 @@
 #include <wchar.h>
 
 #include "tui.h"
-#include "pw.h"
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"

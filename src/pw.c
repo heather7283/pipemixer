@@ -1,16 +1,13 @@
-#include <wchar.h>
 #include <math.h>
-#include <spa/param/audio/raw.h>
 #include <spa/pod/builder.h>
-#include <spa/utils/result.h>
 #include <spa/param/props.h>
 
-#include "thirdparty/stb_ds.h"
 #include "pw.h"
 #include "macros.h"
 #include "utils.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "thirdparty/stb_ds.h"
 
 struct pw pw = {0};
 
