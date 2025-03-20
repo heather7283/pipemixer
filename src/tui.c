@@ -30,7 +30,7 @@ static const char *media_class_name(enum media_class class) {
 }
 
 void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
-    struct node *node = stbds_hmget(pw.nodes, disp->node_id);
+    struct node *node = disp->node;
 
     /*
      * On a 80-character-wide term it will look like this:
@@ -194,10 +194,11 @@ int tui_create_layout(void) {
 
     uint32_t prev_focused_id;
     if (tui.focused_node_display != NULL) {
-        prev_focused_id = tui.focused_node_display->node_id;
+        prev_focused_id = tui.focused_node_display->node->id;
     } else {
         prev_focused_id = 0;
     }
+    tui.focused_node_display = NULL;
 
     if (tui.bar_win != NULL) {
         delwin(tui.bar_win);
@@ -228,8 +229,8 @@ int tui_create_layout(void) {
         }
 
         struct tui_node_display *node_display = xcalloc(1, sizeof(*node_display));
-        node_display->node_id = node->id;
-        if (!focused_found && prev_focused_id == node_display->node_id) {
+        node_display->node = node;
+        if (!focused_found && prev_focused_id == node->id) {
             node_display->focused = true;
             tui.focused_node_display = node_display;
             focused_found = true;
@@ -354,15 +355,15 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
             tui_next_tab();
             break;
         case 'm':
-            node_toggle_mute(stbds_hmget(pw.nodes, tui.focused_node_display->node_id));
+            node_toggle_mute(tui.focused_node_display->node);
             break;
         case 'l':
         case KEY_RIGHT:
-            node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), 0.01);
+            node_change_volume(tui.focused_node_display->node, 0.01);
             break;
         case 'h':
         case KEY_LEFT:
-            node_change_volume(stbds_hmget(pw.nodes, tui.focused_node_display->node_id), -0.01);
+            node_change_volume(tui.focused_node_display->node, -0.01);
             break;
         case 'q':
             event_loop_quit(event_loop_item_get_loop(item), 0);

@@ -23,7 +23,8 @@ struct tui {
 };
 
 struct tui_node_display {
-    uint32_t node_id;
+    struct node *node;
+
     WINDOW *win;
 
     int pos, height;
