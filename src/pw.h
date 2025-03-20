@@ -36,6 +36,12 @@ struct node_props {
     const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
 };
 
+enum node_change_mask {
+    NODE_CHANGE_INFO   = 1 << 0,
+    NODE_CHANGE_MUTE   = 1 << 1,
+    NODE_CHANGE_VOLUME = 1 << 2,
+};
+
 struct node {
     struct pw_node *pw_node;
     struct spa_hook listener;
@@ -50,12 +56,7 @@ struct node {
     uint32_t device_id;
     int32_t card_profile_device;
 
-    /*
-     * Can channel count of a node be changed without recreating the node?
-     * If yes, it won't be so simple because node display height can change...
-     * But for now assume this is not possible.
-     */
-    bool changed;
+    enum node_change_mask changed;
 };
 
 struct pw {
@@ -80,6 +81,9 @@ struct pw {
         uint32_t key; /* id */
         struct device *value;
     } *devices;
+
+    /* TODO: find a more sensible name for this */
+    bool node_list_changed;
 };
 
 extern struct pw pw;

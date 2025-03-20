@@ -253,7 +253,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             if (ret == (size_t)-1) {
                 wcsncpy(node->media_name, L"INVALID", ARRAY_SIZE(node->media_name));
             }
-            node->changed = true;
+            node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_NODE_NAME)) {
             if (!wcsempty(node->node_name)) {
                 continue;
@@ -263,7 +263,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             if (ret == (size_t)-1) {
                 wcsncpy(node->node_name, L"INVALID", ARRAY_SIZE(node->node_name));
             }
-            node->changed = true;
+            node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_NODE_DESCRIPTION)) {
             /* node.description is better than node.name so overwrite it */
             size_t ret = mbsrtowcs(node->node_name, &v, ARRAY_SIZE(node->node_name), NULL);
@@ -271,7 +271,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             if (ret == (size_t)-1) {
                 wcsncpy(node->node_name, L"INVALID", ARRAY_SIZE(node->node_name));
             }
-            node->changed = true;
+            node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
             node->has_device = true;
 
@@ -335,10 +335,19 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         float vol = cbrtf(vol_cubed);
         props->channel_volumes[i++] = vol;
     }
+    const uint32_t old_channel_count = node->props.channel_count;
     props->channel_count = i;
-    spa_pod_get_bool(&mute_prop->value, &props->mute);
+    node->changed |= NODE_CHANGE_VOLUME;
 
-    node->changed = true;
+    const bool old_mute = props->mute;
+    spa_pod_get_bool(&mute_prop->value, &props->mute);
+    if (old_mute != props->mute) {
+        node->changed |= NODE_CHANGE_MUTE;
+    }
+
+    if (old_channel_count != props->channel_count) {
+        pw.node_list_changed = true;
+    }
 }
 
 static const struct pw_node_events node_events = {
@@ -384,6 +393,8 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         pw_node_add_listener(new_node->pw_node, &new_node->listener, &node_events, new_node);
 
         stbds_hmput(pw.nodes, new_node->id, new_node);
+
+        pw.node_list_changed = true;
     } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         if (media_class == NULL) {
@@ -415,6 +426,8 @@ static void on_registry_global_remove(void *data, uint32_t id) {
     if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
         stbds_hmdel(pw.nodes, id);
         node_cleanup(node);
+
+        pw.node_list_changed = true;
     }
     struct device *device;
     if ((device = stbds_hmget(pw.devices, id)) != NULL) {

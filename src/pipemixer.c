@@ -20,9 +20,6 @@ static int sigint_sigterm_handler(struct event_loop_item *item, int signal) {
 static int pipewire_handler(struct event_loop_item *item, uint32_t events) {
     pw_loop_iterate(pw.main_loop_loop, 0);
 
-    tui_create_layout();
-    tui_repaint_all();
-
     return 0;
 }
 
