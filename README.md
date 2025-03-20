@@ -2,6 +2,8 @@
 This is a TUI volume control application for [pipewire] built with [ncurses].
 Heavily inspired by [pulsemixer] and [pwvucontrol].
 
+![Screenshot](screenshot.png)
+
 ## Building
 ```
 git clone https://github.com/heather7283/pipemixer
