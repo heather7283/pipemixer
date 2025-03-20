@@ -42,9 +42,9 @@ void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
      * └──────────────────────────────────────────────────────────────────────────────┘
      */
     const int usable_width = tui.term_width - 2; /* account for box borders */
-    const int half_usable_width = usable_width / 2;
+    const int two_thirds_usable_width = usable_width / 3 * 2;
     /* 5 for channel name, 1 space, 3 volume, 1 space, 4 more for decorations = 14 */
-    const int volume_bar_width_max = half_usable_width - 14;
+    const int volume_bar_width_max = two_thirds_usable_width - 14;
     const int volume_bar_width = (volume_bar_width_max / 15) * 15;
     const int volume_area_width = volume_bar_width + 14;
     const int info_area_width = usable_width - volume_area_width - 1; /* leave a space */
