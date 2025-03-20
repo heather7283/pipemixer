@@ -14,9 +14,7 @@ wchar_t *mbstowcsdup(const char *src);
 /* modifies string in place! */
 size_t wcstrimcols(wchar_t *str, size_t col);
 
-inline bool wcsempty(const wchar_t *str) {
-    return str == NULL || *str == L'\0';
-}
+#define wcsempty(str) ((str) == NULL || *(str) == L'\0')
 
 #endif /* #ifndef UTILS_H */
 

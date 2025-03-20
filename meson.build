@@ -3,19 +3,12 @@ project('pipemixer', 'c',
   license: 'GPL-3.0-or-later',
   default_options: ['warning_level=3'])
 
-# stupid gnuware (pipewire)
-add_project_arguments('-Wno-gnu-statement-expression-from-macro-expansion', language: 'c')
-add_project_arguments('-Wno-gnu-zero-variadic-macro-arguments', language: 'c')
-add_project_arguments('-Wno-gnu-case-range', language: 'c')
-
+add_project_arguments('-Wno-pedantic', language: 'c')
+add_project_arguments('-Wno-unused-value', language: 'c')
 add_project_arguments('-Wno-unused-parameter', language: 'c')
 
 pipewire_dep = dependency('libpipewire-0.3')
 ncursesw_dep = dependency('ncursesw')
-
-# needed for unicode support in curses + wcwidth()
-add_project_arguments('-D_XOPEN_SOURCE=700', language: 'c')
-add_project_arguments('-Wno-macro-redefined', language: 'c')
 
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
