@@ -149,7 +149,7 @@ void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
         }
     }
 
-    if (always_draw) {
+    if (change & NODE_CHANGE_MUTE || always_draw) {
         box(win, 0, 0);
     }
 
