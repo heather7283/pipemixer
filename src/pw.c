@@ -72,7 +72,7 @@ void node_toggle_mute(struct node *node) {
     }
 }
 
-void node_change_volume(struct node *node, float delta) {
+void node_change_volume(struct node *node, float delta, uint32_t channel) {
     if (!node->has_device) {
         uint8_t buffer[4096];
         struct spa_pod_builder b;
@@ -80,7 +80,12 @@ void node_change_volume(struct node *node, float delta) {
 
         float cubed_volumes[node->props.channel_count];
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
-            float volume = node->props.channel_volumes[i] + delta;
+            float volume;
+            if (channel == ALL_CHANNELS || i == channel) {
+                volume = node->props.channel_volumes[i] + delta;
+            } else {
+                volume = node->props.channel_volumes[i];
+            }
             cubed_volumes[i] = volume * volume * volume;
         }
 
@@ -118,7 +123,12 @@ void node_change_volume(struct node *node, float delta) {
 
         float cubed_volumes[node->props.channel_count];
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
-            float volume = node->props.channel_volumes[i] + delta;
+            float volume;
+            if (channel == ALL_CHANNELS || i == channel) {
+                volume = node->props.channel_volumes[i] + delta;
+            } else {
+                volume = node->props.channel_volumes[i];
+            }
             cubed_volumes[i] = volume * volume * volume;
         }
 

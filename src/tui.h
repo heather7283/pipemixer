@@ -17,7 +17,7 @@ struct tui {
     int pad_pos;
 
     struct spa_list node_displays;
-    struct tui_node_display *focused_node_display;
+    struct tui_node_display *focused;
 
     bool need_redo_layout;
 };
@@ -30,6 +30,10 @@ struct tui_node_display {
     int pos, height;
     bool focused;
     bool focus_changed;
+
+    bool unlocked_channels;
+    uint32_t focused_channel;
+    bool unlocked_channels_changed;
 
     struct spa_list link;
 };

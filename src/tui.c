@@ -55,6 +55,7 @@ void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     const bool focused = disp->focused;
     const bool focus_changed = disp->focus_changed;
     const bool muted = node->props.mute;
+    const bool unlocked_channels_changed = disp->unlocked_channels_changed;
     const enum node_change_mask change = node->changed;
 
     WINDOW *win = disp->win;
@@ -108,7 +109,7 @@ void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     }
 
     /* draw decorations (also focused markers) */
-    if (focus_changed || change & NODE_CHANGE_MUTE || always_draw) {
+    if (focus_changed || unlocked_channels_changed || change & NODE_CHANGE_MUTE || always_draw) {
         debug("tui: node %d: drawing decorations", node->id);
 
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
@@ -135,7 +136,12 @@ void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
             mvwadd_wch(win, pos, volume_bar_start - 1, &cchar_left);
             mvwadd_wch(win, pos, volume_bar_start + volume_bar_width, &cchar_right);
 
-            const wchar_t *wchar_focus = focused ? L"─" : L" ";
+            const wchar_t *wchar_focus;
+            if (focused && (!disp->unlocked_channels || disp->focused_channel == i)) {
+                wchar_focus = L"─";
+            } else {
+                wchar_focus = L" ";
+            }
             cchar_t cchar_focus;
             setcchar(&cchar_focus, wchar_focus, 0, DEFAULT, NULL);
             mvwadd_wch(win, pos, volume_bar_start - 2, &cchar_focus);
@@ -193,12 +199,12 @@ int tui_create_layout(void) {
     debug("tui: create_layout");
 
     uint32_t prev_focused_id;
-    if (tui.focused_node_display != NULL) {
-        prev_focused_id = tui.focused_node_display->node->id;
+    if (tui.focused != NULL) {
+        prev_focused_id = tui.focused->node->id;
     } else {
         prev_focused_id = 0;
     }
-    tui.focused_node_display = NULL;
+    tui.focused = NULL;
 
     if (tui.bar_win != NULL) {
         delwin(tui.bar_win);
@@ -232,7 +238,7 @@ int tui_create_layout(void) {
         node_display->node = node;
         if (!focused_found && prev_focused_id == node->id) {
             node_display->focused = true;
-            tui.focused_node_display = node_display;
+            tui.focused = node_display;
             focused_found = true;
         }
 
@@ -248,7 +254,7 @@ int tui_create_layout(void) {
         struct tui_node_display *disp;
         spa_list_for_each_reverse(disp, &tui.node_displays, link) {
             disp->focused = true;
-            tui.focused_node_display = disp;
+            tui.focused = disp;
             break;
         }
     }
@@ -266,7 +272,7 @@ bool tui_focus_next(void) {
             disp->focus_changed = true;
             disp_next->focus_changed = true;
 
-            tui.focused_node_display = disp_next;
+            tui.focused = disp_next;
 
             if (tui.pad_pos > disp_next->pos) {
                 tui.pad_pos = disp_next->pos;
@@ -291,7 +297,7 @@ bool tui_focus_prev(void) {
             disp->focus_changed = true;
             disp_prev->focus_changed = true;
 
-            tui.focused_node_display = disp_prev;
+            tui.focused = disp_prev;
 
             /*            w           +      x      -        y       <         z */
             if ((tui.term_height - 1) + tui.pad_pos - disp_prev->pos < disp_prev->height) {
@@ -344,26 +350,55 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
             break;
         case 'j':
         case KEY_DOWN:
-            tui_focus_prev();
+            if (tui.focused->unlocked_channels) {
+                if (tui.focused->focused_channel == tui.focused->node->props.channel_count - 1) {
+                    tui_focus_prev();
+                } else {
+                    tui.focused->focused_channel += 1;
+                }
+            } else {
+                tui_focus_prev();
+            }
             break;
         case 'k':
         case KEY_UP:
-            tui_focus_next();
+            if (tui.focused->unlocked_channels) {
+                if (tui.focused->focused_channel == 0) {
+                    tui_focus_next();
+                } else {
+                    tui.focused->focused_channel -= 1;
+                }
+            } else {
+                tui_focus_next();
+            }
             break;
         case 't':
         case '\t':
             tui_next_tab();
             break;
         case 'm':
-            node_toggle_mute(tui.focused_node_display->node);
+            node_toggle_mute(tui.focused->node);
             break;
         case 'l':
         case KEY_RIGHT:
-            node_change_volume(tui.focused_node_display->node, 0.01);
+            if (tui.focused->unlocked_channels) {
+                node_change_volume(tui.focused->node, 0.01, tui.focused->focused_channel);
+            } else {
+                node_change_volume(tui.focused->node, 0.01, ALL_CHANNELS);
+            }
             break;
         case 'h':
         case KEY_LEFT:
-            node_change_volume(tui.focused_node_display->node, -0.01);
+            if (tui.focused->unlocked_channels) {
+                node_change_volume(tui.focused->node, -0.01, tui.focused->focused_channel);
+            } else {
+                node_change_volume(tui.focused->node, -0.01, ALL_CHANNELS);
+            }
+            break;
+        case ' ':
+            tui.focused->unlocked_channels =
+                    !tui.focused->unlocked_channels;
+            tui.focused->unlocked_channels_changed = true;
             break;
         case 'q':
             event_loop_quit(event_loop_item_get_loop(item), 0);
