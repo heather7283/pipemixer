@@ -1,4 +1,4 @@
-# (WIP) pipemixer
+# pipemixer
 This is a TUI volume control application for [pipewire] built with [ncurses].
 Heavily inspired by [pulsemixer] and [pwvucontrol].
 
