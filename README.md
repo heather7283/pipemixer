@@ -31,6 +31,7 @@ valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- .
 - https://github.com/saivert/pwvucontrol
 - https://github.com/quickshell-mirror/quickshell/tree/master/src/services/pipewire
 - https://invisible-island.net/ncurses
+- https://tldp.org/HOWTO/NCURSES-Programming-HOWTO
 
 [pipewire]: https://pipewire.org/
 [pulsemixer]: https://github.com/GeorgeFilipkin/pulsemixer
