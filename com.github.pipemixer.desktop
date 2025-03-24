@@ -3,6 +3,6 @@ Type=Application
 Name=pipemixer
 GenericName=PipeWire Volume Control
 Exec=pipemixer
-Categories=Audio
+Categories=Audio;AudioVideo
 Keywords=PipeWire;Volume;Audio;Mixer;Control;Sound
 Terminal=true
