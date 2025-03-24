@@ -26,3 +26,8 @@ executable('pipemixer',
   dependencies: [ncursesw_dep, pipewire_dep, m_dep],
   install: true)
 
+install_data(
+  'com.github.pipemixer.desktop',
+  install_dir: join_paths(get_option('datadir'), 'applications'),
+)
+

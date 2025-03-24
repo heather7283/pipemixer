@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=pipemixer
+GenericName=PipeWire Volume Control
+Exec=pipemixer
+Categories=Audio
+Keywords=PipeWire;Volume;Audio;Mixer;Control;Sound
+Terminal=true
