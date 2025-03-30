@@ -318,6 +318,7 @@ void tui_next_tab(void) {
         tui.active_tab = MEDIA_CLASS_START + 1;
     }
 
+    tui.pad_pos = 0;
     tui.need_redo_layout = true;
 }
 
