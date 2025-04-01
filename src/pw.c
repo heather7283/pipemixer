@@ -80,6 +80,11 @@ void node_change_volume(struct node *node, float delta, uint32_t channel) {
             float volume;
             if (channel == ALL_CHANNELS || i == channel) {
                 volume = node->props.channel_volumes[i] + delta;
+                if (volume > 1.5) {
+                    volume = 1.5;
+                } else if (volume < 0) {
+                    volume = 0;
+                }
             } else {
                 volume = node->props.channel_volumes[i];
             }
@@ -123,6 +128,11 @@ void node_change_volume(struct node *node, float delta, uint32_t channel) {
             float volume;
             if (channel == ALL_CHANNELS || i == channel) {
                 volume = node->props.channel_volumes[i] + delta;
+                if (volume > 1.5) {
+                    volume = 1.5;
+                } else if (volume < 0) {
+                    volume = 0;
+                }
             } else {
                 volume = node->props.channel_volumes[i];
             }
