@@ -18,17 +18,17 @@ void node_toggle_mute(struct node *node) {
      * device field as card.profile.device field of the Node. Then, I take
      * device and index fields of the Route and use them in set_param request.
      */
+    uint8_t buffer[1024];
+    struct spa_pod_builder b;
+    spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+    struct spa_pod *props;
+    props = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
+                                       SPA_PARAM_Props, SPA_PROP_mute,
+                                       SPA_POD_Bool(!node->props.mute));
+
     if (!node->has_device) {
-        uint8_t buffer[1024];
-        struct spa_pod_builder b;
-        spa_pod_builder_init(&b, buffer, sizeof(buffer));
-
-        struct spa_pod *pod;
-        pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
-                                         SPA_PARAM_Props, SPA_PROP_mute,
-                                         SPA_POD_Bool(!node->props.mute));
-
-        pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
+        pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else {
         struct device *device = stbds_hmget(pw.devices, node->device_id);
         if (device == NULL) {
@@ -50,14 +50,6 @@ void node_toggle_mute(struct node *node) {
             return;
         }
 
-        uint8_t buffer[1024];
-        struct spa_pod_builder b;
-        spa_pod_builder_init(&b, buffer, sizeof(buffer));
-
-        struct spa_pod *props =
-            spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props, SPA_PARAM_Props,
-                                       SPA_PROP_mute, SPA_POD_Bool(!node->props.mute));
-
         struct spa_pod* param =
             spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route,
                                        SPA_PARAM_ROUTE_device, SPA_POD_Int(route->device),
@@ -70,27 +62,33 @@ void node_toggle_mute(struct node *node) {
 }
 
 void node_change_volume(struct node *node, float delta, uint32_t channel) {
-    if (!node->has_device) {
-        uint8_t buffer[4096];
-        struct spa_pod_builder b;
-        spa_pod_builder_init(&b, buffer, sizeof(buffer));
+    uint8_t buffer[4096];
+    struct spa_pod_builder b;
+    spa_pod_builder_init(&b, buffer, sizeof(buffer));
 
-        float cubed_volumes[node->props.channel_count];
-        for (uint32_t i = 0; i < node->props.channel_count; i++) {
-            float volume;
-            if (channel == ALL_CHANNELS || i == channel) {
-                volume = node->props.channel_volumes[i] + delta;
-                if (volume > 1.5) {
-                    volume = 1.5;
-                } else if (volume < 0) {
-                    volume = 0;
-                }
-            } else {
-                volume = node->props.channel_volumes[i];
+    float cubed_volumes[node->props.channel_count];
+    for (uint32_t i = 0; i < node->props.channel_count; i++) {
+        float volume;
+        if (channel == ALL_CHANNELS || i == channel) {
+            volume = node->props.channel_volumes[i] + delta;
+            if (volume > 1.5) {
+                volume = 1.5;
+            } else if (volume < 0) {
+                volume = 0;
             }
-            cubed_volumes[i] = volume * volume * volume;
+        } else {
+            volume = node->props.channel_volumes[i];
         }
+        cubed_volumes[i] = volume * volume * volume;
+    }
 
+    struct spa_pod *props =
+        spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props, SPA_PARAM_Props,
+                                   SPA_PROP_channelVolumes,
+                                   SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
+                                                 ARRAY_SIZE(cubed_volumes), cubed_volumes));
+
+    if (!node->has_device) {
         struct spa_pod *pod;
         pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
                                          SPA_PARAM_Props, SPA_PROP_channelVolumes,
@@ -118,32 +116,6 @@ void node_change_volume(struct node *node, float delta, uint32_t channel) {
             warn("route with device %d was not found", node->card_profile_device);
             return;
         }
-
-        uint8_t buffer[4096];
-        struct spa_pod_builder b;
-        spa_pod_builder_init(&b, buffer, sizeof(buffer));
-
-        float cubed_volumes[node->props.channel_count];
-        for (uint32_t i = 0; i < node->props.channel_count; i++) {
-            float volume;
-            if (channel == ALL_CHANNELS || i == channel) {
-                volume = node->props.channel_volumes[i] + delta;
-                if (volume > 1.5) {
-                    volume = 1.5;
-                } else if (volume < 0) {
-                    volume = 0;
-                }
-            } else {
-                volume = node->props.channel_volumes[i];
-            }
-            cubed_volumes[i] = volume * volume * volume;
-        }
-
-        struct spa_pod *props =
-            spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props, SPA_PARAM_Props,
-                                       SPA_PROP_channelVolumes,
-                                       SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
-                                                     ARRAY_SIZE(cubed_volumes), cubed_volumes));
 
         struct spa_pod* param =
             spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route,
