@@ -16,6 +16,11 @@ enum color_pair {
     GRAY = 4,
 };
 
+enum direction {
+    UP,
+    DOWN,
+};
+
 struct tui tui = {0};
 
 static const char *media_class_name(enum media_class class) {
@@ -28,7 +33,7 @@ static const char *media_class_name(enum media_class class) {
     }
 }
 
-void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
+static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     struct node *node = disp->node;
 
     /*
@@ -159,7 +164,7 @@ void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     disp->focus_changed = false;
 }
 
-void tui_draw_status_bar(void) {
+static void tui_draw_status_bar(void) {
     debug("tui: drawing status bar");
 
     wmove(tui.bar_win, 0, 0);
@@ -176,7 +181,7 @@ void tui_draw_status_bar(void) {
     wnoutrefresh(tui.bar_win);
 }
 
-int tui_repaint(bool always_draw) {
+static int tui_repaint(bool always_draw) {
     debug("tui: repaint, always_draw %d", always_draw);
 
     if (tui.need_redo_layout) {
@@ -194,7 +199,7 @@ int tui_repaint(bool always_draw) {
     return 0;
 }
 
-int tui_create_layout(void) {
+static int tui_create_layout(void) {
     debug("tui: create_layout");
 
     uint32_t prev_focused_id;
@@ -261,59 +266,103 @@ int tui_create_layout(void) {
     return 0;
 }
 
-bool tui_focus_next(void) {
-    struct tui_node_display *disp, *disp_next = NULL;
-    spa_list_for_each_reverse(disp, &tui.node_displays, link) {
-        if (disp_next != NULL && disp->focused) {
-            disp->focused = false;
-            disp_next->focused = true;
-
-            disp->focus_changed = true;
-            disp_next->focus_changed = true;
-
-            tui.focused = disp_next;
-
-            if (tui.pad_pos > disp_next->pos) {
-                tui.pad_pos = disp_next->pos;
-            }
-
-            return true;
-        }
-
-        disp_next = disp;
+static void tui_go_up(void) {
+    if (tui.focused == NULL) {
+        return;
     }
 
-    return false;
-}
+    if (tui.focused->unlocked_channels && tui.focused->focused_channel > 0) {
+        tui.focused->focused_channel -= 1;
+    } else {
+        struct tui_node_display *disp, *disp_next = NULL;
+        spa_list_for_each_reverse(disp, &tui.node_displays, link) {
+            if (disp_next != NULL && disp->focused) {
+                disp->focused = false;
+                disp_next->focused = true;
 
-bool tui_focus_prev(void) {
-    struct tui_node_display *disp, *disp_prev = NULL;
-    spa_list_for_each(disp, &tui.node_displays, link) {
-        if (disp_prev != NULL && disp->focused) {
-            disp->focused = false;
-            disp_prev->focused = true;
+                disp->focus_changed = true;
+                disp_next->focus_changed = true;
 
-            disp->focus_changed = true;
-            disp_prev->focus_changed = true;
+                tui.focused = disp_next;
 
-            tui.focused = disp_prev;
+                if (tui.pad_pos > disp_next->pos) {
+                    tui.pad_pos = disp_next->pos;
+                }
 
-            /*            w           +      x      -        y       <         z */
-            if ((tui.term_height - 1) + tui.pad_pos - disp_prev->pos < disp_prev->height) {
-                /*    x     =         z         -           w           +       y */
-                tui.pad_pos = disp_prev->height - (tui.term_height - 1) + disp_prev->pos;
+                break;
             }
 
-            return true;
+            disp_next = disp;
         }
-
-        disp_prev = disp;
     }
-
-    return false;
 }
 
-void tui_next_tab(void) {
+static void tui_go_down(void) {
+    if (tui.focused == NULL) {
+        return;
+    }
+
+    if (tui.focused->unlocked_channels
+        && tui.focused->focused_channel < tui.focused->node->props.channel_count - 1) {
+        tui.focused->focused_channel += 1;
+    } else {
+        struct tui_node_display *disp, *disp_prev = NULL;
+        spa_list_for_each(disp, &tui.node_displays, link) {
+            if (disp_prev != NULL && disp->focused) {
+                disp->focused = false;
+                disp_prev->focused = true;
+
+                disp->focus_changed = true;
+                disp_prev->focus_changed = true;
+
+                tui.focused = disp_prev;
+
+                /*            w           +      x      -        y       <         z */
+                if ((tui.term_height - 1) + tui.pad_pos - disp_prev->pos < disp_prev->height) {
+                    /*    x     =         z         -           w           +       y */
+                    tui.pad_pos = disp_prev->height - (tui.term_height - 1) + disp_prev->pos;
+                }
+
+                break;
+            }
+
+            disp_prev = disp;
+        }
+    }
+}
+
+static void tui_change_volume(enum direction direction) {
+    if (tui.focused == NULL) {
+        return;
+    }
+
+    float delta = (direction == UP) ? 0.01 : -0.01;
+
+    if (tui.focused->unlocked_channels) {
+        node_change_volume(tui.focused->node, delta, tui.focused->focused_channel);
+    } else {
+        node_change_volume(tui.focused->node, delta, ALL_CHANNELS);
+    }
+}
+
+static void tui_mute(void) {
+    if (tui.focused == NULL) {
+        return;
+    }
+
+    node_toggle_mute(tui.focused->node);
+}
+
+static void tui_toggle_channel_lock(void) {
+    if (tui.focused == NULL) {
+        return;
+    }
+
+    tui.focused->unlocked_channels = !tui.focused->unlocked_channels;
+    tui.focused->unlocked_channels_changed = true;
+}
+
+static void tui_next_tab(void) {
     if (++tui.active_tab == MEDIA_CLASS_END) {
         tui.active_tab = MEDIA_CLASS_START + 1;
     }
@@ -345,60 +394,31 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
     int ch;
     while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
         switch (ch) {
-        case KEY_RESIZE:
-            warn("WHY AM I GETTING KEY_RESIZE ???");
-            break;
         case 'j':
         case KEY_DOWN:
-            if (tui.focused->unlocked_channels) {
-                if (tui.focused->focused_channel == tui.focused->node->props.channel_count - 1) {
-                    tui_focus_prev();
-                } else {
-                    tui.focused->focused_channel += 1;
-                }
-            } else {
-                tui_focus_prev();
-            }
+            tui_go_down();
             break;
         case 'k':
         case KEY_UP:
-            if (tui.focused->unlocked_channels) {
-                if (tui.focused->focused_channel == 0) {
-                    tui_focus_next();
-                } else {
-                    tui.focused->focused_channel -= 1;
-                }
-            } else {
-                tui_focus_next();
-            }
+            tui_go_up();
             break;
         case 't':
         case '\t':
             tui_next_tab();
             break;
         case 'm':
-            node_toggle_mute(tui.focused->node);
+            tui_mute();
             break;
         case 'l':
         case KEY_RIGHT:
-            if (tui.focused->unlocked_channels) {
-                node_change_volume(tui.focused->node, 0.01, tui.focused->focused_channel);
-            } else {
-                node_change_volume(tui.focused->node, 0.01, ALL_CHANNELS);
-            }
+            tui_change_volume(UP);
             break;
         case 'h':
         case KEY_LEFT:
-            if (tui.focused->unlocked_channels) {
-                node_change_volume(tui.focused->node, -0.01, tui.focused->focused_channel);
-            } else {
-                node_change_volume(tui.focused->node, -0.01, ALL_CHANNELS);
-            }
+            tui_change_volume(DOWN);
             break;
         case ' ':
-            tui.focused->unlocked_channels =
-                    !tui.focused->unlocked_channels;
-            tui.focused->unlocked_channels_changed = true;
+            tui_toggle_channel_lock();
             break;
         case 'q':
             event_loop_quit(event_loop_item_get_loop(item), 0);
