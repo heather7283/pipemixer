@@ -31,3 +31,8 @@ install_data(
   install_dir: join_paths(get_option('datadir'), 'applications'),
 )
 
+install_data(
+  'pipemixer.1',
+  install_dir: join_paths(get_option('mandir'), 'man1'),
+)
+

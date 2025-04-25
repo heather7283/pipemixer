@@ -1,0 +1,72 @@
+.TH pipemixer 1 "April 2025" "0.1.0" "User Commands"
+.SH NAME
+pipemixer \- ncurses volume control application for pipewire
+
+.SH SYNOPSIS
+.B pipemixer
+[\fIOPTIONS\fR]
+
+.SH DESCRIPTION
+.B pipemixer
+is a terminal-based volume control application for the pipewire audio system. It provides a ncurses user interface for navigating and managing audio streams and devices.
+.B pipemixer
+currently supports changing node volume and mute status.
+
+.SH OPTIONS
+.TP
+.B \-l, \-\-loglevel
+Set log level. Accepted values: DEBUG, INFO, WARN, ERROR, QUIET.
+.TP
+.B \-L, \-\-log-fd
+Write log output to the specified file descriptor (must be open for writing).
+.TP
+.B \-C, \-\-color
+Force colored log output.
+.TP
+.B \-h, \-\-help
+Display help message and exit.
+
+.SH CONTROLS
+.TP
+.B j, Down arrow
+Move down the node list.
+.TP
+.B k, Up arrow
+Move up the node list.
+.TP
+.B t, Tab key
+Switch to the node tab.
+.TP
+.B m
+Toggle mute for the selected node.
+.TP
+.B l, Right arrow
+Increase volume.
+.TP
+.B h, Left arrow
+Decrease volume.
+.TP
+.B Space
+Toggle channel lock for selected node (affects whether volume changes apply to all channels).
+.TP
+.B q
+Quit the application.
+
+.SH BUGS
+Please report bugs to https://github.com/heather7283/pipemixer/issues.
+.PP
+When reporting bugs:
+.PD 0
+.IP \(bu 4
+Provide backtrace with symbols if you experience a crash.
+.IP \(bu 4
+Describe steps necessary to reproduce the issue.
+.PD
+
+.SH SEE ALSO
+pulsemixer: https://github.com/GeorgeFilipkin/pulsemixer
+.br
+pwvucontrol: https://github.com/saivert/pwvucontrol
+.PP
+.BR pipewire (1),
+.BR pw-cli (1)
