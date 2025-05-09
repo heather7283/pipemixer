@@ -476,10 +476,12 @@ int tui_cleanup(void) {
     if (tui.pad_win != NULL) {
         delwin(tui.pad_win);
     }
-    struct tui_node_display *node_display, *node_display_tmp;
-    spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays, link) {
-        delwin(node_display->win);
-        free(node_display);
+    if (spa_list_is_initialized(&tui.node_displays)) {
+        struct tui_node_display *node_display, *node_display_tmp;
+        spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays, link) {
+            delwin(node_display->win);
+            free(node_display);
+        }
     }
 
     endwin();

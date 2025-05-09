@@ -509,10 +509,18 @@ void pipewire_cleanup(void) {
     }
     stbds_hmfree(pw.devices);
 
-    pw_proxy_destroy((struct pw_proxy *)pw.registry);
-    pw_core_disconnect(pw.core);
-    pw_context_destroy(pw.context);
-    pw_main_loop_destroy(pw.main_loop);
+    if (pw.registry != NULL) {
+        pw_proxy_destroy((struct pw_proxy *)pw.registry);
+    }
+    if (pw.core != NULL) {
+        pw_core_disconnect(pw.core);
+    }
+    if (pw.context != NULL) {
+        pw_context_destroy(pw.context);
+    }
+    if (pw.main_loop != NULL) {
+        pw_main_loop_destroy(pw.main_loop);
+    }
     pw_deinit();
 }
 

@@ -101,11 +101,13 @@ int main(int argc, char **argv) {
 
     struct event_loop *loop = event_loop_create();
     if (loop == NULL) {
+        fprintf(stderr, "pipemixer: failed to create event loop\n");
         retcode = 1;
         goto cleanup;
     }
 
     if (pipewire_init() < 0) {
+        fprintf(stderr, "pipemixer: failed to connect to pipewire\n");
         retcode = 1;
         goto cleanup;
     }
