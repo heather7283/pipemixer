@@ -380,6 +380,15 @@ static void tui_prev_tab(void) {
     tui.need_redo_layout = true;
 }
 
+static void tui_switch_tab(enum media_class tab) {
+    if (tab != tui.active_tab) {
+        tui.active_tab = tab;
+
+        tui.pad_pos = 0;
+        tui.need_redo_layout = true;
+    }
+}
+
 int tui_handle_resize(struct event_loop_item *item, int signal) {
     debug("window resized");
 
@@ -418,6 +427,18 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
         case 'T':
         case KEY_BTAB:
             tui_prev_tab();
+            break;
+        case '1':
+            tui_switch_tab(STREAM_OUTPUT_AUDIO);
+            break;
+        case '2':
+            tui_switch_tab(STREAM_INPUT_AUDIO);
+            break;
+        case '3':
+            tui_switch_tab(AUDIO_SOURCE);
+            break;
+        case '4':
+            tui_switch_tab(AUDIO_SINK);
             break;
         case 'm':
             tui_mute();
