@@ -460,8 +460,8 @@ int tui_init(void) {
     init_pair(GRAY, 8, -1);
 
     spa_list_init(&tui.node_displays);
-    tui.term_width = getmaxx(stdscr);
-    tui.term_height = getmaxy(stdscr);
+
+    tui_handle_resize(NULL, 0);
 
     tui.active_tab = MEDIA_CLASS_START + 1;
     tui.need_redo_layout = true;
