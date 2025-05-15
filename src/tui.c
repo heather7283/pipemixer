@@ -371,6 +371,15 @@ static void tui_next_tab(void) {
     tui.need_redo_layout = true;
 }
 
+static void tui_prev_tab(void) {
+    if (--tui.active_tab == MEDIA_CLASS_START) {
+        tui.active_tab = MEDIA_CLASS_END - 1;
+    }
+
+    tui.pad_pos = 0;
+    tui.need_redo_layout = true;
+}
+
 int tui_handle_resize(struct event_loop_item *item, int signal) {
     debug("window resized");
 
@@ -405,6 +414,10 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
         case 't':
         case '\t':
             tui_next_tab();
+            break;
+        case 'T':
+        case KEY_BTAB:
+            tui_prev_tab();
             break;
         case 'm':
             tui_mute();
