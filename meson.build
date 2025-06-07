@@ -13,6 +13,16 @@ ncursesw_dep = dependency('ncursesw')
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
 
+include_dirs = [
+  'src',
+  'thirdparty',
+  'thirdparty/inih'
+]
+
+inih_lib = static_library('inih',
+  'thirdparty/inih/ini.c',
+  include_directories: include_dirs)
+
 executable('pipemixer',
   'src/pipemixer.c',
   'src/tui.c',
@@ -22,7 +32,8 @@ executable('pipemixer',
   'src/utils.c',
   'src/stb_ds_impl.c',
   'src/event_loop_impl.c',
-  include_directories: ['thirdparty'],
+  include_directories: include_dirs,
+  link_with: [inih_lib],
   dependencies: [ncursesw_dep, pipewire_dep, m_dep],
   install: true)
 
