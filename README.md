@@ -25,6 +25,15 @@ With valgrind:
 valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- pipemixer -l debug -L 4 4>pipemixer.log 5>valgrind.log
 ```
 
+## Config
+pipemixer reads its config from $XDG_CONFIG_HOME/pipemixer/config.ini.
+See [example config](config.ini) for all config options.
+
+TODOs:
+- [ ] Make keybinds configurable
+- [ ] Make colors configurable?
+- [ ] Write a man page for config
+
 ## References
 - https://docs.pipewire.org
 - https://gitlab.freedesktop.org/pipewire/pipewire/-/blob/master/src/tools
