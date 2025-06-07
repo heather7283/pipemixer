@@ -49,67 +49,36 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
     #define CONFIG_LOG(fmt, ...) \
         fprintf(stderr, "config:%d:%s:%s: "fmt"\n", l, s, k, ##__VA_ARGS__)
 
+    #define CONFIG_GET_WCHAR(dst) \
+        do { \
+            size_t len = strlen(v); \
+            mbtowc(NULL, NULL, 0); /* reset mbtowc state */ \
+            if (mbtowc((dst), v, len) < 1) { \
+                CONFIG_LOG("invalid character sequence"); \
+            } \
+        } while(0)
+
     if (STREQ(s, "borders")) {
         if (STREQ(k, "left")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.ls[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.ls[0]);
         } else if (STREQ(k, "right")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.rs[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.rs[0]);
         } else if (STREQ(k, "top")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.ts[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.ts[0]);
         } else if (STREQ(k, "bottom")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.bs[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.bs[0]);
         } else if (STREQ(k, "top-left")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.tl[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.tl[0]);
         } else if (STREQ(k, "top-right")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.tr[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.tr[0]);
         } else if (STREQ(k, "bottom-left")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.bl[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.bl[0]);
         } else if (STREQ(k, "bottom-right")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.br[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.br[0]);
         } else if (STREQ(k, "center-left")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.lc[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.lc[0]);
         } else if (STREQ(k, "center-right")) {
-            size_t len = strlen(v);
-            mbtowc(NULL, NULL, 0);
-            if (mbtowc(&config.borders.rc[0], v, len) < 1) {
-                CONFIG_LOG("invalid character sequence");
-            }
+            CONFIG_GET_WCHAR(&config.borders.rc[0]);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
@@ -118,6 +87,9 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
     }
 
     return 0;
+
+    #undef CONFIG_LOG
+    #undef CONFIG_GET_WCHAR
 }
 
 static void parse_config(const char *config) {
