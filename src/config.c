@@ -11,6 +11,7 @@
 #include "ini.h"
 
 struct pipemixer_config config = {
+    .volume_step = 0.01,
     .borders = {
         .ls = L"│",
         .rs = L"│",
@@ -45,6 +46,20 @@ static const char *get_default_config_path(void) {
     }
 }
 
+static bool str_to_ulong(const char *str, unsigned long *res) {
+    char *endptr = NULL;
+
+    errno = 0;
+    unsigned long res_tmp = strtoul(str, &endptr, 10);
+
+    if (errno == 0 && *endptr == '\0') {
+        *res = res_tmp;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 static int key_value_handler(void *data, const char *s, const char *k, const char *v, int l) {
     #define CONFIG_LOG(fmt, ...) \
         fprintf(stderr, "config:%d:%s:%s: "fmt"\n", l, s, k, ##__VA_ARGS__)
@@ -56,9 +71,20 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             if (mbtowc((dst), v, len) < 1) { \
                 CONFIG_LOG("invalid character sequence"); \
             } \
-        } while(0)
+        } while (0)
 
-    if (STREQ(s, "borders")) {
+    if (STREQ(s, "main")) {
+        if (STREQ(k, "volume-step")) {
+            unsigned long step;
+            if (str_to_ulong(v, &step) && step > 0) {
+                config.volume_step = (float)step * 0.01;
+            } else {
+                CONFIG_LOG("%s is not a positive integer", v);
+            }
+        } else {
+            CONFIG_LOG("unknown key %s in section %s", k, s);
+        }
+    } else if (STREQ(s, "borders")) {
         if (STREQ(k, "left")) {
             CONFIG_GET_WCHAR(&config.borders.ls[0]);
         } else if (STREQ(k, "right")) {

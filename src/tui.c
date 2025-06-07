@@ -360,7 +360,7 @@ static void tui_change_volume(enum direction direction) {
         return;
     }
 
-    float delta = (direction == UP) ? 0.01 : -0.01;
+    float delta = (direction == UP) ? config.volume_step : -config.volume_step;
 
     if (tui.focused->unlocked_channels) {
         node_change_volume(tui.focused->node, delta, tui.focused->focused_channel);
