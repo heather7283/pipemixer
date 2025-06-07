@@ -133,8 +133,8 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
                 wchar_left = config.borders.bl;
                 wchar_right = config.borders.br;
             } else {
-                wchar_left = L"├";
-                wchar_right = L"┤";
+                wchar_left = config.borders.lc;
+                wchar_right = config.borders.rc;
             }
             setcchar(&cchar_left, wchar_left, 0, DEFAULT, NULL);
             setcchar(&cchar_right, wchar_right, 0, DEFAULT, NULL);

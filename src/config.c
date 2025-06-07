@@ -20,6 +20,8 @@ struct pipemixer_config config = {
         .tr = L"┐",
         .bl = L"└",
         .br = L"┘",
+        .lc = L"├",
+        .rc = L"┤",
     }
 };
 
@@ -94,6 +96,18 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             size_t len = strlen(v);
             mbtowc(NULL, NULL, 0);
             if (mbtowc(&config.borders.br[0], v, len) < 1) {
+                CONFIG_LOG("invalid character sequence");
+            }
+        } else if (STREQ(k, "center-left")) {
+            size_t len = strlen(v);
+            mbtowc(NULL, NULL, 0);
+            if (mbtowc(&config.borders.lc[0], v, len) < 1) {
+                CONFIG_LOG("invalid character sequence");
+            }
+        } else if (STREQ(k, "center-right")) {
+            size_t len = strlen(v);
+            mbtowc(NULL, NULL, 0);
+            if (mbtowc(&config.borders.rc[0], v, len) < 1) {
                 CONFIG_LOG("invalid character sequence");
             }
         } else {
