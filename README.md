@@ -22,7 +22,7 @@ pipemixer -l debug -L 4 4>pipemixer.log
 ```
 With valgrind:
 ```
-valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- ../build/pipemixer -l debug -L 4 4>pipemixer.log 5>valgrind.log
+valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- pipemixer -l debug -L 4 4>pipemixer.log 5>valgrind.log
 ```
 
 ## References
