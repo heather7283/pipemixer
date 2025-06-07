@@ -11,5 +11,7 @@ size_t wcstrimcols(wchar_t *str, size_t col);
 
 #define wcsempty(str) ((str) == NULL || *(str) == L'\0')
 
+char *read_string_from_fd(int fd, size_t *len);
+
 #endif /* #ifndef UTILS_H */
 

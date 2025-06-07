@@ -19,6 +19,7 @@ include_dirs = [
   'thirdparty/inih'
 ]
 
+add_project_arguments('-DINI_HANDLER_LINENO=1', language: 'c')
 inih_lib = static_library('inih',
   'thirdparty/inih/ini.c',
   include_directories: include_dirs)
@@ -30,6 +31,7 @@ executable('pipemixer',
   'src/xmalloc.c',
   'src/pw.c',
   'src/utils.c',
+  'src/config.c',
   'src/stb_ds_impl.c',
   'src/event_loop_impl.c',
   include_directories: include_dirs,

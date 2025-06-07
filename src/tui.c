@@ -6,6 +6,7 @@
 #include "log.h"
 #include "xmalloc.h"
 #include "utils.h"
+#include "config.h"
 #include "thirdparty/stb_ds.h"
 
 enum color_pair {
@@ -126,11 +127,11 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
                 wchar_left = L"╶";
                 wchar_right = L"╴";
             } else if (i == 0) {
-                wchar_left = L"┌";
-                wchar_right = L"┐";
+                wchar_left = config.borders.tl;
+                wchar_right = config.borders.tr;
             } else if (i == node->props.channel_count - 1) {
-                wchar_left = L"└";
-                wchar_right = L"┘";
+                wchar_left = config.borders.bl;
+                wchar_right = config.borders.br;
             } else {
                 wchar_left = L"├";
                 wchar_right = L"┤";
@@ -154,7 +155,30 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     }
 
     if (change & NODE_CHANGE_MUTE || always_draw) {
-        box(win, 0, 0);
+        /* box */
+        wmove(win, 0, 0);
+        waddwstr(win, config.borders.tl);
+        for (int x = 1; x < tui.term_width - 1; x++) {
+            waddwstr(win, config.borders.ts);
+        }
+        waddwstr(win, config.borders.tr);
+
+        wmove(win, disp->height - 1, 0);
+        waddwstr(win, config.borders.bl);
+        for (int x = 1; x < tui.term_width - 1; x++) {
+            waddwstr(win, config.borders.bs);
+        }
+        waddwstr(win, config.borders.br);
+
+        for (int y = 1; y < disp->height - 1; y++) {
+            wmove(win, y, 0);
+            waddwstr(win, config.borders.ls);
+        }
+
+        for (int y = 1; y < disp->height - 1; y++) {
+            wmove(win, y, tui.term_width - 1);
+            waddwstr(win, config.borders.ls);
+        }
     }
 
     wattroff(win, A_BOLD);
@@ -478,8 +502,6 @@ int tui_update(struct event_loop_item *loop_item) {
 }
 
 int tui_init(void) {
-    setlocale(LC_ALL, ""); /* needed for unicode support in ncurses */
-
     initscr();
     refresh(); /* https://stackoverflow.com/a/22121866 */
     cbreak();

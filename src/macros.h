@@ -1,7 +1,7 @@
 #ifndef MACROS_H
 #define MACROS_H
 
-#define STREQ(a, b) (strcmp(a, b) == 0)
+#define STREQ(a, b) (strcmp((a), (b)) == 0)
 
 #define BYTE_BINARY_FORMAT "0b%c%c%c%c%c%c%c%c"
 #define BYTE_BINARY_ARGS(byte) \

@@ -7,6 +7,7 @@
 #include "log.h"
 #include "pw.h"
 #include "tui.h"
+#include "config.h"
 #include "thirdparty/event_loop.h"
 
 static int sigint_sigterm_handler(struct event_loop_item *item, int signal) {
@@ -43,13 +44,15 @@ void print_help_and_exit(FILE *stream, int exit_status) {
 int main(int argc, char **argv) {
     int retcode = 0;
 
+    const char *config_path = NULL;
     FILE *log_stream = NULL;
     int log_fd = -1;
     enum log_loglevel loglevel = LOG_DEBUG;
     bool log_force_colors = false;
 
-    static const char shortopts[] = "L:l:Ch";
+    static const char shortopts[] = "c:L:l:Ch";
     static const struct option longopts[] = {
+        { "config",      required_argument, NULL, 'c' },
         { "log-fd",      required_argument, NULL, 'L' },
         { "loglevel",    required_argument, NULL, 'l' },
         { "color",       no_argument,       NULL, 'C' },
@@ -60,6 +63,9 @@ int main(int argc, char **argv) {
     int c;
     while ((c = getopt_long(argc, argv, shortopts, longopts, NULL)) > 0) {
         switch (c) {
+        case 'c':
+            config_path = optarg;
+            break;
         case 'L':
             errno = 0;
             char *endptr;
@@ -98,6 +104,10 @@ int main(int argc, char **argv) {
 
         log_init(log_stream, loglevel, log_force_colors);
     }
+
+    /* needed for unicode support in ncurses and correct unicode handling in config */
+    setlocale(LC_ALL, "");
+    load_config(config_path);
 
     struct event_loop *loop = event_loop_create();
     if (loop == NULL) {
