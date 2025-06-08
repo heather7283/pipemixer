@@ -30,7 +30,7 @@ pipemixer reads its config from $XDG_CONFIG_HOME/pipemixer/config.ini.
 See [example config](config.ini) for all config options.
 
 TODOs:
-- [ ] Make keybinds configurable
+- [x] Make keybinds configurable
 - [ ] Make colors configurable?
 - [ ] Write a man page for config
 
