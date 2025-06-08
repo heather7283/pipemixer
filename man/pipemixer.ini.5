@@ -19,23 +19,33 @@ General options.
 Volume change step in percentage (1 means 1%). Default: 1.
 .RE
 
-.SH SECTION: borders
-Configure border appearance. All values default to standard box-drawing characters.
+.SH SECTION: interface
+Configure various UI elements.
 
 .PP
-.B left, right, top, bottom
+.B border-left, border-right, border-top, border-bottom,
+.br
+.B border-top-left, border-top-right, border-bottom-left, border-bottom-right
 .RS 4
-Border sides.
+Characters that make up border around each node.
 .RE
 .PP
-.B top-left, top-right, bottom-left, bottom-right
+.B volume-frame-top-left, volume-frame-top-right,
+.br
+.B volume-frame-bottom-left, volume-frame-bottom-right,
+.br
+.B volume-frame-center-left, volume-frame-center-right,
+.br
+.B volume-frame-mono-left, volume-frame-mono-right,
+.br
+.B volume-frame-focus
 .RS 4
-Border corners.
+Characters that make up frame around per-channel volume bars.
 .RE
 .PP
-.B center-left, center-right
+.B bar-empty-char, bar-full-char
 .RS 4
-Center dividers.
+Characters for drawing volume bars.
 .RE
 
 .SH SECTION: binds
