@@ -45,7 +45,12 @@ install_data(
 )
 
 install_data(
-  'pipemixer.1',
+  'man/pipemixer.1',
   install_dir: join_paths(get_option('mandir'), 'man1'),
+)
+
+install_data(
+  'man/pipemixer.ini.5',
+  install_dir: join_paths(get_option('mandir'), 'man5'),
 )
 
