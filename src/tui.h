@@ -47,5 +47,36 @@ int tui_update(struct event_loop_item *loop_item);
 int tui_handle_resize(struct event_loop_item *item, int signal);
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events);
 
+/* binds */
+union tui_bind_data;
+typedef void (*tui_bind_func_t)(union tui_bind_data data);
+
+enum tui_direction { UP, DOWN };
+void tui_change_focus(union tui_bind_data data);
+void tui_change_volume(union tui_bind_data data);
+
+enum tui_change_mode { ENABLE, DISABLE, TOGGLE };
+void tui_change_mute(union tui_bind_data data);
+void tui_change_channel_lock(union tui_bind_data data);
+
+enum tui_tab { NEXT, PREV, PLAYBACK, RECORDING, INPUT_DEVICES, OUTPUT_DEVICES };
+void tui_change_tab(union tui_bind_data data);
+
+/* TODO: find a more sane way to do this lol */
+enum tui_nothing { NOTHING };
+#define TUI_BIND_QUIT ((tui_bind_func_t)0xDEAD)
+
+union tui_bind_data {
+    enum tui_direction direction;
+    enum tui_change_mode change_mode;
+    enum tui_tab tab;
+    enum tui_nothing nothing;
+};
+
+struct tui_bind {
+    union tui_bind_data data;
+    tui_bind_func_t func;
+};
+
 #endif /* #ifndef TUI_H */
 

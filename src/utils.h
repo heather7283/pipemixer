@@ -6,6 +6,8 @@
 
 const char *channel_name_from_enum(enum spa_audio_channel chan);
 
+const char *key_name_from_key_code(int code);
+
 /* modifies string in place! */
 size_t wcstrimcols(wchar_t *str, size_t col);
 

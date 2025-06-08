@@ -11,7 +11,7 @@
 
 struct pw pw = {0};
 
-void node_toggle_mute(struct node *node) {
+void node_set_mute(struct node *node, bool mute) {
     /*
      * I can't just set mute on a Node that has a Device associated with it.
      * I need to find the Route property of a Device that has the same value of
@@ -25,7 +25,7 @@ void node_toggle_mute(struct node *node) {
     struct spa_pod *props;
     props = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
                                        SPA_PARAM_Props, SPA_PROP_mute,
-                                       SPA_POD_Bool(!node->props.mute));
+                                       SPA_POD_Bool(mute));
 
     if (!node->has_device) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
