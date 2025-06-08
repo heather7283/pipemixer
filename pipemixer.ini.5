@@ -1,0 +1,131 @@
+.TH pipemixer.ini 5 "June 2025" "0.1.0" "File Formats"
+.SH NAME
+pipemixer.ini \- configuration file for pipemixer
+
+.SH SYNOPSIS
+$XDG_CONFIG_HOME/pipemixer/pipemixer.ini
+.br
+~/.config/pipemixer/pipemixer.ini
+
+.SH DESCRIPTION
+The pipemixer.ini file configures the behavior and appearance of \fBpipemixer\fR(1).
+
+.SH SECTION: main
+General options.
+
+.PP
+.B volume-step
+.RS 4
+Volume change step in percentage (1 means 1%). Default: 1.
+.RE
+
+.SH SECTION: borders
+Configure border appearance. All values default to standard box-drawing characters.
+
+.PP
+.B left, right, top, bottom
+.RS 4
+Border sides.
+.RE
+.PP
+.B top-left, top-right, bottom-left, bottom-right
+.RS 4
+Border corners.
+.RE
+.PP
+.B center-left, center-right
+.RS 4
+Center dividers.
+.RE
+
+.SH SECTION: binds
+Configure keybindings. Format is action=key. Each action can be bound to multiple keys.
+.br
+Supported keys include:
+.PD 0
+.IP \(bu 4
+All printable ASCII characters.
+.IP \(bu 4
+Special keys: enter, tab, backtab, space, backspace, up, down, right, left.
+.IP \(bu 4
+Arbitrary keycodes with code:N format (where N is decimal keycode).
+.PD
+
+.PP
+.B focus-down, focus-up
+.RS 4
+Navigate node list.
+.RE
+.PP
+.B volume-up, volume-down
+.RS 4
+Adjust volume.
+.RE
+.PP
+.B tab-next, tab-prev
+.RS 4
+Cycle forward/backward through tabs.
+.RE
+.PP
+.B tab-playback, tab-recording, tab-input-devices, tab-output-devices
+.RS 4
+Switch to specific tab.
+.RE
+.PP
+.B mute-toggle, mute-enable, mute-disable
+.RS 4
+Set mute state for selected node.
+.RE
+.PP
+.B channel-lock-toggle, channel-lock-enable, channel-lock-disable
+.RS 4
+Set channel lock for selected node.
+.RE
+.PP
+.B volume-set-N
+.RS 4
+Set volume of selected node to N%.
+.RE
+.PP
+.B quit
+.RS 4
+Exit application.
+.RE
+
+.SH EXAMPLE
+.nf
+[main]
+volume-step=5
+
+[borders]
+left=|
+right=|
+top=-
+bottom=-
+top-left=+
+top-right=+
+bottom-left=+
+bottom-right=+
+center-right=|
+center-left=|
+
+[binds]
+volume-up=+
+volume-down=-
+volume-set-10=1
+volume-set-20=2
+volume-set-30=3
+volume-set-40=4
+volume-set-50=5
+.fi
+
+.SH FILES
+.TP
+.I $XDG_CONFIG_HOME/pipemixer/pipemixer.ini
+Configuration file (primary location).
+.TP
+.I ~/.config/pipemixer/pipemixer.ini
+Fallback configuration file location.
+
+.SH SEE ALSO
+.BR pipemixer (1)
