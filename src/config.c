@@ -60,18 +60,25 @@ static bool str_to_ulong(const char *str, unsigned long *res) {
     }
 }
 
+static bool get_first_wchar(const char *str, wchar_t *res) {
+    size_t len = strlen(str);
+    wchar_t res_tmp;
+
+    mbtowc(NULL, NULL, 0); /* reset mbtowc state */
+    if (mbtowc(&res_tmp, str, len) < 1) {
+        return false;
+    }
+
+    *res = res_tmp;
+    return true;
+}
+
 static int key_value_handler(void *data, const char *s, const char *k, const char *v, int l) {
     #define CONFIG_LOG(fmt, ...) \
         fprintf(stderr, "config:%d:%s:%s: "fmt"\n", l, s, k, ##__VA_ARGS__)
 
     #define CONFIG_GET_WCHAR(dst) \
-        do { \
-            size_t len = strlen(v); \
-            mbtowc(NULL, NULL, 0); /* reset mbtowc state */ \
-            if (mbtowc((dst), v, len) < 1) { \
-                CONFIG_LOG("invalid character sequence"); \
-            } \
-        } while (0)
+        if (!get_first_wchar(v, dst)) CONFIG_LOG("invalid or incomplete multibyte sequence")
 
     if (STREQ(s, "main")) {
         if (STREQ(k, "volume-step")) {
