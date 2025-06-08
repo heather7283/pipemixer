@@ -87,26 +87,26 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
-    } else if (STREQ(s, "borders")) {
-        if (STREQ(k, "left")) {
+    } else if (STREQ(s, "interface")) {
+        if (STREQ(k, "border-left")) {
             CONFIG_GET_WCHAR(&config.borders.ls[0]);
-        } else if (STREQ(k, "right")) {
+        } else if (STREQ(k, "border-right")) {
             CONFIG_GET_WCHAR(&config.borders.rs[0]);
-        } else if (STREQ(k, "top")) {
+        } else if (STREQ(k, "border-top")) {
             CONFIG_GET_WCHAR(&config.borders.ts[0]);
-        } else if (STREQ(k, "bottom")) {
+        } else if (STREQ(k, "border-bottom")) {
             CONFIG_GET_WCHAR(&config.borders.bs[0]);
-        } else if (STREQ(k, "top-left")) {
+        } else if (STREQ(k, "border-top-left")) {
             CONFIG_GET_WCHAR(&config.borders.tl[0]);
-        } else if (STREQ(k, "top-right")) {
+        } else if (STREQ(k, "border-top-right")) {
             CONFIG_GET_WCHAR(&config.borders.tr[0]);
-        } else if (STREQ(k, "bottom-left")) {
+        } else if (STREQ(k, "border-bottom-left")) {
             CONFIG_GET_WCHAR(&config.borders.bl[0]);
-        } else if (STREQ(k, "bottom-right")) {
+        } else if (STREQ(k, "border-bottom-right")) {
             CONFIG_GET_WCHAR(&config.borders.br[0]);
-        } else if (STREQ(k, "center-left")) {
+        } else if (STREQ(k, "border-center-left")) {
             CONFIG_GET_WCHAR(&config.borders.lc[0]);
-        } else if (STREQ(k, "center-right")) {
+        } else if (STREQ(k, "border-center-right")) {
             CONFIG_GET_WCHAR(&config.borders.rc[0]);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
