@@ -126,6 +126,14 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 } else {
                     CONFIG_LOG("unknown action: %s", k);
                 }
+            } else if (prefix = "volume-set-", STRSTARTSWITH(k, prefix)) {
+                const char *vol_str = k + strlen(prefix);
+                unsigned long vol;
+                if (!str_to_ulong(vol_str, &vol)) {
+                    CONFIG_LOG("%s is not a valid integer", vol_str);
+                } else {
+                    ADD_BIND(keycode, tui_bind_set_volume, volume, (float)vol * 0.01);
+                }
             } else if (prefix = "volume-", STRSTARTSWITH(k, prefix)) {
                 if (STREQ(k + strlen(prefix), "up")) {
                     ADD_BIND(keycode, tui_bind_change_volume, direction, UP);

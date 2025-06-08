@@ -361,9 +361,23 @@ void tui_bind_change_volume(union tui_bind_data data) {
     float delta = (direction == UP) ? config.volume_step : -config.volume_step;
 
     if (tui.focused->unlocked_channels) {
-        node_change_volume(tui.focused->node, delta, tui.focused->focused_channel);
+        node_change_volume(tui.focused->node, false, delta, tui.focused->focused_channel);
     } else {
-        node_change_volume(tui.focused->node, delta, ALL_CHANNELS);
+        node_change_volume(tui.focused->node, false, delta, ALL_CHANNELS);
+    }
+}
+
+void tui_bind_set_volume(union tui_bind_data data) {
+    float vol = data.volume;
+
+    if (tui.focused == NULL) {
+        return;
+    }
+
+    if (tui.focused->unlocked_channels) {
+        node_change_volume(tui.focused->node, true, vol, tui.focused->focused_channel);
+    } else {
+        node_change_volume(tui.focused->node, true, vol, ALL_CHANNELS);
     }
 }
 

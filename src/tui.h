@@ -55,6 +55,8 @@ enum tui_direction { UP, DOWN };
 void tui_bind_change_focus(union tui_bind_data data);
 void tui_bind_change_volume(union tui_bind_data data);
 
+void tui_bind_set_volume(union tui_bind_data data);
+
 enum tui_change_mode { ENABLE, DISABLE, TOGGLE };
 void tui_bind_change_mute(union tui_bind_data data);
 void tui_bind_change_channel_lock(union tui_bind_data data);
@@ -71,6 +73,7 @@ union tui_bind_data {
     enum tui_change_mode change_mode;
     enum tui_tab tab;
     enum tui_nothing nothing;
+    float volume;
 };
 
 struct tui_bind {

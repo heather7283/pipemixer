@@ -61,25 +61,29 @@ void node_set_mute(struct node *node, bool mute) {
     }
 }
 
-void node_change_volume(struct node *node, float delta, uint32_t channel) {
+void node_change_volume(struct node *node, bool absolute, float volume, uint32_t channel) {
     uint8_t buffer[4096];
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));
 
     float cubed_volumes[node->props.channel_count];
     for (uint32_t i = 0; i < node->props.channel_count; i++) {
-        float volume;
+        float new_volume;
         if (channel == ALL_CHANNELS || i == channel) {
-            volume = node->props.channel_volumes[i] + delta;
-            if (volume > 1.5) {
-                volume = 1.5;
-            } else if (volume < 0) {
-                volume = 0;
+            if (absolute) {
+                new_volume = volume;
+            } else {
+                new_volume = node->props.channel_volumes[i] + volume;
+            }
+            if (new_volume > 1.5) {
+                new_volume = 1.5;
+            } else if (new_volume < 0) {
+                new_volume = 0;
             }
         } else {
-            volume = node->props.channel_volumes[i];
+            new_volume = node->props.channel_volumes[i];
         }
-        cubed_volumes[i] = volume * volume * volume;
+        cubed_volumes[i] = new_volume * new_volume * new_volume;
     }
 
     struct spa_pod *props =
