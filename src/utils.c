@@ -428,6 +428,10 @@ int key_code_from_key_name(const char *name) {
     }
 
     /* TODO: add more common keys? */
+    if (STREQ(name, "up")) return KEY_UP;
+    if (STREQ(name, "down")) return KEY_DOWN;
+    if (STREQ(name, "left")) return KEY_LEFT;
+    if (STREQ(name, "right")) return KEY_RIGHT;
     if (STREQ(name, "enter")) return KEY_ENTER;
     if (STREQ(name, "tab")) return '\t';
     if (STREQ(name, "backtab")) return KEY_BTAB;
