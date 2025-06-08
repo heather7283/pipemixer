@@ -23,6 +23,17 @@ struct pipemixer_config config = {
     .volume_step = 0.01,
     .bar_full_char = L"#",
     .bar_empty_char = L"-",
+    .volume_frame = {
+        .tl = L"┌",
+        .tr = L"┐",
+        .bl = L"└",
+        .br = L"┘",
+        .cl = L"├",
+        .cr = L"┤",
+        .ml = L"╶",
+        .mr = L"╴",
+        .f  = L"─",
+    },
     .borders = {
         .ls = L"│",
         .rs = L"│",
@@ -32,8 +43,6 @@ struct pipemixer_config config = {
         .tr = L"┐",
         .bl = L"└",
         .br = L"┘",
-        .lc = L"├",
-        .rc = L"┤",
     },
     .binds = NULL,
 };
@@ -106,10 +115,24 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_GET_WCHAR(&config.borders.bl[0]);
         } else if (STREQ(k, "border-bottom-right")) {
             CONFIG_GET_WCHAR(&config.borders.br[0]);
-        } else if (STREQ(k, "border-center-left")) {
-            CONFIG_GET_WCHAR(&config.borders.lc[0]);
-        } else if (STREQ(k, "border-center-right")) {
-            CONFIG_GET_WCHAR(&config.borders.rc[0]);
+        } else if (STREQ(k, "volume-frame-center-left")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.cl[0]);
+        } else if (STREQ(k, "volume-frame-center-right")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.cr[0]);
+        } else if (STREQ(k, "volume-frame-top-left")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.tl[0]);
+        } else if (STREQ(k, "volume-frame-top-right")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.tr[0]);
+        } else if (STREQ(k, "volume-frame-bottom-left")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.bl[0]);
+        } else if (STREQ(k, "volume-frame-bottom-right")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.br[0]);
+        } else if (STREQ(k, "volume-frame-mono-left")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.ml[0]);
+        } else if (STREQ(k, "volume-frame-mono-right")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.mr[0]);
+        } else if (STREQ(k, "volume-frame-focus")) {
+            CONFIG_GET_WCHAR(&config.volume_frame.f[0]);
         } else if (STREQ(k, "bar-full-char")) {
             CONFIG_GET_WCHAR(&config.bar_full_char[0]);
         } else if (STREQ(k, "bar-empty-char")) {

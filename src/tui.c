@@ -120,17 +120,17 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
             cchar_t cchar_left, cchar_right;
 
             if (node->props.channel_count == 1) {
-                wchar_left = L"╶";
-                wchar_right = L"╴";
+                wchar_left = config.volume_frame.ml;
+                wchar_right = config.volume_frame.mr;
             } else if (i == 0) {
-                wchar_left = config.borders.tl;
-                wchar_right = config.borders.tr;
+                wchar_left = config.volume_frame.tl;
+                wchar_right = config.volume_frame.tr;
             } else if (i == node->props.channel_count - 1) {
-                wchar_left = config.borders.bl;
-                wchar_right = config.borders.br;
+                wchar_left = config.volume_frame.bl;
+                wchar_right = config.volume_frame.br;
             } else {
-                wchar_left = config.borders.lc;
-                wchar_right = config.borders.rc;
+                wchar_left = config.volume_frame.cl;
+                wchar_right = config.volume_frame.cr;
             }
             setcchar(&cchar_left, wchar_left, 0, DEFAULT, NULL);
             setcchar(&cchar_right, wchar_right, 0, DEFAULT, NULL);
@@ -139,7 +139,7 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
 
             const wchar_t *wchar_focus;
             if (focused && (!disp->unlocked_channels || disp->focused_channel == i)) {
-                wchar_focus = L"─";
+                wchar_focus = config.volume_frame.f;
             } else {
                 wchar_focus = L" ";
             }
