@@ -285,7 +285,7 @@ static int tui_create_layout(void) {
     return 0;
 }
 
-void tui_change_focus(union tui_bind_data data) {
+void tui_bind_change_focus(union tui_bind_data data) {
     enum tui_direction direction = data.direction;
 
     if (tui.focused == NULL) {
@@ -351,7 +351,7 @@ void tui_change_focus(union tui_bind_data data) {
     }
 }
 
-void tui_change_volume(union tui_bind_data data) {
+void tui_bind_change_volume(union tui_bind_data data) {
     enum tui_direction direction = data.direction;
 
     if (tui.focused == NULL) {
@@ -367,7 +367,7 @@ void tui_change_volume(union tui_bind_data data) {
     }
 }
 
-void tui_change_mute(union tui_bind_data data) {
+void tui_bind_change_mute(union tui_bind_data data) {
     enum tui_change_mode mode = data.change_mode;
 
     if (tui.focused == NULL) {
@@ -387,7 +387,7 @@ void tui_change_mute(union tui_bind_data data) {
     }
 }
 
-void tui_change_channel_lock(union tui_bind_data data) {
+void tui_bind_change_channel_lock(union tui_bind_data data) {
     enum tui_change_mode mode = data.change_mode;
 
     if (tui.focused == NULL) {
@@ -414,7 +414,7 @@ void tui_change_channel_lock(union tui_bind_data data) {
     }
 }
 
-void tui_change_tab(union tui_bind_data data) {
+void tui_bind_change_tab(union tui_bind_data data) {
     enum tui_tab tab = data.tab;
 
     bool change = false;

@@ -52,15 +52,15 @@ union tui_bind_data;
 typedef void (*tui_bind_func_t)(union tui_bind_data data);
 
 enum tui_direction { UP, DOWN };
-void tui_change_focus(union tui_bind_data data);
-void tui_change_volume(union tui_bind_data data);
+void tui_bind_change_focus(union tui_bind_data data);
+void tui_bind_change_volume(union tui_bind_data data);
 
 enum tui_change_mode { ENABLE, DISABLE, TOGGLE };
-void tui_change_mute(union tui_bind_data data);
-void tui_change_channel_lock(union tui_bind_data data);
+void tui_bind_change_mute(union tui_bind_data data);
+void tui_bind_change_channel_lock(union tui_bind_data data);
 
 enum tui_tab { NEXT, PREV, PLAYBACK, RECORDING, INPUT_DEVICES, OUTPUT_DEVICES };
-void tui_change_tab(union tui_bind_data data);
+void tui_bind_change_tab(union tui_bind_data data);
 
 /* TODO: find a more sane way to do this lol */
 enum tui_nothing { NOTHING };

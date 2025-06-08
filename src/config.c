@@ -140,28 +140,28 @@ static void add_default_binds(void) {
             stbds_hmput(config.binds, key, bind); \
         } while (0)
 
-    ADD_BIND('j', tui_change_focus, direction, DOWN);
-    ADD_BIND(KEY_DOWN, tui_change_focus, direction, DOWN);
-    ADD_BIND('k', tui_change_focus, direction, UP);
-    ADD_BIND(KEY_UP, tui_change_focus, direction, UP);
+    ADD_BIND('j', tui_bind_change_focus, direction, DOWN);
+    ADD_BIND(KEY_DOWN, tui_bind_change_focus, direction, DOWN);
+    ADD_BIND('k', tui_bind_change_focus, direction, UP);
+    ADD_BIND(KEY_UP, tui_bind_change_focus, direction, UP);
 
-    ADD_BIND('l', tui_change_volume, direction, UP);
-    ADD_BIND(KEY_RIGHT, tui_change_volume, direction, UP);
-    ADD_BIND('h', tui_change_volume, direction, DOWN);
-    ADD_BIND(KEY_LEFT, tui_change_volume, direction, DOWN);
+    ADD_BIND('l', tui_bind_change_volume, direction, UP);
+    ADD_BIND(KEY_RIGHT, tui_bind_change_volume, direction, UP);
+    ADD_BIND('h', tui_bind_change_volume, direction, DOWN);
+    ADD_BIND(KEY_LEFT, tui_bind_change_volume, direction, DOWN);
 
-    ADD_BIND('t', tui_change_tab, tab, NEXT);
-    ADD_BIND('\t', tui_change_tab, tab, NEXT);
-    ADD_BIND('T', tui_change_tab, tab, PREV);
-    ADD_BIND(KEY_BTAB, tui_change_tab, tab, PREV);
+    ADD_BIND('t', tui_bind_change_tab, tab, NEXT);
+    ADD_BIND('\t', tui_bind_change_tab, tab, NEXT);
+    ADD_BIND('T', tui_bind_change_tab, tab, PREV);
+    ADD_BIND(KEY_BTAB, tui_bind_change_tab, tab, PREV);
 
-    ADD_BIND('1', tui_change_tab, tab, PLAYBACK);
-    ADD_BIND('2', tui_change_tab, tab, RECORDING);
-    ADD_BIND('3', tui_change_tab, tab, INPUT_DEVICES);
-    ADD_BIND('4', tui_change_tab, tab, OUTPUT_DEVICES);
+    ADD_BIND('1', tui_bind_change_tab, tab, PLAYBACK);
+    ADD_BIND('2', tui_bind_change_tab, tab, RECORDING);
+    ADD_BIND('3', tui_bind_change_tab, tab, INPUT_DEVICES);
+    ADD_BIND('4', tui_bind_change_tab, tab, OUTPUT_DEVICES);
 
-    ADD_BIND('m', tui_change_mute, change_mode, TOGGLE);
-    ADD_BIND(' ', tui_change_channel_lock, change_mode, TOGGLE);
+    ADD_BIND('m', tui_bind_change_mute, change_mode, TOGGLE);
+    ADD_BIND(' ', tui_bind_change_channel_lock, change_mode, TOGGLE);
 
     ADD_BIND('q', TUI_BIND_QUIT, nothing, NOTHING);
 }
