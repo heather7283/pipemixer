@@ -11,6 +11,14 @@
 #include "ini.h"
 #include "thirdparty/stb_ds.h"
 
+#define ADD_BIND(key, function, data_type, data_value) \
+    do { \
+        struct tui_bind bind; \
+        bind.func = function; \
+        bind.data.data_type = data_value; \
+        stbds_hmput(config.binds, key, bind); \
+    } while (0)
+
 struct pipemixer_config config = {
     .volume_step = 0.01,
     .borders = {
@@ -45,20 +53,6 @@ static const char *get_default_config_path(void) {
         fprintf(stderr,
                 "config: HOME and XDG_CONFIG_HOME are unset, cannot determine config path\n");
         return NULL;
-    }
-}
-
-static bool str_to_ulong(const char *str, unsigned long *res) {
-    char *endptr = NULL;
-
-    errno = 0;
-    unsigned long res_tmp = strtoul(str, &endptr, 10);
-
-    if (errno == 0 && *endptr == '\0') {
-        *res = res_tmp;
-        return true;
-    } else {
-        return false;
     }
 }
 
@@ -117,6 +111,71 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
+    } else if (STREQ(s, "binds")) {
+        int keycode = key_code_from_key_name(v);
+
+        if (keycode == ERR) {
+            CONFIG_LOG("invalid keycode: %s", v);
+        } else {
+            const char *prefix = NULL;
+            if (prefix = "focus-", STRSTARTSWITH(k, prefix)) {
+                if (STREQ(k + strlen(prefix), "up")) {
+                    ADD_BIND(keycode, tui_bind_change_focus, direction, UP);
+                } else if (STREQ(k + strlen(prefix), "down")) {
+                    ADD_BIND(keycode, tui_bind_change_focus, direction, DOWN);
+                } else {
+                    CONFIG_LOG("unknown action: %s", k);
+                }
+            } else if (prefix = "volume-", STRSTARTSWITH(k, prefix)) {
+                if (STREQ(k + strlen(prefix), "up")) {
+                    ADD_BIND(keycode, tui_bind_change_volume, direction, UP);
+                } else if (STREQ(k + strlen(prefix), "down")) {
+                    ADD_BIND(keycode, tui_bind_change_volume, direction, DOWN);
+                } else {
+                    CONFIG_LOG("unknown action: %s", k);
+                }
+            } else if (prefix = "mute-", STRSTARTSWITH(k, prefix)) {
+                if (STREQ(k + strlen(prefix), "enable")) {
+                    ADD_BIND(keycode, tui_bind_change_mute, change_mode, ENABLE);
+                } else if (STREQ(k + strlen(prefix), "disable")) {
+                    ADD_BIND(keycode, tui_bind_change_mute, change_mode, DISABLE);
+                } else if (STREQ(k + strlen(prefix), "toggle")) {
+                    ADD_BIND(keycode, tui_bind_change_mute, change_mode, TOGGLE);
+                } else {
+                    CONFIG_LOG("unknown action: %s", k);
+                }
+            } else if (prefix = "channel-lock-", STRSTARTSWITH(k, prefix)) {
+                if (STREQ(k + strlen(prefix), "enable")) {
+                    ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, ENABLE);
+                } else if (STREQ(k + strlen(prefix), "disable")) {
+                    ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, DISABLE);
+                } else if (STREQ(k + strlen(prefix), "toggle")) {
+                    ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, TOGGLE);
+                } else {
+                    CONFIG_LOG("unknown action: %s", k);
+                }
+            } else if (prefix = "tab-", STRSTARTSWITH(k, prefix)) {
+                if (STREQ(k + strlen(prefix), "next")) {
+                    ADD_BIND(keycode, tui_bind_change_tab, tab, NEXT);
+                } else if (STREQ(k + strlen(prefix), "prev")) {
+                    ADD_BIND(keycode, tui_bind_change_tab, tab, PREV);
+                } else if (STREQ(k + strlen(prefix), "playback")) {
+                    ADD_BIND(keycode, tui_bind_change_tab, tab, PLAYBACK);
+                } else if (STREQ(k + strlen(prefix), "recording")) {
+                    ADD_BIND(keycode, tui_bind_change_tab, tab, RECORDING);
+                } else if (STREQ(k + strlen(prefix), "input-devices")) {
+                    ADD_BIND(keycode, tui_bind_change_tab, tab, INPUT_DEVICES);
+                } else if (STREQ(k + strlen(prefix), "output-devices")) {
+                    ADD_BIND(keycode, tui_bind_change_tab, tab, OUTPUT_DEVICES);
+                } else {
+                    CONFIG_LOG("unknown action: %s", k);
+                }
+            } else if (STREQ(k, "quit")) {
+                ADD_BIND(keycode, TUI_BIND_QUIT, nothing, NOTHING);
+            } else {
+                CONFIG_LOG("unknown action: %s", k);
+            }
+        }
     } else {
         CONFIG_LOG("unknown section %s", s);
     }
@@ -132,14 +191,6 @@ static void parse_config(const char *config) {
 }
 
 static void add_default_binds(void) {
-    #define ADD_BIND(key, function, data_type, data_value) \
-        do { \
-            struct tui_bind bind; \
-            bind.func = function; \
-            bind.data.data_type = data_value; \
-            stbds_hmput(config.binds, key, bind); \
-        } while (0)
-
     ADD_BIND('j', tui_bind_change_focus, direction, DOWN);
     ADD_BIND(KEY_DOWN, tui_bind_change_focus, direction, DOWN);
     ADD_BIND('k', tui_bind_change_focus, direction, UP);

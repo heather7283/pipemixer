@@ -1,8 +1,13 @@
+#include <errno.h>
+#include <ctype.h>
+#include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <curses.h>
+#include <limits.h>
 
 #include "utils.h"
+#include "macros.h"
 #include "xmalloc.h"
 
 const char *channel_name_from_enum(enum spa_audio_channel chan) {
@@ -406,6 +411,54 @@ const char *key_name_from_key_code(int code) {
     case ERR: return "ERR";
     /* Fallback */
     default: return "KEY_????????";
+    }
+}
+
+int key_code_from_key_name(const char *name) {
+    if (name == NULL || name[0] == '\0') {
+        return ERR;
+    }
+
+    if (name[0] != '\0' && name[1] == '\0') {
+        if (isprint(name[0])) {
+            return name[0];
+        } else {
+            return ERR;
+        }
+    }
+
+    /* TODO: add more common keys? */
+    if (STREQ(name, "enter")) return KEY_ENTER;
+    if (STREQ(name, "tab")) return '\t';
+    if (STREQ(name, "backtab")) return KEY_BTAB;
+    if (STREQ(name, "space")) return ' ';
+    if (STREQ(name, "backspace")) return KEY_BACKSPACE;
+
+    const char *prefix;
+    if (prefix = "code:", STRSTARTSWITH(name, prefix)) {
+        const char *num = name + strlen(prefix);
+        unsigned long code;
+        if (str_to_ulong(num, &code) && code < INT_MAX) {
+            return code;
+        } else {
+            return ERR;
+        }
+    }
+
+    return ERR;
+}
+
+bool str_to_ulong(const char *str, unsigned long *res) {
+    char *endptr = NULL;
+
+    errno = 0;
+    unsigned long res_tmp = strtoul(str, &endptr, 10);
+
+    if (errno == 0 && *endptr == '\0') {
+        *res = res_tmp;
+        return true;
+    } else {
+        return false;
     }
 }
 

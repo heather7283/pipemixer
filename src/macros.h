@@ -2,6 +2,8 @@
 #define MACROS_H
 
 #define STREQ(a, b) (strcmp((a), (b)) == 0)
+#define STRCASEEQ(a, b) (strcasecmp((a), (b)) == 0)
+#define STRSTARTSWITH(a, b) (strncmp((a), (b), strlen(b)) == 0)
 
 #define BYTE_BINARY_FORMAT "0b%c%c%c%c%c%c%c%c"
 #define BYTE_BINARY_ARGS(byte) \
