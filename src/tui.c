@@ -102,7 +102,8 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
                 if (j % step == 0 && !node->props.mute) {
                     pair += 1;
                 }
-                setcchar(&cc, (j < thresh) ? L"#" : L"-", 0, pair, NULL);
+                setcchar(&cc, (j < thresh) ? config.bar_full_char : config.bar_empty_char,
+                         0, pair, NULL);
                 mvwadd_wch(win, pos, volume_bar_start + j, &cc);
             }
         }

@@ -21,6 +21,8 @@
 
 struct pipemixer_config config = {
     .volume_step = 0.01,
+    .bar_full_char = L"#",
+    .bar_empty_char = L"-",
     .borders = {
         .ls = L"│",
         .rs = L"│",
@@ -108,6 +110,10 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_GET_WCHAR(&config.borders.lc[0]);
         } else if (STREQ(k, "border-center-right")) {
             CONFIG_GET_WCHAR(&config.borders.rc[0]);
+        } else if (STREQ(k, "bar-full-char")) {
+            CONFIG_GET_WCHAR(&config.bar_full_char[0]);
+        } else if (STREQ(k, "bar-empty-char")) {
+            CONFIG_GET_WCHAR(&config.bar_empty_char[0]);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
