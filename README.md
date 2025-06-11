@@ -31,8 +31,8 @@ See [example config](config.ini) for all config options.
 
 TODOs:
 - [x] Make keybinds configurable
-- [ ] Make colors configurable?
-- [ ] Write a man page for config
+- [ ] Make colors configurable? (Using colors in ncurses is torture so not sure)
+- [x] Write a man page for config
 
 ## References
 - https://docs.pipewire.org
