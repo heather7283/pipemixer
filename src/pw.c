@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "config.h"
 #include "thirdparty/stb_ds.h"
 
 struct pw pw = {0};
@@ -69,20 +70,29 @@ void node_change_volume(struct node *node, bool absolute, float volume, uint32_t
     float cubed_volumes[node->props.channel_count];
     for (uint32_t i = 0; i < node->props.channel_count; i++) {
         float new_volume;
+        float old_volume = node->props.channel_volumes[i];
+
         if (channel == ALL_CHANNELS || i == channel) {
             if (absolute) {
                 new_volume = volume;
-            } else {
-                new_volume = node->props.channel_volumes[i] + volume;
+            } else if (volume >= 0 /* positive delta */) {
+                if (old_volume + volume > config.volume_max) {
+                    new_volume = old_volume;
+                } else {
+                    new_volume = old_volume + volume;
+                }
             }
-            if (new_volume > 1.5) {
-                new_volume = 1.5;
-            } else if (new_volume < 0) {
-                new_volume = 0;
+            else /* volume < 0, negative delta */ {
+                if (old_volume + volume < config.volume_min) {
+                    new_volume = old_volume;
+                } else {
+                    new_volume = old_volume + volume;
+                }
             }
         } else {
-            new_volume = node->props.channel_volumes[i];
+            new_volume = old_volume;
         }
+
         cubed_volumes[i] = new_volume * new_volume * new_volume;
     }
 

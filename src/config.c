@@ -21,6 +21,9 @@
 
 struct pipemixer_config config = {
     .volume_step = 0.01,
+    .volume_min = 0.00,
+    .volume_max = 1.50,
+
     .bar_full_char = L"#",
     .bar_empty_char = L"-",
     .volume_frame = {
@@ -44,6 +47,7 @@ struct pipemixer_config config = {
         .bl = L"└",
         .br = L"┘",
     },
+
     .binds = NULL,
 };
 
@@ -104,6 +108,10 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
     if (STREQ(s, "main")) {
         if (STREQ(k, "volume-step")) {
             CONFIG_GET_PERCENTAGE(&config.volume_step);
+        } else if (STREQ(k, "volume-min")) {
+            CONFIG_GET_PERCENTAGE(&config.volume_min);
+        } else if (STREQ(k, "volume-max")) {
+            CONFIG_GET_PERCENTAGE(&config.volume_max);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
