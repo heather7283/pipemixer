@@ -80,6 +80,17 @@ static bool get_first_wchar(const char *str, wchar_t *res) {
     return true;
 }
 
+static bool get_percentage(const char *str, float *res) {
+    unsigned long tmp;
+
+    if (!str_to_ulong(str, &tmp)) {
+        return false;
+    }
+
+    *res = (float)tmp * 0.01;
+    return true;
+}
+
 static int key_value_handler(void *data, const char *s, const char *k, const char *v, int l) {
     #define CONFIG_LOG(fmt, ...) \
         fprintf(stderr, "config:%d: (%s::%s) "fmt"\n", l, s, k, ##__VA_ARGS__)
@@ -87,14 +98,12 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
     #define CONFIG_GET_WCHAR(dst) \
         if (!get_first_wchar(v, dst)) CONFIG_LOG("invalid or incomplete multibyte sequence")
 
+    #define CONFIG_GET_PERCENTAGE(dst) \
+        if (!get_percentage(v, dst)) CONFIG_LOG("invalid percentage value")
+
     if (STREQ(s, "main")) {
         if (STREQ(k, "volume-step")) {
-            unsigned long step;
-            if (str_to_ulong(v, &step) && step > 0) {
-                config.volume_step = (float)step * 0.01;
-            } else {
-                CONFIG_LOG("%s is not a positive integer", v);
-            }
+            CONFIG_GET_PERCENTAGE(&config.volume_step);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
