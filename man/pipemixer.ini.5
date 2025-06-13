@@ -24,35 +24,6 @@ Volume change step in percentage (1 means 1%). Default: 1.
 Max and min volume that can be set with pipemixer. Default: 0, 150.
 .RE
 
-.SH SECTION: interface
-Configure various UI elements.
-
-.PP
-.B border-left, border-right, border-top, border-bottom,
-.br
-.B border-top-left, border-top-right, border-bottom-left, border-bottom-right
-.RS 4
-Characters that make up border around each node.
-.RE
-.PP
-.B volume-frame-top-left, volume-frame-top-right,
-.br
-.B volume-frame-bottom-left, volume-frame-bottom-right,
-.br
-.B volume-frame-center-left, volume-frame-center-right,
-.br
-.B volume-frame-mono-left, volume-frame-mono-right,
-.br
-.B volume-frame-focus
-.RS 4
-Characters that make up frame around per-channel volume bars.
-.RE
-.PP
-.B bar-empty-char, bar-full-char
-.RS 4
-Characters for drawing volume bars.
-.RE
-
 .SH SECTION: binds
 Configure keybindings. Format is action=key. Each action can be bound to multiple keys. Key can be specified in several ways:
 .IP \(bu 4
@@ -111,6 +82,35 @@ Set volume of selected node to N%.
 .B quit
 .RS 4
 Exit application.
+.RE
+
+.SH SECTION: interface
+Configure various UI elements.
+
+.PP
+.B border-left, border-right, border-top, border-bottom,
+.br
+.B border-top-left, border-top-right, border-bottom-left, border-bottom-right
+.RS 4
+Characters that make up border around each node.
+.RE
+.PP
+.B volume-frame-top-left, volume-frame-top-right,
+.br
+.B volume-frame-bottom-left, volume-frame-bottom-right,
+.br
+.B volume-frame-center-left, volume-frame-center-right,
+.br
+.B volume-frame-mono-left, volume-frame-mono-right,
+.br
+.B volume-frame-focus
+.RS 4
+Characters that make up frame around per-channel volume bars.
+.RE
+.PP
+.B bar-empty-char, bar-full-char
+.RS 4
+Characters for drawing volume bars.
 .RE
 
 .SH EXAMPLE
