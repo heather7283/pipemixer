@@ -236,8 +236,9 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
 
     return 0;
 
-    #undef CONFIG_LOG
+    #undef CONFIG_GET_PERCENTAGE
     #undef CONFIG_GET_WCHAR
+    #undef CONFIG_LOG
 }
 
 static void parse_config(const char *config) {
