@@ -276,6 +276,8 @@ void load_config(const char *config_path) {
     int fd = -1;
     char *config_str = NULL;
 
+    add_default_binds();
+
     if (config_path == NULL) {
         config_path = get_default_config_path();
     }
@@ -284,20 +286,23 @@ void load_config(const char *config_path) {
         fd = open(config_path, O_RDONLY);
         if (fd < 0) {
             fprintf(stderr, "config: failed to open %s: %s\n", config_path, strerror(errno));
+            goto out;
         }
 
         config_str = read_string_from_fd(fd, NULL);
         if (config_str == NULL) {
             fprintf(stderr, "config: failed to read config file: %s\n", strerror(errno));
+            goto out;
         }
 
-        close(fd);
+        parse_config(config_str);
     }
 
-    add_default_binds();
-
+out:
+    if (fd > 0) {
+        close(fd);
+    }
     if (config_str != NULL) {
-        parse_config(config_str);
         free(config_str);
     }
 }
