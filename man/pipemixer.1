@@ -1,4 +1,4 @@
-.TH pipemixer 1 "April 2025" "0.1.0" "User Commands"
+.TH pipemixer 1 "June 2025" "0.1.0" "User Commands"
 .SH NAME
 pipemixer \- ncurses volume control application for pipewire
 
@@ -7,12 +7,14 @@ pipemixer \- ncurses volume control application for pipewire
 [\fIOPTIONS\fR]
 
 .SH DESCRIPTION
-.B pipemixer
-is a terminal-based volume control application for the pipewire audio system. It provides a ncurses user interface for navigating and managing audio streams and devices.
-.B pipemixer
-currently supports changing node volume and mute status.
+\fBpipemixer\fR is a terminal-based volume control application for the pipewire audio system.
+It provides a ncurses user interface for navigating and managing audio streams and devices.
+\fBpipemixer\fR currently supports changing node volume and mute status.
 
 .SH OPTIONS
+.TP
+.B \-c, \-\-config
+Path to configuration file, see \fBpipemixer.ini\fR(5) for details.
 .TP
 .B \-l, \-\-loglevel
 Set log level. Accepted values: DEBUG, INFO, WARN, ERROR, QUIET.
@@ -27,6 +29,7 @@ Force colored log output.
 Display help message and exit.
 
 .SH CONTROLS
+By default, \fBpipemixer\fR uses the following keybinds:
 .TP
 .B j, Down
 Move down the node list.
@@ -74,5 +77,6 @@ pulsemixer: https://github.com/GeorgeFilipkin/pulsemixer
 .br
 pwvucontrol: https://github.com/saivert/pwvucontrol
 .PP
+.BR pipemixer.ini (5),
 .BR pipewire (1),
 .BR pw-cli (1)

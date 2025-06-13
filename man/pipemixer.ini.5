@@ -1,0 +1,152 @@
+.TH pipemixer.ini 5 "June 2025" "0.1.0" "File Formats"
+.SH NAME
+pipemixer.ini \- configuration file for pipemixer
+
+.SH SYNOPSIS
+$XDG_CONFIG_HOME/pipemixer/config.ini
+.br
+~/.config/pipemixer/config.ini
+
+.SH DESCRIPTION
+The pipemixer.ini file configures the behavior and appearance of \fBpipemixer\fR(1).
+
+.SH SECTION: main
+General options.
+
+.PP
+.B volume-step
+.RS 4
+Volume change step in percentage (1 means 1%). Default: 1.
+.RE
+.PP
+.B volume-min, volume-max
+.RS 4
+Max and min volume that can be set with pipemixer. Default: 0, 150.
+.RE
+
+.SH SECTION: binds
+Configure keybindings. Format is action=key. Each action can be bound to multiple keys. Key can be specified in several ways:
+.IP \(bu 4
+All printable ASCII characters.
+.br
+Example: tab-next=t
+.IP \(bu 4
+Special keys: enter, tab, backtab, space, backspace, up, down, right, left.
+.br
+Example: tab-prev=backtab
+.IP \(bu 4
+Any of the predefined key codes listed in \fBcurs_getch\fR(3x), with KEY_ prefix removed.
+.br
+Example: volume-set-50=F5
+.IP \(bu 4
+Arbitrary keycodes with code:N (where N is decimal representation of a keycode).
+.br
+Example: quit=code:185
+
+.PP
+.B focus-down, focus-up
+.RS 4
+Navigate node list.
+.RE
+.PP
+.B volume-up, volume-down
+.RS 4
+Adjust volume.
+.RE
+.PP
+.B tab-next, tab-prev
+.RS 4
+Cycle forward/backward through tabs.
+.RE
+.PP
+.B tab-playback, tab-recording, tab-input-devices, tab-output-devices
+.RS 4
+Switch to specific tab.
+.RE
+.PP
+.B mute-toggle, mute-enable, mute-disable
+.RS 4
+Set mute state for selected node.
+.RE
+.PP
+.B channel-lock-toggle, channel-lock-enable, channel-lock-disable
+.RS 4
+Set channel lock for selected node.
+.RE
+.PP
+.B volume-set-N
+.RS 4
+Set volume of selected node to N%.
+.RE
+.PP
+.B quit
+.RS 4
+Exit application.
+.RE
+
+.SH SECTION: interface
+Configure various UI elements.
+
+.PP
+.B border-left, border-right, border-top, border-bottom,
+.br
+.B border-top-left, border-top-right, border-bottom-left, border-bottom-right
+.RS 4
+Characters that make up border around each node.
+.RE
+.PP
+.B volume-frame-top-left, volume-frame-top-right,
+.br
+.B volume-frame-bottom-left, volume-frame-bottom-right,
+.br
+.B volume-frame-center-left, volume-frame-center-right,
+.br
+.B volume-frame-mono-left, volume-frame-mono-right,
+.br
+.B volume-frame-focus
+.RS 4
+Characters that make up frame around per-channel volume bars.
+.RE
+.PP
+.B bar-empty-char, bar-full-char
+.RS 4
+Characters for drawing volume bars.
+.RE
+
+.SH EXAMPLE
+.nf
+[main]
+volume-step=5
+
+[borders]
+left=|
+right=|
+top=-
+bottom=-
+top-left=+
+top-right=+
+bottom-left=+
+bottom-right=+
+center-right=|
+center-left=|
+
+[binds]
+volume-up=+
+volume-down=-
+volume-set-10=1
+volume-set-20=2
+volume-set-30=3
+volume-set-40=4
+volume-set-50=5
+.fi
+
+.SH FILES
+.TP
+.I $XDG_CONFIG_HOME/pipemixer/config.ini
+Configuration file (primary location).
+.TP
+.I ~/.config/pipemixer/config.ini
+Fallback configuration file location.
+
+.SH SEE ALSO
+.BR pipemixer (1)

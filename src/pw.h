@@ -100,10 +100,10 @@ extern struct pw pw;
 int pipewire_init(void);
 void pipewire_cleanup(void);
 
-void node_toggle_mute(struct node *node);
+void node_set_mute(struct node *node, bool mute);
 /* (uint32_t)-1 to change all channels */
 #define ALL_CHANNELS ((uint32_t)-1)
-void node_change_volume(struct node *node, float delta, uint32_t channel);
+void node_change_volume(struct node *node, bool absolute, float volume, uint32_t channel);
 
 #endif /* #ifndef PW_H */
 

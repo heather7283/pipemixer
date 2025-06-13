@@ -7,11 +7,12 @@
 #include "utils.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "config.h"
 #include "thirdparty/stb_ds.h"
 
 struct pw pw = {0};
 
-void node_toggle_mute(struct node *node) {
+void node_set_mute(struct node *node, bool mute) {
     /*
      * I can't just set mute on a Node that has a Device associated with it.
      * I need to find the Route property of a Device that has the same value of
@@ -25,7 +26,7 @@ void node_toggle_mute(struct node *node) {
     struct spa_pod *props;
     props = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
                                        SPA_PARAM_Props, SPA_PROP_mute,
-                                       SPA_POD_Bool(!node->props.mute));
+                                       SPA_POD_Bool(mute));
 
     if (!node->has_device) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
@@ -61,25 +62,38 @@ void node_toggle_mute(struct node *node) {
     }
 }
 
-void node_change_volume(struct node *node, float delta, uint32_t channel) {
+void node_change_volume(struct node *node, bool absolute, float volume, uint32_t channel) {
     uint8_t buffer[4096];
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));
 
     float cubed_volumes[node->props.channel_count];
     for (uint32_t i = 0; i < node->props.channel_count; i++) {
-        float volume;
+        float new_volume;
+        float old_volume = node->props.channel_volumes[i];
+
         if (channel == ALL_CHANNELS || i == channel) {
-            volume = node->props.channel_volumes[i] + delta;
-            if (volume > 1.5) {
-                volume = 1.5;
-            } else if (volume < 0) {
-                volume = 0;
+            if (absolute) {
+                new_volume = volume;
+            } else if (volume >= 0 /* positive delta */) {
+                if (old_volume + volume > config.volume_max) {
+                    new_volume = old_volume;
+                } else {
+                    new_volume = old_volume + volume;
+                }
+            }
+            else /* volume < 0, negative delta */ {
+                if (old_volume + volume < config.volume_min) {
+                    new_volume = old_volume;
+                } else {
+                    new_volume = old_volume + volume;
+                }
             }
         } else {
-            volume = node->props.channel_volumes[i];
+            new_volume = old_volume;
         }
-        cubed_volumes[i] = volume * volume * volume;
+
+        cubed_volumes[i] = new_volume * new_volume * new_volume;
     }
 
     struct spa_pod *props =

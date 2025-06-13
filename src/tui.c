@@ -6,6 +6,7 @@
 #include "log.h"
 #include "xmalloc.h"
 #include "utils.h"
+#include "config.h"
 #include "thirdparty/stb_ds.h"
 
 enum color_pair {
@@ -14,11 +15,6 @@ enum color_pair {
     YELLOW = 2,
     RED = 3,
     GRAY = 4,
-};
-
-enum direction {
-    UP,
-    DOWN,
 };
 
 struct tui tui = {0};
@@ -106,7 +102,8 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
                 if (j % step == 0 && !node->props.mute) {
                     pair += 1;
                 }
-                setcchar(&cc, (j < thresh) ? L"#" : L"-", 0, pair, NULL);
+                setcchar(&cc, (j < thresh) ? config.bar_full_char : config.bar_empty_char,
+                         0, pair, NULL);
                 mvwadd_wch(win, pos, volume_bar_start + j, &cc);
             }
         }
@@ -123,17 +120,17 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
             cchar_t cchar_left, cchar_right;
 
             if (node->props.channel_count == 1) {
-                wchar_left = L"╶";
-                wchar_right = L"╴";
+                wchar_left = config.volume_frame.ml;
+                wchar_right = config.volume_frame.mr;
             } else if (i == 0) {
-                wchar_left = L"┌";
-                wchar_right = L"┐";
+                wchar_left = config.volume_frame.tl;
+                wchar_right = config.volume_frame.tr;
             } else if (i == node->props.channel_count - 1) {
-                wchar_left = L"└";
-                wchar_right = L"┘";
+                wchar_left = config.volume_frame.bl;
+                wchar_right = config.volume_frame.br;
             } else {
-                wchar_left = L"├";
-                wchar_right = L"┤";
+                wchar_left = config.volume_frame.cl;
+                wchar_right = config.volume_frame.cr;
             }
             setcchar(&cchar_left, wchar_left, 0, DEFAULT, NULL);
             setcchar(&cchar_right, wchar_right, 0, DEFAULT, NULL);
@@ -142,7 +139,7 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
 
             const wchar_t *wchar_focus;
             if (focused && (!disp->unlocked_channels || disp->focused_channel == i)) {
-                wchar_focus = L"─";
+                wchar_focus = config.volume_frame.f;
             } else {
                 wchar_focus = L" ";
             }
@@ -154,7 +151,30 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     }
 
     if (change & NODE_CHANGE_MUTE || always_draw) {
-        box(win, 0, 0);
+        /* box */
+        wmove(win, 0, 0);
+        waddwstr(win, config.borders.tl);
+        for (int x = 1; x < tui.term_width - 1; x++) {
+            waddwstr(win, config.borders.ts);
+        }
+        waddwstr(win, config.borders.tr);
+
+        wmove(win, disp->height - 1, 0);
+        waddwstr(win, config.borders.bl);
+        for (int x = 1; x < tui.term_width - 1; x++) {
+            waddwstr(win, config.borders.bs);
+        }
+        waddwstr(win, config.borders.br);
+
+        for (int y = 1; y < disp->height - 1; y++) {
+            wmove(win, y, 0);
+            waddwstr(win, config.borders.ls);
+        }
+
+        for (int y = 1; y < disp->height - 1; y++) {
+            wmove(win, y, tui.term_width - 1);
+            waddwstr(win, config.borders.ls);
+        }
     }
 
     wattroff(win, A_BOLD);
@@ -266,124 +286,194 @@ static int tui_create_layout(void) {
     return 0;
 }
 
-static void tui_go_up(void) {
+void tui_bind_change_focus(union tui_bind_data data) {
+    enum tui_direction direction = data.direction;
+
     if (tui.focused == NULL) {
         return;
     }
+    struct tui_node_display *f = tui.focused;
 
-    if (tui.focused->unlocked_channels && tui.focused->focused_channel > 0) {
-        tui.focused->focused_channel -= 1;
-    } else {
-        struct tui_node_display *disp, *disp_next = NULL;
-        spa_list_for_each_reverse(disp, &tui.node_displays, link) {
-            if (disp_next != NULL && disp->focused) {
-                disp->focused = false;
-                disp_next->focused = true;
+    switch (direction) {
+    case UP:
+        if (f->unlocked_channels && f->focused_channel > 0) {
+            f->focused_channel -= 1;
+        } else {
+            struct tui_node_display *disp, *disp_next = NULL;
+            spa_list_for_each_reverse(disp, &tui.node_displays, link) {
+                if (disp_next != NULL && disp->focused) {
+                    disp->focused = false;
+                    disp_next->focused = true;
 
-                disp->focus_changed = true;
-                disp_next->focus_changed = true;
+                    disp->focus_changed = true;
+                    disp_next->focus_changed = true;
 
-                tui.focused = disp_next;
+                    tui.focused = disp_next;
 
-                if (tui.pad_pos > disp_next->pos) {
-                    tui.pad_pos = disp_next->pos;
+                    if (tui.pad_pos > disp_next->pos) {
+                        tui.pad_pos = disp_next->pos;
+                    }
+
+                    break;
                 }
 
-                break;
+                disp_next = disp;
             }
-
-            disp_next = disp;
         }
+        break;
+    case DOWN:
+        if (f->unlocked_channels && f->focused_channel < f->node->props.channel_count - 1) {
+            f->focused_channel += 1;
+        } else {
+            struct tui_node_display *disp, *disp_prev = NULL;
+            spa_list_for_each(disp, &tui.node_displays, link) {
+                if (disp_prev != NULL && disp->focused) {
+                    disp->focused = false;
+                    disp_prev->focused = true;
+
+                    disp->focus_changed = true;
+                    disp_prev->focus_changed = true;
+
+                    tui.focused = disp_prev;
+
+                    /*            w           +      x      -        y       <         z */
+                    if ((tui.term_height - 1) + tui.pad_pos - disp_prev->pos < disp_prev->height) {
+                        /*    x     =         z         -           w           +       y */
+                        tui.pad_pos = disp_prev->height - (tui.term_height - 1) + disp_prev->pos;
+                    }
+
+                    break;
+                }
+
+                disp_prev = disp;
+            }
+        }
+        break;
     }
 }
 
-static void tui_go_down(void) {
+void tui_bind_change_volume(union tui_bind_data data) {
+    enum tui_direction direction = data.direction;
+
     if (tui.focused == NULL) {
         return;
     }
 
-    if (tui.focused->unlocked_channels
-        && tui.focused->focused_channel < tui.focused->node->props.channel_count - 1) {
-        tui.focused->focused_channel += 1;
-    } else {
-        struct tui_node_display *disp, *disp_prev = NULL;
-        spa_list_for_each(disp, &tui.node_displays, link) {
-            if (disp_prev != NULL && disp->focused) {
-                disp->focused = false;
-                disp_prev->focused = true;
-
-                disp->focus_changed = true;
-                disp_prev->focus_changed = true;
-
-                tui.focused = disp_prev;
-
-                /*            w           +      x      -        y       <         z */
-                if ((tui.term_height - 1) + tui.pad_pos - disp_prev->pos < disp_prev->height) {
-                    /*    x     =         z         -           w           +       y */
-                    tui.pad_pos = disp_prev->height - (tui.term_height - 1) + disp_prev->pos;
-                }
-
-                break;
-            }
-
-            disp_prev = disp;
-        }
-    }
-}
-
-static void tui_change_volume(enum direction direction) {
-    if (tui.focused == NULL) {
-        return;
-    }
-
-    float delta = (direction == UP) ? 0.01 : -0.01;
+    float delta = (direction == UP) ? config.volume_step : -config.volume_step;
 
     if (tui.focused->unlocked_channels) {
-        node_change_volume(tui.focused->node, delta, tui.focused->focused_channel);
+        node_change_volume(tui.focused->node, false, delta, tui.focused->focused_channel);
     } else {
-        node_change_volume(tui.focused->node, delta, ALL_CHANNELS);
+        node_change_volume(tui.focused->node, false, delta, ALL_CHANNELS);
     }
 }
 
-static void tui_mute(void) {
+void tui_bind_set_volume(union tui_bind_data data) {
+    float vol = data.volume;
+
     if (tui.focused == NULL) {
         return;
     }
 
-    node_toggle_mute(tui.focused->node);
+    if (tui.focused->unlocked_channels) {
+        node_change_volume(tui.focused->node, true, vol, tui.focused->focused_channel);
+    } else {
+        node_change_volume(tui.focused->node, true, vol, ALL_CHANNELS);
+    }
 }
 
-static void tui_toggle_channel_lock(void) {
+void tui_bind_change_mute(union tui_bind_data data) {
+    enum tui_change_mode mode = data.change_mode;
+
     if (tui.focused == NULL) {
         return;
     }
 
-    tui.focused->unlocked_channels = !tui.focused->unlocked_channels;
-    tui.focused->unlocked_channels_changed = true;
+    switch (mode) {
+    case ENABLE:
+        node_set_mute(tui.focused->node, true);
+        break;
+    case DISABLE:
+        node_set_mute(tui.focused->node, false);
+        break;
+    case TOGGLE:
+        node_set_mute(tui.focused->node, !tui.focused->node->props.mute);
+        break;
+    }
 }
 
-static void tui_next_tab(void) {
-    if (++tui.active_tab == MEDIA_CLASS_END) {
-        tui.active_tab = MEDIA_CLASS_START + 1;
+void tui_bind_change_channel_lock(union tui_bind_data data) {
+    enum tui_change_mode mode = data.change_mode;
+
+    if (tui.focused == NULL) {
+        return;
     }
 
-    tui.pad_pos = 0;
-    tui.need_redo_layout = true;
+    switch (mode) {
+    case ENABLE:
+        if (!tui.focused->unlocked_channels) {
+            tui.focused->unlocked_channels = true;
+            tui.focused->unlocked_channels_changed = true;
+        }
+        break;
+    case DISABLE:
+        if (tui.focused->unlocked_channels) {
+            tui.focused->unlocked_channels = false;
+            tui.focused->unlocked_channels_changed = true;
+        }
+        break;
+    case TOGGLE:
+        tui.focused->unlocked_channels = !tui.focused->unlocked_channels;
+        tui.focused->unlocked_channels_changed = true;
+        break;
+    }
 }
 
-static void tui_prev_tab(void) {
-    if (--tui.active_tab == MEDIA_CLASS_START) {
-        tui.active_tab = MEDIA_CLASS_END - 1;
+void tui_bind_change_tab(union tui_bind_data data) {
+    enum tui_tab tab = data.tab;
+
+    bool change = false;
+    switch (tab) {
+    case NEXT:
+        if (++tui.active_tab == MEDIA_CLASS_END) {
+            tui.active_tab = MEDIA_CLASS_START + 1;
+        }
+        change = true;
+        break;
+    case PREV:
+        if (--tui.active_tab == MEDIA_CLASS_START) {
+            tui.active_tab = MEDIA_CLASS_END - 1;
+        }
+        change = true;
+        break;
+    case PLAYBACK:
+        /* TODO: unify tab enums? */
+        if (tui.active_tab != STREAM_OUTPUT_AUDIO) {
+            tui.active_tab = STREAM_OUTPUT_AUDIO;
+            change = true;
+        }
+        break;
+    case RECORDING:
+        if (tui.active_tab != STREAM_INPUT_AUDIO) {
+            tui.active_tab = STREAM_INPUT_AUDIO;
+            change = true;
+        }
+        break;
+    case INPUT_DEVICES:
+        if (tui.active_tab != AUDIO_SOURCE) {
+            tui.active_tab = AUDIO_SOURCE;
+            change = true;
+        }
+        break;
+    case OUTPUT_DEVICES:
+        if (tui.active_tab != AUDIO_SINK) {
+            tui.active_tab = AUDIO_SINK;
+            change = true;
+        }
+        break;
     }
 
-    tui.pad_pos = 0;
-    tui.need_redo_layout = true;
-}
-
-static void tui_switch_tab(enum media_class tab) {
-    if (tab != tui.active_tab) {
-        tui.active_tab = tab;
-
+    if (change) {
         tui.pad_pos = 0;
         tui.need_redo_layout = true;
     }
@@ -411,52 +501,13 @@ int tui_handle_resize(struct event_loop_item *item, int signal) {
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
     int ch;
     while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
-        switch (ch) {
-        case 'j':
-        case KEY_DOWN:
-            tui_go_down();
-            break;
-        case 'k':
-        case KEY_UP:
-            tui_go_up();
-            break;
-        case 't':
-        case '\t':
-            tui_next_tab();
-            break;
-        case 'T':
-        case KEY_BTAB:
-            tui_prev_tab();
-            break;
-        case '1':
-            tui_switch_tab(STREAM_OUTPUT_AUDIO);
-            break;
-        case '2':
-            tui_switch_tab(STREAM_INPUT_AUDIO);
-            break;
-        case '3':
-            tui_switch_tab(AUDIO_SOURCE);
-            break;
-        case '4':
-            tui_switch_tab(AUDIO_SINK);
-            break;
-        case 'm':
-            tui_mute();
-            break;
-        case 'l':
-        case KEY_RIGHT:
-            tui_change_volume(UP);
-            break;
-        case 'h':
-        case KEY_LEFT:
-            tui_change_volume(DOWN);
-            break;
-        case ' ':
-            tui_toggle_channel_lock();
-            break;
-        case 'q':
+        struct pipemixer_config_bind *bind = stbds_hmgetp_null(config.binds, ch);
+        if (bind == NULL) {
+            debug("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
+        } else if (bind->value.func == TUI_BIND_QUIT) {
             event_loop_quit(event_loop_item_get_loop(item), 0);
-            break;
+        } else {
+            bind->value.func(bind->value.data);
         }
     }
 
@@ -478,8 +529,6 @@ int tui_update(struct event_loop_item *loop_item) {
 }
 
 int tui_init(void) {
-    setlocale(LC_ALL, ""); /* needed for unicode support in ncurses */
-
     initscr();
     refresh(); /* https://stackoverflow.com/a/22121866 */
     cbreak();
