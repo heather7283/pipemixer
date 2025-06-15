@@ -118,6 +118,16 @@ Characters that make up frame around per-channel volume bars.
 Characters for drawing volume bars.
 .RE
 
+.SH SECTION: hacks
+Use those options with caution, they might break things.
+
+.PP
+.B force-mouse-motion-tracking
+.RS 4
+Force enables xterm private mode 1002 by sending an escape sequence to the TTY.
+Can help with mouse drag not working.
+.RE
+
 .SH EXAMPLE
 .nf
 [main]
