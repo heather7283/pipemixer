@@ -631,6 +631,10 @@ static void tui_handle_mouse(const MEVENT *const mev) {
                 tui_bind_change_tab((union tui_bind_data){.tab = media_class_to_tui_tab(i)});
             }
         }
+    } else if (y == 0 && bstate & BUTTON4_PRESSED) /* mouse wheel up on tab bar */ {
+        tui_bind_change_tab((union tui_bind_data){.tab = NEXT});
+    } else if (y == 0 && bstate & BUTTON5_PRESSED) /* mouse wheel down on tab bar */ {
+        tui_bind_change_tab((union tui_bind_data){.tab = PREV});
     }
 }
 
