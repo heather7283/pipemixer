@@ -58,10 +58,10 @@ static const char *get_default_config_path(void) {
     const char *xdg_config_home = getenv("XDG_CONFIG_HOME");
 
     if (xdg_config_home != NULL) {
-        snprintf(path, sizeof(path), "%s/pipemixer/config.ini", xdg_config_home);
+        snprintf(path, sizeof(path), "%s/pipemixer/pipemixer.ini", xdg_config_home);
         return path;
     } else if (home != NULL) {
-        snprintf(path, sizeof(path), "%s/.config/pipemixer/config.ini", home);
+        snprintf(path, sizeof(path), "%s/.config/pipemixer/pipemixer.ini", home);
         return path;
     } else {
         /* config will be parsed before initalising curses so printfing here is fine */
