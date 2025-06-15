@@ -10,9 +10,15 @@ struct pipemixer_config_bind {
     struct tui_bind value;
 };
 
+struct pipemixer_config_mouse_bind {
+    mmask_t key; /* ncurses keycode, see curs_mouse(3x) */
+    struct tui_bind value;
+};
+
 struct pipemixer_config {
     float volume_step;
     float volume_min, volume_max;
+    bool hack_force_mouse_motion_tracking;
 
     wchar_t bar_full_char[2], bar_empty_char[2];
     struct {
@@ -24,6 +30,7 @@ struct pipemixer_config {
     } borders;
 
     struct pipemixer_config_bind *binds; /* stb_ds hashmap */
+    struct pipemixer_config_mouse_bind *mouse_binds; /* stb_ds hashmap */
 };
 
 extern struct pipemixer_config config;

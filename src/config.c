@@ -24,6 +24,8 @@ struct pipemixer_config config = {
     .volume_min = 0.00,
     .volume_max = 1.50,
 
+    .hack_force_mouse_motion_tracking = false,
+
     .bar_full_char = L"#",
     .bar_empty_char = L"-",
     .volume_frame = {
@@ -95,6 +97,18 @@ static bool get_percentage(const char *str, float *res) {
     return true;
 }
 
+static bool get_bool(const char *str, bool *res) {
+    if (STREQ(str, "1") || STRCASEEQ(str, "yes") || STRCASEEQ(str, "true")) {
+        *res = true;
+        return true;
+    } else if (STREQ(str, "0") || STRCASEEQ(str, "no") || STRCASEEQ(str, "false")) {
+        *res = false;
+        return true;
+    } else {
+        return false;
+    }
+}
+
 static int key_value_handler(void *data, const char *s, const char *k, const char *v, int l) {
     #define CONFIG_LOG(fmt, ...) \
         fprintf(stderr, "config:%d: (%s::%s) "fmt"\n", l, s, k, ##__VA_ARGS__)
@@ -104,6 +118,9 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
 
     #define CONFIG_GET_PERCENTAGE(dst) \
         if (!get_percentage(v, dst)) CONFIG_LOG("invalid percentage value")
+
+    #define CONFIG_GET_BOOL(dst) \
+        if (!get_bool(v, dst)) CONFIG_LOG("invalid boolean: %s", v)
 
     if (STREQ(s, "main")) {
         if (STREQ(k, "volume-step")) {
@@ -232,12 +249,19 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 CONFIG_LOG("unknown action: %s", k);
             }
         }
+    } else if (STREQ(s, "hacks")) {
+        if (STREQ(k, "force-mouse-motion-tracking")) {
+            CONFIG_GET_BOOL(&config.hack_force_mouse_motion_tracking);
+        } else {
+            CONFIG_LOG("unknown key %s in section %s", k, s);
+        }
     } else {
         CONFIG_LOG("unknown section %s", s);
     }
 
     return 0;
 
+    #undef CONFIG_GET_BOOL
     #undef CONFIG_GET_PERCENTAGE
     #undef CONFIG_GET_WCHAR
     #undef CONFIG_LOG
