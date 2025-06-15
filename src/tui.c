@@ -499,8 +499,8 @@ int tui_handle_resize(struct event_loop_item *item, int signal) {
 }
 
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
-    int ch;
-    while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
+    wint_t ch;
+    while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
         struct pipemixer_config_bind *bind = stbds_hmgetp_null(config.binds, ch);
         if (bind == NULL) {
             debug("unhandled key %s (%d)", key_name_from_key_code(ch), ch);

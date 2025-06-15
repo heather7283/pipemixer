@@ -158,9 +158,9 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
     } else if (STREQ(s, "binds")) {
-        int keycode = key_code_from_key_name(v);
+        wint_t keycode;
 
-        if (keycode == ERR) {
+        if (!key_code_from_key_name(v, &keycode)) {
             CONFIG_LOG("invalid keycode: %s", v);
         } else {
             const char *prefix = NULL;
