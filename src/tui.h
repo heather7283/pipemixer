@@ -21,6 +21,10 @@ struct tui {
     int term_height, term_width;
 
     WINDOW *bar_win;
+    struct {
+        int start, end;
+    } tab_label_positions[TUI_TAB_COUNT];
+
     WINDOW *pad_win;
 
     enum tui_tab tab;

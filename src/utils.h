@@ -6,11 +6,17 @@
 #include <wchar.h>
 #include <spa/param/audio/raw.h>
 
+#include "tui.h"
+#include "pw.h"
+
 const char *channel_name_from_enum(enum spa_audio_channel chan);
 
 const char *key_name_from_key_code(wint_t code);
 bool key_code_from_key_name(const char *name, wint_t *keycode);
 const char *mmask_to_string(mmask_t mask);
+
+enum tui_tab media_class_to_tui_tab(enum media_class class);
+enum media_class tui_tab_to_media_class(enum tui_tab tab);
 
 bool str_to_ulong(const char *str, unsigned long *res);
 bool str_to_long(const char *str, long *res);
