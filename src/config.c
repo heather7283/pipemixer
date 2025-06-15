@@ -226,6 +226,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 }
             } else if (STREQ(k, "quit")) {
                 ADD_BIND(keycode, TUI_BIND_QUIT, nothing, NOTHING);
+            } else if (STREQ(k, "unbind")) {
+                stbds_hmdel(config.binds, keycode);
             } else {
                 CONFIG_LOG("unknown action: %s", k);
             }
