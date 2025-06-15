@@ -765,7 +765,7 @@ int tui_init(void) {
     noecho();
     curs_set(0);
 
-    mousemask((mmask_t)-1, NULL); /* mouse support */
+    mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL); /* mouse support */
     mouseinterval(0 /* ms */);
 
     start_color();
