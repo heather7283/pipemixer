@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <curses.h>
 #include <limits.h>
+#include <assert.h>
 
 #include "utils.h"
 #include "macros.h"
@@ -663,6 +664,26 @@ const char *mmask_to_string(mmask_t mask) {
     }
 
     return buf;
+}
+
+enum tui_tab media_class_to_tui_tab(enum media_class class) {
+    switch (class) {
+    case STREAM_OUTPUT_AUDIO: return PLAYBACK;
+    case STREAM_INPUT_AUDIO: return RECORDING;
+    case AUDIO_SOURCE: return INPUT_DEVICES;
+    case AUDIO_SINK: return OUTPUT_DEVICES;
+    default: assert(0 && "Invalid media class");
+    }
+}
+
+enum media_class tui_tab_to_media_class(enum tui_tab tab) {
+    switch (tab) {
+    case PLAYBACK: return STREAM_OUTPUT_AUDIO;
+    case RECORDING: return STREAM_INPUT_AUDIO;
+    case INPUT_DEVICES: return AUDIO_SOURCE;
+    case OUTPUT_DEVICES: return AUDIO_SINK;
+    default: assert(0 && "Invalid tui tab");
+    }
 }
 
 bool str_to_ulong(const char *str, unsigned long *res) {

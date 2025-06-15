@@ -189,14 +189,24 @@ static void tui_draw_status_bar(void) {
     debug("tui: drawing status bar");
 
     wmove(tui.bar_win, 0, 0);
+    int pos = 0;
     enum media_class tab = MEDIA_CLASS_START;
     while (++tab != MEDIA_CLASS_END) {
         wattron(tui.bar_win, (tab == tui.active_tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
         wattron(tui.bar_win, (tab == tui.active_tab) ? A_BOLD : 0);
-        waddstr(tui.bar_win, media_class_name(tab));
+
+        const char *str = media_class_name(tab);
+        waddstr(tui.bar_win, str);
+        tui.tab_label_positions[tab].start = pos;
+        pos += strlen(str);
+        tui.tab_label_positions[tab].end = pos;
+
         wattroff(tui.bar_win, (tab == tui.active_tab) ? A_BOLD : 0);
         wattroff(tui.bar_win, (tab == tui.active_tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
-        waddstr(tui.bar_win, "   ");
+
+        str = "   ";
+        waddstr(tui.bar_win, str);
+        pos += strlen(str);
     }
     wclrtoeol(tui.bar_win);
     wnoutrefresh(tui.bar_win);
@@ -500,8 +510,18 @@ int tui_handle_resize(struct event_loop_item *item, int signal) {
 }
 
 static void tui_handle_mouse(const MEVENT *const mev) {
-    info("MEVENT %d, x=%d y=%d z=%d, bstate=%s",
-         mev->id, mev->x, mev->y, mev->z, mmask_to_string(mev->bstate));
+    const int x = mev->x, y = mev->y;
+    const mmask_t bstate = mev->bstate;
+    info("MEVENT x=%d y=%d bstate=%s", x, y, mmask_to_string(bstate));
+
+    if (y == 0 && bstate & BUTTON1_PRESSED) /* top row, tab bar */ {
+        for (unsigned long i = 0; i < ARRAY_SIZE(tui.tab_label_positions); i++) {
+            if (x >= tui.tab_label_positions[i].start && x <= tui.tab_label_positions[i].end) {
+                /* TODO: I really need to do something with those enums, this is cringe */
+                tui_bind_change_tab((union tui_bind_data){.tab = media_class_to_tui_tab(i)});
+            }
+        }
+    }
 }
 
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {

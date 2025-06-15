@@ -11,6 +11,7 @@ struct tui {
     int term_height, term_width;
 
     WINDOW *bar_win;
+    struct { int start, end; } tab_label_positions[MEDIA_CLASS_END];
     enum media_class active_tab;
 
     WINDOW *pad_win;
