@@ -27,17 +27,13 @@ Max and min volume that can be set with pipemixer. Default: 0, 150.
 .SH SECTION: binds
 Configure keybindings. Format is action=key. Each action can be bound to multiple keys. Key can be specified in several ways:
 .IP \(bu 4
-All printable ASCII characters.
+All printable ASCII/Unicode characters.
 .br
 Example: tab-next=t
 .IP \(bu 4
 Special keys: enter, tab, backtab, space, backspace, up, down, right, left.
 .br
 Example: tab-prev=backtab
-.IP \(bu 4
-Any of the predefined key codes listed in \fBcurs_getch\fR(3x), with KEY_ prefix removed.
-.br
-Example: volume-set-50=F5
 .IP \(bu 4
 Arbitrary keycodes with code:N (where N is decimal representation of a keycode).
 .br

@@ -6,7 +6,7 @@
 #include "tui.h"
 
 struct pipemixer_config_bind {
-    int key; /* ncurses keycode, see curs_getch(3x) */
+    wint_t key; /* ncurses keycode, see curs_getch(3x) */
     struct tui_bind value;
 };
 

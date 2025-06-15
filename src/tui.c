@@ -533,9 +533,10 @@ static void tui_handle_mouse(const MEVENT *const mev) {
 }
 
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
-    int ch;
-    while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
-        if (ch == KEY_MOUSE) {
+    int ret;
+    wint_t ch;
+    while (errno = 0, (ret = wget_wch(tui.pad_win, &ch)) != ERR || errno == EINTR) {
+        if (ret == KEY_CODE_YES && ch == KEY_MOUSE) {
             MEVENT mevent;
             while (getmouse(&mevent) == OK) {
                 tui_handle_mouse(&mevent);
