@@ -498,9 +498,22 @@ int tui_handle_resize(struct event_loop_item *item, int signal) {
     return 0;
 }
 
+static void tui_handle_mouse(const MEVENT *const mev) {
+    info("MEVENT %d, x=%d y=%d z=%d, bstate=%s",
+         mev->id, mev->x, mev->y, mev->z, mmask_to_string(mev->bstate));
+}
+
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
     int ch;
     while (errno = 0, (ch = wgetch(tui.pad_win)) != ERR || errno == EINTR) {
+        if (ch == KEY_MOUSE) {
+            MEVENT mevent;
+            while (getmouse(&mevent) == OK) {
+                tui_handle_mouse(&mevent);
+            }
+            return 0;
+        }
+
         struct pipemixer_config_bind *bind = stbds_hmgetp_null(config.binds, ch);
         if (bind == NULL) {
             debug("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
@@ -534,6 +547,9 @@ int tui_init(void) {
     cbreak();
     noecho();
     curs_set(0);
+
+    mousemask((mmask_t)-1, NULL); /* mouse support */
+    mouseinterval(0 /* ms */);
 
     start_color();
     use_default_colors();
