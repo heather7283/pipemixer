@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <fcntl.h>
 #include <math.h>
 #include <wchar.h>
 
@@ -758,6 +759,32 @@ void tui_notify_node_remove(const struct node *node) {
     }
 }
 
+static void tui_hack_force_mouse(bool enabled) {
+    int fd = -1;
+    const char *seq;
+
+    if (enabled) {
+        info("applying hack_force_mouse");
+        seq = "\033[?1002h";
+    } else {
+        info("restoring hack_force_mouse");
+        seq = "\033[?1002l";
+    }
+
+    fd = open("/dev/tty", O_WRONLY);
+    if (fd < 0) {
+        warn("hack_force_mouse: failed to open /dev/tty: %s", strerror(errno));
+        goto out;
+    }
+    if (write(fd, seq, strlen(seq)) < 0) {
+        warn("hack_force_mouse: failed to write escape sequence: %s", strerror(errno));
+        goto out;
+    }
+
+out:
+    close(fd);
+}
+
 int tui_init(void) {
     initscr();
     refresh(); /* https://stackoverflow.com/a/22121866 */
@@ -767,6 +794,10 @@ int tui_init(void) {
 
     mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL); /* mouse support */
     mouseinterval(0 /* ms */);
+
+    if (config.hack_force_mouse_motion_tracking) {
+        tui_hack_force_mouse(true);
+    }
 
     start_color();
     use_default_colors();
@@ -806,6 +837,10 @@ int tui_cleanup(void) {
     }
 
     endwin();
+
+    if (config.hack_force_mouse_motion_tracking) {
+        tui_hack_force_mouse(false);
+    }
 
     return 0;
 }
