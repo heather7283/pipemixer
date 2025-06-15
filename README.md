@@ -29,7 +29,7 @@ valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- p
 pipemixer reads its config from $XDG_CONFIG_HOME/pipemixer/pipemixer.ini.
 See [example config](pipemixer.ini) and pipemixer.ini(5) for details.
 
-TODOs:
+## TODOs
 - [x] Make keybinds configurable
 - [ ] Make colors configurable? (Using colors in ncurses is torture so not sure)
 - [x] Write a man page for config
