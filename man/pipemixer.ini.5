@@ -1,14 +1,15 @@
 .TH pipemixer.ini 5 "June 2025" "0.1.0" "File Formats"
 .SH NAME
-pipemixer.ini \- configuration file for pipemixer
-
-.SH SYNOPSIS
-$XDG_CONFIG_HOME/pipemixer/pipemixer.ini
-.br
-~/.config/pipemixer/pipemixer.ini
+pipemixer.ini \- configuration file for \fBpipemixer\fR(1)
 
 .SH DESCRIPTION
-The pipemixer.ini file configures the behavior and appearance of \fBpipemixer\fR(1).
+The pipemixer.ini file configures the behavior and appearance of \fBpipemixer\fR.
+.PP
+\fBpipemixer\fR will search for a configuration file in the following locations:
+.IP \(bu 4
+\fB$XDG_CONFIG_HOME/pipemixer/pipemixer.ini\fR
+.IP \(bu 4
+\fB$HOME/.config/pipemixer/pipemixer.ini\fR, if XDG_CONFIG_HOME is unset.
 
 .SH SECTION: main
 General options.
@@ -140,14 +141,6 @@ volume-set-30=3
 volume-set-40=4
 volume-set-50=5
 .fi
-
-.SH FILES
-.TP
-.I $XDG_CONFIG_HOME/pipemixer/pipemixer.ini
-Configuration file (primary location).
-.TP
-.I ~/.config/pipemixer/pipemixer.ini
-Fallback configuration file location.
 
 .SH SEE ALSO
 .BR pipemixer (1)
