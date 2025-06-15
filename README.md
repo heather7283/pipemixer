@@ -33,6 +33,8 @@ TODOs:
 - [x] Make keybinds configurable
 - [ ] Make colors configurable? (Using colors in ncurses is torture so not sure)
 - [x] Write a man page for config
+- [ ] Make mouse binds configurable
+- [ ] Update man pages to document mouse support
 
 ## References
 - https://docs.pipewire.org
