@@ -75,8 +75,8 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
         swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls%-*s",
                  node->id,
                  node->node_name,
-                 wcsempty(node->media_name) ? "" : ": ",
-                 wcsempty(node->media_name) ? L"" : node->media_name,
+                 WCSEMPTY(node->media_name) ? "" : ": ",
+                 WCSEMPTY(node->media_name) ? L"" : node->media_name,
                  usable_width, "");
         wcstrimcols(line, usable_width);
         mvwaddnwstr(win, 1, info_area_start, line, usable_width);

@@ -18,5 +18,7 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 
+#define WCSEMPTY(str) ((str) == NULL || (str)[0] == L'\0')
+
 #endif /* #ifndef MACROS_H */
 
