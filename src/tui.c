@@ -33,15 +33,6 @@ static const char *media_class_name(enum media_class class) {
 static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     struct node *node = disp->node;
 
-    /*
-     * On a 80-character-wide term it will look like this:
-     * 0                                                                               80
-     * ┌──────────────────────────────────────────────────────────────────────────────┐
-     * │(35) Equalizer Sink: Equalizer Sink                                           │
-     * │                                                    FL 100 ─┌##########-----┐─│
-     * │                                                    FR 100 ─└##########-----┘─│
-     * └──────────────────────────────────────────────────────────────────────────────┘
-     */
     const int usable_width = tui.term_width - 2; /* account for box borders */
     const int two_thirds_usable_width = usable_width / 3 * 2;
     /* 5 for channel name, 1 space, 3 volume, 1 space, 4 more for decorations = 14 */
@@ -72,12 +63,11 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
 
     /* first line displays node name and media name and spans across the entire screen */
     if (focus_changed || change & NODE_CHANGE_INFO || change & NODE_CHANGE_MUTE || always_draw) {
-        debug("tui: node %d: drawing top line", node->id);
         swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls%-*s",
                  node->id,
                  node->node_name,
-                 wcsempty(node->media_name) ? "" : ": ",
-                 wcsempty(node->media_name) ? L"" : node->media_name,
+                 WCSEMPTY(node->media_name) ? "" : ": ",
+                 WCSEMPTY(node->media_name) ? L"" : node->media_name,
                  usable_width, "");
         wcstrimcols(line, usable_width);
         mvwaddnwstr(win, 1, info_area_start, line, usable_width);
@@ -85,7 +75,6 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
 
     if (focus_changed || change & NODE_CHANGE_VOLUME || change & NODE_CHANGE_MUTE || always_draw) {
         /* draw info about each channel */
-        debug("tui: node %d: drawing channel info", node->id);
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
             const int pos = i + 2;
 
@@ -112,8 +101,6 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
 
     /* draw decorations (also focused markers) */
     if (focus_changed || unlocked_channels_changed || change & NODE_CHANGE_MUTE || always_draw) {
-        debug("tui: node %d: drawing decorations", node->id);
-
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
             const int pos = i + 2;
 
@@ -186,8 +173,6 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
 }
 
 static void tui_draw_status_bar(void) {
-    debug("tui: drawing status bar");
-
     wmove(tui.bar_win, 0, 0);
     int pos = 0;
     enum media_class tab = MEDIA_CLASS_START;
@@ -213,8 +198,6 @@ static void tui_draw_status_bar(void) {
 }
 
 static int tui_repaint(bool always_draw) {
-    debug("tui: repaint, always_draw %d", always_draw);
-
     if (tui.need_redo_layout) {
         tui_draw_status_bar();
     }
@@ -491,8 +474,6 @@ void tui_bind_change_tab(union tui_bind_data data) {
 }
 
 int tui_handle_resize(struct event_loop_item *item, int signal) {
-    debug("window resized");
-
     struct winsize winsize;
     if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
         err("failed to get new window size: %s", strerror(errno));

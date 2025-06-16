@@ -292,7 +292,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             }
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_NODE_NAME)) {
-            if (!wcsempty(node->node_name)) {
+            if (!WCSEMPTY(node->node_name)) {
                 continue;
             }
             size_t ret = mbsrtowcs(node->node_name, &v, ARRAY_SIZE(node->node_name), NULL);

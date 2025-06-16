@@ -292,16 +292,20 @@ enum media_class tui_tab_to_media_class(enum tui_tab tab) {
 
 bool str_to_ulong(const char *str, unsigned long *res) {
     char *endptr = NULL;
+    int base = 10;
+
+    if (str[0] == '0' && str[1] == 'x') {
+        base = 16;
+    }
 
     errno = 0;
-    unsigned long res_tmp = strtoul(str, &endptr, 10);
-
+    unsigned long res_tmp = strtoul(str, &endptr, base);
     if (errno == 0 && *endptr == '\0') {
         *res = res_tmp;
         return true;
-    } else {
-        return false;
     }
+
+    return false;
 }
 
 size_t wcstrimcols(wchar_t *str, size_t col) {
