@@ -169,6 +169,10 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                     ADD_BIND(keycode, tui_bind_change_focus, direction, UP);
                 } else if (STREQ(k + strlen(prefix), "down")) {
                     ADD_BIND(keycode, tui_bind_change_focus, direction, DOWN);
+                } else if (STREQ(k + strlen(prefix), "first")) {
+                    ADD_BIND(keycode, tui_bind_focus_first, nothing, NOTHING);
+                } else if (STREQ(k + strlen(prefix), "last")) {
+                    ADD_BIND(keycode, tui_bind_focus_last, nothing, NOTHING);
                 } else {
                     CONFIG_LOG("unknown action: %s", k);
                 }
@@ -252,6 +256,9 @@ static void add_default_binds(void) {
     ADD_BIND(KEY_DOWN, tui_bind_change_focus, direction, DOWN);
     ADD_BIND('k', tui_bind_change_focus, direction, UP);
     ADD_BIND(KEY_UP, tui_bind_change_focus, direction, UP);
+
+    ADD_BIND('g', tui_bind_focus_first, nothing, NOTHING);
+    ADD_BIND('G', tui_bind_focus_last, nothing, NOTHING);
 
     ADD_BIND('l', tui_bind_change_volume, direction, UP);
     ADD_BIND(KEY_RIGHT, tui_bind_change_volume, direction, UP);

@@ -64,9 +64,11 @@ void tui_bind_change_channel_lock(union tui_bind_data data);
 enum tui_tab { NEXT, PREV, PLAYBACK, RECORDING, INPUT_DEVICES, OUTPUT_DEVICES };
 void tui_bind_change_tab(union tui_bind_data data);
 
-/* TODO: find a more sane way to do this lol */
 enum tui_nothing { NOTHING };
+/* TODO: find a more sane way to do this lol */
 #define TUI_BIND_QUIT ((tui_bind_func_t)0xDEAD)
+void tui_bind_focus_first(union tui_bind_data data);
+void tui_bind_focus_last(union tui_bind_data data);
 
 union tui_bind_data {
     enum tui_direction direction;

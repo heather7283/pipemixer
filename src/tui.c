@@ -335,6 +335,50 @@ void tui_bind_change_focus(union tui_bind_data data) {
     }
 }
 
+void tui_bind_focus_first(union tui_bind_data data) {
+    if (spa_list_is_empty(&tui.node_displays) || tui.focused == NULL) {
+        return;
+    }
+
+    struct tui_node_display *first = spa_list_last(&tui.node_displays,
+                                                   struct tui_node_display, link);
+    if (first == tui.focused) {
+        return;
+    }
+
+    first->focused = true;
+    first->focus_changed = true;
+
+    tui.focused->focused = false;
+    tui.focused->focus_changed = true;
+
+    tui.pad_pos = 0;
+
+    tui.focused = first;
+}
+
+void tui_bind_focus_last(union tui_bind_data data) {
+    if (spa_list_is_empty(&tui.node_displays) || tui.focused == NULL) {
+        return;
+    }
+
+    struct tui_node_display *last = spa_list_first(&tui.node_displays,
+                                                   struct tui_node_display, link);
+    if (last == tui.focused) {
+        return;
+    }
+
+    last->focused = true;
+    last->focus_changed = true;
+
+    tui.focused->focused = false;
+    tui.focused->focus_changed = true;
+
+    tui.pad_pos = last->height - (tui.term_height - 1) + last->pos;
+
+    tui.focused = last;
+}
+
 void tui_bind_change_volume(union tui_bind_data data) {
     enum tui_direction direction = data.direction;
 
