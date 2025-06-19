@@ -28,6 +28,7 @@ valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- p
 ## Config
 pipemixer reads its config from $XDG_CONFIG_HOME/pipemixer/pipemixer.ini.
 See [example config](pipemixer.ini) and pipemixer.ini(5) for details.
+A list of keycodes can be found [here](https://invisible-island.net/ncurses/ada/terminal_interface-curses_constants__ads.htm).
 
 ## TODOs
 - [x] Make keybinds configurable
