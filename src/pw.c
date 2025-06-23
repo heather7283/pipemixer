@@ -476,6 +476,20 @@ static const struct pw_registry_events registry_events = {
     .global_remove = on_registry_global_remove,
 };
 
+static void on_core_done(void *data, uint32_t id, int seq) {
+    info("core done id %d seq %d", id, seq);
+}
+
+static void on_core_error(void *data, uint32_t id, int seq, int res, const char *message) {
+    err("core error %d on object %d: %d (%s)", seq, id, res, message);
+}
+
+static const struct pw_core_events core_events = {
+    .version = PW_VERSION_CORE_EVENTS,
+    .done = on_core_done,
+    .error = on_core_error,
+};
+
 int pipewire_init(void) {
     pw_init(NULL, NULL);
 
@@ -494,6 +508,7 @@ int pipewire_init(void) {
         err("failed to connect to pipewire: %s", strerror(errno));
         return -1;
     }
+    pw_core_add_listener(pw.core, &pw.core_listener, &core_events, NULL);
 
     pw.registry = pw_core_get_registry(pw.core, PW_VERSION_REGISTRY, 0);
     pw_registry_add_listener(pw.registry, &pw.registry_listener, &registry_events, NULL);
