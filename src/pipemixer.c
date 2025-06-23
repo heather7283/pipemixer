@@ -19,9 +19,14 @@ static int sigint_sigterm_handler(struct event_loop_item *item, int signal) {
 }
 
 static int pipewire_handler(struct event_loop_item *item, uint32_t events) {
-    pw_loop_iterate(pw.main_loop_loop, 0);
+    int res;
 
-    return 0;
+    res = pw_loop_iterate(pw.main_loop_loop, 0);
+    if (res < 0 && res != -EINTR) {
+        return res;
+    } else {
+        return 0;
+    }
 }
 
 void print_help_and_exit(FILE *stream, int exit_status) {
