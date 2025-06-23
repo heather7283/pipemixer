@@ -291,10 +291,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
                 wcsncpy(node->media_name, L"INVALID", ARRAY_SIZE(node->media_name));
             }
             node->changed = NODE_CHANGE_INFO;
-        } else if (STREQ(k, PW_KEY_NODE_NAME)) {
-            if (!WCSEMPTY(node->node_name)) {
-                continue;
-            }
+        } else if (STREQ(k, PW_KEY_NODE_NAME) && WCSEMPTY(node->node_name)) {
             size_t ret = mbsrtowcs(node->node_name, &v, ARRAY_SIZE(node->node_name), NULL);
             node->node_name[ARRAY_SIZE(node->node_name) - 1] = L'\0';
             if (ret == (size_t)-1) {
