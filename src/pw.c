@@ -502,21 +502,13 @@ int pipewire_init(void) {
 }
 
 void pipewire_cleanup(void) {
-    size_t i;
-
-    struct node *node;
-    while ((i = stbds_hmlenu(pw.nodes)) > 0) {
-        node = pw.nodes[i - 1].value;
-        stbds_hmdel(pw.nodes, node->id);
-        node_cleanup(node);
+    for (int i = 0; i < stbds_hmlen(pw.nodes); i++) {
+        node_cleanup(pw.nodes[i].value);
     }
     stbds_hmfree(pw.nodes);
 
-    struct device *device;
-    while ((i = stbds_hmlenu(pw.devices)) > 0) {
-        device = pw.devices[i - 1].value;
-        stbds_hmdel(pw.devices, device->id);
-        device_cleanup(device);
+    for (int i = 0; i < stbds_hmlen(pw.devices); i++) {
+        device_cleanup(pw.devices[i].value);
     }
     stbds_hmfree(pw.devices);
 
