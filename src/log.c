@@ -5,6 +5,11 @@
 
 #include "log.h"
 
+#define LOG_ANSI_COLORS_ERROR "\033[31m"
+#define LOG_ANSI_COLORS_WARN  "\033[33m"
+#define LOG_ANSI_COLORS_DEBUG "\033[2m"
+#define LOG_ANSI_COLORS_RESET "\033[0m"
+
 struct log_config {
     FILE *stream;
     enum log_loglevel loglevel;
@@ -18,7 +23,9 @@ static struct log_config log_config = {
 };
 
 enum log_loglevel log_str_to_loglevel(const char *str) {
-    if (strcasecmp(str, "debug") == 0) {
+    if (strcasecmp(str, "trace") == 0) {
+        return LOG_TRACE;
+    } else if (strcasecmp(str, "debug") == 0) {
         return LOG_DEBUG;
     } else if (strcasecmp(str, "info") == 0) {
         return LOG_INFO;
@@ -71,6 +78,12 @@ void log_print(enum log_loglevel level, char *message, ...) {
             fprintf(log_config.stream, LOG_ANSI_COLORS_DEBUG);
         }
         level_char = 'D';
+        break;
+    case LOG_TRACE:
+        if (log_config.colors) {
+            fprintf(log_config.stream, LOG_ANSI_COLORS_DEBUG);
+        }
+        level_char = 'T';
         break;
     default:
         fprintf(stderr, "logger error: unknown loglevel %d\n", level);

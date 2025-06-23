@@ -4,11 +4,6 @@
 #include <stdio.h>
 #include <stdbool.h>
 
-#define LOG_ANSI_COLORS_ERROR "\033[31m"
-#define LOG_ANSI_COLORS_WARN  "\033[33m"
-#define LOG_ANSI_COLORS_DEBUG "\033[90m"
-#define LOG_ANSI_COLORS_RESET "\033[0m"
-
 enum log_loglevel {
     LOG_INVALID,
     LOG_QUIET,
@@ -16,6 +11,7 @@ enum log_loglevel {
     LOG_WARN,
     LOG_INFO,
     LOG_DEBUG,
+    LOG_TRACE,
 };
 
 enum log_loglevel log_str_to_loglevel(const char *str);
@@ -23,7 +19,13 @@ enum log_loglevel log_str_to_loglevel(const char *str);
 void log_init(FILE *stream, enum log_loglevel level, bool force_colors);
 void log_print(enum log_loglevel level, char *msg, ...);
 
-/* TODO: replace usage of those macros with log_print */
+/* ncurses has a trace macro so make this one uppercase, TODO: make others uppercase too */
+#define TRACE(fmt, ...) \
+    do { \
+        log_print(LOG_TRACE, \
+                  "%s:%-3d " fmt, \
+                  __FILE__, __LINE__, ##__VA_ARGS__); \
+    } while (0)
 
 #define debug(fmt, ...) \
     do { \
