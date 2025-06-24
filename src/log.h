@@ -50,7 +50,7 @@ void log_print(enum log_loglevel level, char *msg, ...);
 #define err(fmt, ...) \
     do { \
         log_print(LOG_ERROR, \
-                  "E %s:%-3d " fmt, \
+                  "%s:%-3d " fmt, \
                   __FILE__, __LINE__, ##__VA_ARGS__); \
     } while (0)
 
