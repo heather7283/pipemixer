@@ -41,7 +41,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
             return;
         }
 
-        struct node *new_node = xcalloc(1, sizeof(struct node));
+        struct node *new_node = xcalloc(1, sizeof(*new_node));
         new_node->id = id;
         new_node->media_class = media_class_value;
         new_node->pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
