@@ -7,6 +7,7 @@
 #include "log.h"
 #include "tui.h"
 #include "config.h"
+#include "utils.h"
 #include "pw/common.h"
 #include "thirdparty/event_loop.h"
 
@@ -73,12 +74,8 @@ int main(int argc, char **argv) {
             config_path = optarg;
             break;
         case 'L':
-            errno = 0;
-            char *endptr;
-            log_fd = strtol(optarg, &endptr, 10); /* casting long to int, don't care */
-            if (errno != 0 || *endptr != '\0') {
-                fprintf(stderr, "failed to convert %s to integer: %s\n",
-                        optarg, strerror(errno != 0 ? errno : EINVAL));
+            if (!str_to_i32(optarg, &log_fd)) {
+                fprintf(stderr, "failed to convert %s to integer\n", optarg);
                 exit(1);
             }
             break;

@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <spa/pod/builder.h>
 #include <spa/param/props.h>
 
@@ -195,24 +196,9 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
             node->has_device = true;
-
-            errno = 0;
-            uint32_t device_id = strtoul(v, NULL, 10);
-            if (errno != 0) {
-                warn("failed to convert device.id %s to integer", v);
-                node->device_id = 0xDEADBEEF;
-            } else {
-                node->device_id = device_id;
-            }
+            assert(str_to_u32(v, &node->device_id));
         } else if (STREQ(k, "card.profile.device")) {
-            errno = 0;
-            uint32_t card_profile_device = strtoul(v, NULL, 10);
-            if (errno != 0) {
-                warn("failed to convert card.profile.device %s to integer", v);
-                node->card_profile_device = 0xDEADBEEF;
-            } else {
-                node->card_profile_device = card_profile_device;
-            }
+            assert(str_to_i32(v, &node->card_profile_device));
         }
     }
 
