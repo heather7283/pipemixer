@@ -5,9 +5,9 @@
 #include <ncurses.h>
 
 #include "log.h"
-#include "pw.h"
 #include "tui.h"
 #include "config.h"
+#include "pw/common.h"
 #include "thirdparty/event_loop.h"
 
 static int sigint_sigterm_handler(struct event_loop_item *item, int signal) {

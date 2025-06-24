@@ -4,7 +4,7 @@
 #include <ncurses.h>
 #include <spa/utils/list.h>
 
-#include "pw.h"
+#include "pw/node.h"
 #include "thirdparty/event_loop.h"
 
 enum tui_tab {
