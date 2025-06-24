@@ -97,17 +97,12 @@ static const struct pw_registry_events registry_events = {
     .global_remove = on_registry_global_remove,
 };
 
-static void on_core_done(void *data, uint32_t id, int seq) {
-    info("core done id %d seq %d", id, seq);
-}
-
 static void on_core_error(void *data, uint32_t id, int seq, int res, const char *message) {
     err("core error %d on object %d: %d (%s)", seq, id, res, message);
 }
 
 static const struct pw_core_events core_events = {
     .version = PW_VERSION_CORE_EVENTS,
-    .done = on_core_done,
     .error = on_core_error,
 };
 
