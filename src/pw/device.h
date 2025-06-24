@@ -27,7 +27,7 @@ struct device {
     struct spa_list routes;
 };
 
-void device_cleanup(struct device *device);
+void device_free(struct device *device);
 
 #endif /* #ifndef SRC_PIPEWIRE_DEVICE_H */
 

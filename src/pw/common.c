@@ -80,14 +80,14 @@ static void on_registry_global_remove(void *data, uint32_t id) {
     struct node *node;
     if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
         stbds_hmdel(pw.nodes, id);
-        node_cleanup(node);
+        node_free(node);
 
         pw.node_list_changed = true;
     }
     struct device *device;
     if ((device = stbds_hmget(pw.devices, id)) != NULL) {
         stbds_hmdel(pw.devices, id);
-        device_cleanup(device);
+        device_free(device);
     }
 }
 
@@ -139,12 +139,12 @@ int pipewire_init(void) {
 
 void pipewire_cleanup(void) {
     for (int i = 0; i < stbds_hmlen(pw.nodes); i++) {
-        node_cleanup(pw.nodes[i].value);
+        node_free(pw.nodes[i].value);
     }
     stbds_hmfree(pw.nodes);
 
     for (int i = 0; i < stbds_hmlen(pw.devices); i++) {
-        device_cleanup(pw.devices[i].value);
+        device_free(pw.devices[i].value);
     }
     stbds_hmfree(pw.devices);
 

@@ -139,7 +139,7 @@ void node_change_volume(struct node *node, bool absolute, float volume, uint32_t
     }
 }
 
-void node_cleanup(struct node *node) {
+void node_free(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
 
     free(node);

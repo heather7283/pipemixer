@@ -7,7 +7,7 @@
 #include "utils.h"
 #include "macros.h"
 
-static void device_routes_cleanup(struct device *device) {
+static void device_routes_free(struct device *device) {
     struct route *route, *route_tmp;
     spa_list_for_each_safe(route, route_tmp, &device->routes, link) {
         spa_list_remove(&route->link);
@@ -15,10 +15,10 @@ static void device_routes_cleanup(struct device *device) {
     }
 }
 
-void device_cleanup(struct device *device) {
+void device_free(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
-    device_routes_cleanup(device);
+    device_routes_free(device);
 
     free(device);
 }
@@ -47,7 +47,7 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
         for (i = 0; i < info->n_params; i++) {
             struct spa_param_info *param = &info->params[i];
             if (param->id == SPA_PARAM_Route && param->flags & SPA_PARAM_INFO_READ) {
-                device_routes_cleanup(device);
+                device_routes_free(device);
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
             }
         }

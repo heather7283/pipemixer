@@ -37,7 +37,7 @@ struct node {
     enum node_change_mask changed;
 };
 
-void node_cleanup(struct node *node);
+void node_free(struct node *node);
 
 void node_set_mute(struct node *node, bool mute);
 /* (uint32_t)-1 to change all channels */
