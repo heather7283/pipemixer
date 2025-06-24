@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <math.h>
 #include <wchar.h>
 
@@ -19,13 +20,23 @@ enum color_pair {
 
 struct tui tui = {0};
 
-static const char *media_class_name(enum media_class class) {
+static enum tui_tab media_class_to_tui_tab(enum media_class class) {
     switch (class) {
-    case STREAM_OUTPUT_AUDIO: return "Playback";
-    case STREAM_INPUT_AUDIO: return "Recording";
-    case AUDIO_SINK: return "Output Devices";
-    case AUDIO_SOURCE: return "Input Devices";
-    default: return "Invalid";
+    case STREAM_OUTPUT_AUDIO: return PLAYBACK;
+    case STREAM_INPUT_AUDIO: return RECORDING;
+    case AUDIO_SOURCE: return INPUT_DEVICES;
+    case AUDIO_SINK: return OUTPUT_DEVICES;
+    default: assert(0 && "Invalid media class passed to media_class_to_tui_tab");
+    }
+}
+
+static const char *tui_tab_name(enum tui_tab tab) {
+    switch (tab) {
+    case PLAYBACK: return "Playback";
+    case RECORDING: return "Recording";
+    case OUTPUT_DEVICES: return "Output Devices";
+    case INPUT_DEVICES: return "Input Devices";
+    default: return "INVALID";
     }
 }
 
@@ -173,11 +184,11 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
 
 static void tui_draw_status_bar(void) {
     wmove(tui.bar_win, 0, 0);
-    enum media_class tab = MEDIA_CLASS_START;
-    while (++tab != MEDIA_CLASS_END) {
+    enum tui_tab tab = TUI_TAB_START;
+    while (++tab != TUI_TAB_END) {
         wattron(tui.bar_win, (tab == tui.active_tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
         wattron(tui.bar_win, (tab == tui.active_tab) ? A_BOLD : 0);
-        waddstr(tui.bar_win, media_class_name(tab));
+        waddstr(tui.bar_win, tui_tab_name(tab));
         wattroff(tui.bar_win, (tab == tui.active_tab) ? A_BOLD : 0);
         wattroff(tui.bar_win, (tab == tui.active_tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
         waddstr(tui.bar_win, "   ");
@@ -237,7 +248,7 @@ static int tui_create_layout(void) {
     int pos_y = 0;
     for (size_t i = stbds_hmlenu(pw.nodes); i > 0; i--) {
         struct node *node = pw.nodes[i - 1].value;
-        if (node->media_class != tui.active_tab) {
+        if (media_class_to_tui_tab(node->media_class) != tui.active_tab) {
             continue;
         }
 
@@ -462,42 +473,43 @@ void tui_bind_change_tab(union tui_bind_data data) {
     bool change = false;
     switch (tab) {
     case NEXT:
-        if (++tui.active_tab == MEDIA_CLASS_END) {
-            tui.active_tab = MEDIA_CLASS_START + 1;
+        if (++tui.active_tab == TUI_TAB_END) {
+            tui.active_tab = TUI_TAB_START + 1;
         }
         change = true;
         break;
     case PREV:
-        if (--tui.active_tab == MEDIA_CLASS_START) {
-            tui.active_tab = MEDIA_CLASS_END - 1;
+        if (--tui.active_tab == TUI_TAB_START) {
+            tui.active_tab = TUI_TAB_END - 1;
         }
         change = true;
         break;
     case PLAYBACK:
-        /* TODO: unify tab enums? */
-        if (tui.active_tab != STREAM_OUTPUT_AUDIO) {
-            tui.active_tab = STREAM_OUTPUT_AUDIO;
+        if (tui.active_tab != PLAYBACK) {
+            tui.active_tab = PLAYBACK;
             change = true;
         }
         break;
     case RECORDING:
-        if (tui.active_tab != STREAM_INPUT_AUDIO) {
-            tui.active_tab = STREAM_INPUT_AUDIO;
+        if (tui.active_tab != RECORDING) {
+            tui.active_tab = RECORDING;
             change = true;
         }
         break;
     case INPUT_DEVICES:
-        if (tui.active_tab != AUDIO_SOURCE) {
-            tui.active_tab = AUDIO_SOURCE;
+        if (tui.active_tab != INPUT_DEVICES) {
+            tui.active_tab = INPUT_DEVICES;
             change = true;
         }
         break;
     case OUTPUT_DEVICES:
-        if (tui.active_tab != AUDIO_SINK) {
-            tui.active_tab = AUDIO_SINK;
+        if (tui.active_tab != OUTPUT_DEVICES) {
+            tui.active_tab = OUTPUT_DEVICES;
             change = true;
         }
         break;
+    default:
+        assert(0 && "Invalid tab enum value passed to tui_bind_change_tab");
     }
 
     if (change) {

@@ -7,11 +7,17 @@
 #include "pw.h"
 #include "thirdparty/event_loop.h"
 
+enum tui_tab {
+    TUI_TAB_START, PLAYBACK, RECORDING, INPUT_DEVICES, OUTPUT_DEVICES, TUI_TAB_END,
+    /* special values for keybinds */
+    NEXT, PREV,
+};
+
 struct tui {
     int term_height, term_width;
 
     WINDOW *bar_win;
-    enum media_class active_tab;
+    enum tui_tab active_tab;
 
     WINDOW *pad_win;
     int pad_pos;
@@ -61,7 +67,6 @@ enum tui_change_mode { ENABLE, DISABLE, TOGGLE };
 void tui_bind_change_mute(union tui_bind_data data);
 void tui_bind_change_channel_lock(union tui_bind_data data);
 
-enum tui_tab { NEXT, PREV, PLAYBACK, RECORDING, INPUT_DEVICES, OUTPUT_DEVICES };
 void tui_bind_change_tab(union tui_bind_data data);
 
 enum tui_nothing { NOTHING };

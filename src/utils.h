@@ -5,6 +5,7 @@
 #include <wchar.h>
 #include <spa/param/audio/raw.h>
 
+#define CHANNEL_NAME_LENGTH_MAX 5 /* without null terminator */
 const char *channel_name_from_enum(enum spa_audio_channel chan);
 
 const char *key_name_from_key_code(wint_t code);
