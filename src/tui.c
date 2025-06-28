@@ -40,7 +40,7 @@ static const char *tui_tab_name(enum tui_tab tab) {
     }
 }
 
-static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
+static void tui_draw_node(struct tui_node_display *disp, bool always_draw, int offset) {
     struct node *node = disp->node;
 
     const int usable_width = tui.term_width - 2; /* account for box borders */
@@ -60,13 +60,13 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     const bool unlocked_channels_changed = disp->unlocked_channels_changed;
     const enum node_change_mask change = node->changed;
 
-    WINDOW *win = disp->win;
+    WINDOW *const win = tui.pad_win;
 
     if (focused) {
-        wattron(disp->win, A_BOLD);
+        wattron(win, A_BOLD);
     }
     if (muted) {
-        wattron(disp->win, COLOR_PAIR(GRAY));
+        wattron(win, COLOR_PAIR(GRAY));
     }
 
     wchar_t line[usable_width];
@@ -80,13 +80,13 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
                  WCSEMPTY(node->media_name) ? L"" : node->media_name,
                  usable_width, "");
         wcstrimcols(line, usable_width);
-        mvwaddnwstr(win, 1, info_area_start, line, usable_width);
+        mvwaddnwstr(win, offset + 1, info_area_start, line, usable_width);
     }
 
     if (focus_changed || change & NODE_CHANGE_VOLUME || change & NODE_CHANGE_MUTE || always_draw) {
         /* draw info about each channel */
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
-            const int pos = i + 2;
+            const int pos = offset + i + 2;
 
             const int vol_int = (int)roundf(node->props.channel_volumes[i] * 100);
 
@@ -112,7 +112,7 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
     /* draw decorations (also focused markers) */
     if (focus_changed || unlocked_channels_changed || change & NODE_CHANGE_MUTE || always_draw) {
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
-            const int pos = i + 2;
+            const int pos = offset + i + 2;
 
             const wchar_t *wchar_left, *wchar_right;
             cchar_t cchar_left, cchar_right;
@@ -150,14 +150,14 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
 
     if (change & NODE_CHANGE_MUTE || always_draw) {
         /* box */
-        wmove(win, 0, 0);
+        wmove(win, offset, 0);
         waddwstr(win, config.borders.tl);
         for (int x = 1; x < tui.term_width - 1; x++) {
             waddwstr(win, config.borders.ts);
         }
         waddwstr(win, config.borders.tr);
 
-        wmove(win, disp->height - 1, 0);
+        wmove(win, offset + disp->height - 1, 0);
         waddwstr(win, config.borders.bl);
         for (int x = 1; x < tui.term_width - 1; x++) {
             waddwstr(win, config.borders.bs);
@@ -165,12 +165,12 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw) {
         waddwstr(win, config.borders.br);
 
         for (int y = 1; y < disp->height - 1; y++) {
-            wmove(win, y, 0);
+            wmove(win, offset + y, 0);
             waddwstr(win, config.borders.ls);
         }
 
         for (int y = 1; y < disp->height - 1; y++) {
-            wmove(win, y, tui.term_width - 1);
+            wmove(win, offset + y, tui.term_width - 1);
             waddwstr(win, config.borders.ls);
         }
     }
@@ -204,7 +204,7 @@ static int tui_repaint(bool always_draw) {
 
     struct tui_node_display *node_display;
     spa_list_for_each(node_display, &tui.node_displays, link) {
-        tui_draw_node(node_display, always_draw);
+        tui_draw_node(node_display, always_draw, node_display->pos);
     }
     pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0, tui.term_height - 1, tui.term_width - 1);
 
@@ -214,7 +214,6 @@ static int tui_repaint(bool always_draw) {
 }
 
 static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x) {
-    TRACE("tui_resize_pad %d %d", y, x);
     WINDOW *new_pad = newpad(y, x);
 
     if (pad != NULL) {
@@ -242,7 +241,6 @@ static int tui_create_layout(void) {
     }
     struct tui_node_display *node_display, *node_display_tmp;
     spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays, link) {
-        delwin(node_display->win);
         spa_list_remove(&node_display->link);
         free(node_display);
     }
@@ -270,7 +268,6 @@ static int tui_create_layout(void) {
         }
 
         int subwin_height = node->props.channel_count + 3;
-        node_display->win = subpad(tui.pad_win, subwin_height, tui.term_width, pos_y, 0);
         node_display->pos = pos_y;
         node_display->height = subwin_height;
         pos_y += subwin_height;
@@ -608,7 +605,6 @@ int tui_cleanup(void) {
     if (spa_list_is_initialized(&tui.node_displays)) {
         struct tui_node_display *node_display, *node_display_tmp;
         spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays, link) {
-            delwin(node_display->win);
             free(node_display);
         }
     }

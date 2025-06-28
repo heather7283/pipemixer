@@ -31,8 +31,6 @@ struct tui {
 struct tui_node_display {
     struct node *node;
 
-    WINDOW *win;
-
     int pos, height;
     bool focused;
     bool focus_changed;
