@@ -213,6 +213,18 @@ static int tui_repaint(bool always_draw) {
     return 0;
 }
 
+static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x) {
+    TRACE("tui_resize_pad %d %d", y, x);
+    WINDOW *new_pad = newpad(y, x);
+
+    if (pad != NULL) {
+        copywin(pad, new_pad, 0, 0, 0, 0, y, x, 0);
+        delwin(pad);
+    }
+
+    return new_pad;
+}
+
 static int tui_create_layout(void) {
     debug("tui: create_layout");
 
@@ -234,13 +246,10 @@ static int tui_create_layout(void) {
         spa_list_remove(&node_display->link);
         free(node_display);
     }
-    if (tui.pad_win != NULL) {
-        delwin(tui.pad_win);
-        tui.pad_win = NULL;
-    }
 
     tui.bar_win = newwin(1, tui.term_width, 0, 0);
-    tui.pad_win = newpad(stbds_hmlenu(pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3), tui.term_width);
+    const int padsize = stbds_hmlenu(pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3);
+    tui.pad_win = tui_resize_pad(tui.pad_win, padsize, tui.term_width);
     nodelay(tui.pad_win, TRUE); /* getch() will fail instead of blocking waiting for input */
     keypad(tui.pad_win, TRUE);
 
