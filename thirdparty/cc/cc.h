@@ -8,7 +8,6 @@
 #include "thirdparty/cc/real_cc.h"
 
 /* useful wrappers around cc functions */
-
 #define cc_getv(pvar, cntr, key) \
     ({ \
         typeof(pvar) tmp = cc_get(cntr, key); \

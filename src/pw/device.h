@@ -4,6 +4,8 @@
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/raw-types.h>
 
+#include "thirdparty/cc/cc.h"
+
 struct route_props {
     bool mute;
     uint32_t channel_count;
@@ -14,8 +16,6 @@ struct route_props {
 struct route {
     int32_t device, index;
     struct route_props props;
-
-    struct spa_list link;
 };
 
 struct device {
@@ -24,7 +24,7 @@ struct device {
 
     uint32_t id;
 
-    struct spa_list routes;
+    cc_list(struct route *) routes;
 };
 
 void device_free(struct device *device);

@@ -62,7 +62,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         struct device *new_device = xcalloc(1, sizeof(*new_device));
-        spa_list_init(&new_device->routes);
+        cc_init(&new_device->routes);
 
         new_device->id = id;
         new_device->pw_device = pw_registry_bind(pw.registry, id, type, PW_VERSION_DEVICE, 0);

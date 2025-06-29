@@ -37,7 +37,7 @@ void node_set_mute(struct node *node, bool mute) {
 
         bool found = false;
         struct route *route;
-        spa_list_for_each(route, &device->routes, link) {
+        cc_for_each_v(&device->routes, &route) {
             if (route->device == node->card_profile_device) {
                 found = true;
                 break;
@@ -117,7 +117,7 @@ void node_change_volume(struct node *node, bool absolute, float volume, uint32_t
 
         bool found = false;
         struct route *route;
-        spa_list_for_each(route, &device->routes, link) {
+        cc_for_each_v(&device->routes, &route) {
             if (route->device == node->card_profile_device) {
                 found = true;
                 break;

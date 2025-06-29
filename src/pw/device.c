@@ -8,11 +8,11 @@
 #include "macros.h"
 
 static void device_routes_free(struct device *device) {
-    struct route *route, *route_tmp;
-    spa_list_for_each_safe(route, route_tmp, &device->routes, link) {
-        spa_list_remove(&route->link);
+    struct route *route;
+    cc_for_each_v(&device->routes, &route) {
         free(route);
     }
+    cc_cleanup(&device->routes);
 }
 
 void device_free(struct device *device) {
@@ -109,7 +109,7 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     props->channel_count = i;
     spa_pod_get_bool(&mute_prop->value, &props->mute);
 
-    spa_list_insert(&device->routes, &new_route->link);
+    cc_push(&device->routes, new_route);
 }
 
 const struct pw_device_events device_events = {
