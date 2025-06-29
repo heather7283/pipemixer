@@ -17,7 +17,9 @@ enum color_pair {
     GRAY = 4,
 };
 
-struct tui tui = {0};
+struct tui tui = {
+    .node_displays = cc_initialized(&tui.node_displays),
+};
 
 static enum tui_tab media_class_to_tui_tab(enum media_class class) {
     switch (class) {
@@ -578,8 +580,6 @@ int tui_init(void) {
     init_pair(YELLOW, COLOR_YELLOW, -1);
     init_pair(RED, COLOR_RED, -1);
     init_pair(GRAY, 8, -1);
-
-    cc_init(&tui.node_displays);
 
     tui_handle_resize(NULL, 0);
 

@@ -8,7 +8,10 @@
 extern const struct pw_node_events node_events;
 extern const struct pw_device_events device_events;
 
-struct pw pw = {0};
+struct pw pw = {
+    .nodes = cc_initialized(&pw.nodes),
+    .devices = cc_initialized(&pw.devices),
+};
 
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const char *type, uint32_t version,
@@ -106,9 +109,6 @@ static const struct pw_core_events core_events = {
 };
 
 int pipewire_init(void) {
-    cc_init(&pw.nodes);
-    cc_init(&pw.devices);
-
     pw_init(NULL, NULL);
 
     pw.main_loop = pw_main_loop_new(NULL /* properties */);

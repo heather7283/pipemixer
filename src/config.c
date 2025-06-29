@@ -47,6 +47,8 @@ struct pipemixer_config config = {
         .bl = L"└",
         .br = L"┘",
     },
+
+    .binds = cc_initialized(&config.binds),
 };
 
 static const char *get_default_config_path(void) {
@@ -282,7 +284,6 @@ static void add_default_binds(void) {
 void load_config(const char *config_path) {
     int fd = -1;
     char *config_str = NULL;
-    cc_init(&config.binds);
 
     add_default_binds();
 
