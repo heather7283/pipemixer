@@ -1,20 +1,19 @@
 #include "pw/roundtrip.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "thirdparty/cc/cc.h"
 
 struct roundtrip_async_data {
     roundtrip_async_callback_func_t callback;
     void *data;
     int seq;
-
-    struct spa_list link;
 };
 
 /* LIFO */
-static struct spa_list callbacks = SPA_LIST_INIT(&callbacks);
+static cc_list(struct roundtrip_async_data) callbacks = cc_initialized(&callbacks);
 
 static void on_core_done(void *data, uint32_t id, int seq) {
-    struct roundtrip_async_data *d = spa_list_last(&callbacks, struct roundtrip_async_data, link);
+    struct roundtrip_async_data *d = cc_last(&callbacks);
     if (d->seq != seq) {
         err("LIFO error: expected seq %d got %d", d->seq, seq);
     } else {
@@ -23,7 +22,7 @@ static void on_core_done(void *data, uint32_t id, int seq) {
         if (d->callback != NULL) {
             d->callback(d->data);
         }
-        spa_list_remove(&d->link);
+        cc_erase(&callbacks, d);
         free(d);
     }
 }
@@ -41,12 +40,13 @@ void roundtrip_async(struct pw_core *core, roundtrip_async_callback_func_t callb
         pw_core_add_listener(core, &listener, &core_events, NULL);
     }
 
-    struct roundtrip_async_data *d = xmalloc(sizeof(*d));
-    d->callback = callback;
-    d->data = data;
-    d->seq = pw_core_sync(core, PW_ID_CORE, 0);
-    TRACE("roundtrip started with seq %d", d->seq);
+    struct roundtrip_async_data d = {
+        .callback = callback,
+        .data = data,
+        .seq = pw_core_sync(core, PW_ID_CORE, 0),
+    };
+    TRACE("roundtrip started with seq %d", d.seq);
 
-    spa_list_insert(&callbacks, &d->link);
+    cc_push(&callbacks, d);
 }
 

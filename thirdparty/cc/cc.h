@@ -7,6 +7,10 @@
 
 #include "thirdparty/cc/real_cc.h"
 
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 202311L
+    #define typeof(expr) __typeof__(expr)
+#endif
+
 /* useful wrappers around cc functions */
 #define cc_is_empty(cntr) (cc_size(cntr) == 0)
 
