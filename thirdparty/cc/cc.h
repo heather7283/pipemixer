@@ -8,6 +8,8 @@
 #include "thirdparty/cc/real_cc.h"
 
 /* useful wrappers around cc functions */
+#define cc_is_empty(cntr) (cc_size(cntr) == 0)
+
 #define cc_getv(pvar, cntr, key) \
     ({ \
         typeof(pvar) tmp = cc_get(cntr, key); \
@@ -18,6 +20,11 @@
     for (typeof(pvar) tmp = cc_first(cntr); \
          (tmp != cc_end(cntr)) && (((*(pvar)) = (*tmp)), 1); \
          tmp = cc_next(cntr, tmp))
+
+#define cc_r_for_each_v(cntr, pvar) \
+    for (typeof(pvar) tmp = cc_last(cntr); \
+         (tmp != cc_r_end(cntr)) && (((*(pvar)) = (*tmp)), 1); \
+         tmp = cc_prev(cntr, tmp))
 
 #endif /* #ifndef THIRDPARTY_CC_CC_H */
 

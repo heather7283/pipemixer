@@ -202,7 +202,7 @@ static int tui_repaint(bool always_draw) {
     }
 
     struct tui_node_display *node_display;
-    spa_list_for_each(node_display, &tui.node_displays, link) {
+    cc_r_for_each_v(&tui.node_displays, &node_display) {
         tui_draw_node(node_display, always_draw, node_display->pos);
     }
     pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0, tui.term_height - 1, tui.term_width - 1);
@@ -238,11 +238,11 @@ static int tui_create_layout(void) {
         delwin(tui.bar_win);
         tui.bar_win = NULL;
     }
-    struct tui_node_display *node_display, *node_display_tmp;
-    spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays, link) {
-        spa_list_remove(&node_display->link);
+    struct tui_node_display *node_display;
+    cc_for_each_v(&tui.node_displays, &node_display) {
         free(node_display);
     }
+    cc_clear(&tui.node_displays);
 
     tui.bar_win = newwin(1, tui.term_width, 0, 0);
     const int padsize = cc_size(&pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3);
@@ -271,15 +271,12 @@ static int tui_create_layout(void) {
         node_display->height = subwin_height;
         pos_y += subwin_height;
 
-        spa_list_insert(&tui.node_displays, &node_display->link);
+        cc_push(&tui.node_displays, node_display);
     }
-    if (!focused_found) {
-        struct tui_node_display *disp;
-        spa_list_for_each_reverse(disp, &tui.node_displays, link) {
-            disp->focused = true;
-            tui.focused = disp;
-            break;
-        }
+    if (!focused_found && cc_size(&tui.node_displays) > 0) {
+        struct tui_node_display *disp = *cc_first(&tui.node_displays);
+        disp->focused = true;
+        tui.focused = disp;
     }
 
     return 0;
@@ -299,7 +296,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             f->focused_channel -= 1;
         } else {
             struct tui_node_display *disp, *disp_next = NULL;
-            spa_list_for_each_reverse(disp, &tui.node_displays, link) {
+            cc_for_each_v(&tui.node_displays, &disp) {
                 if (disp_next != NULL && disp->focused) {
                     disp->focused = false;
                     disp_next->focused = true;
@@ -325,7 +322,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             f->focused_channel += 1;
         } else {
             struct tui_node_display *disp, *disp_prev = NULL;
-            spa_list_for_each(disp, &tui.node_displays, link) {
+            cc_r_for_each_v(&tui.node_displays, &disp) {
                 if (disp_prev != NULL && disp->focused) {
                     disp->focused = false;
                     disp_prev->focused = true;
@@ -352,12 +349,11 @@ void tui_bind_change_focus(union tui_bind_data data) {
 }
 
 void tui_bind_focus_first(union tui_bind_data data) {
-    if (spa_list_is_empty(&tui.node_displays) || tui.focused == NULL) {
+    if (cc_is_empty(&tui.node_displays) || tui.focused == NULL) {
         return;
     }
 
-    struct tui_node_display *first = spa_list_last(&tui.node_displays,
-                                                   struct tui_node_display, link);
+    struct tui_node_display *first = *cc_first(&tui.node_displays);
     if (first == tui.focused) {
         return;
     }
@@ -374,12 +370,11 @@ void tui_bind_focus_first(union tui_bind_data data) {
 }
 
 void tui_bind_focus_last(union tui_bind_data data) {
-    if (spa_list_is_empty(&tui.node_displays) || tui.focused == NULL) {
+    if (cc_is_empty(&tui.node_displays) || tui.focused == NULL) {
         return;
     }
 
-    struct tui_node_display *last = spa_list_first(&tui.node_displays,
-                                                   struct tui_node_display, link);
+    struct tui_node_display *last = *cc_last(&tui.node_displays);
     if (last == tui.focused) {
         return;
     }
@@ -584,7 +579,7 @@ int tui_init(void) {
     init_pair(RED, COLOR_RED, -1);
     init_pair(GRAY, 8, -1);
 
-    spa_list_init(&tui.node_displays);
+    cc_init(&tui.node_displays);
 
     tui_handle_resize(NULL, 0);
 
@@ -601,12 +596,12 @@ int tui_cleanup(void) {
     if (tui.pad_win != NULL) {
         delwin(tui.pad_win);
     }
-    if (spa_list_is_initialized(&tui.node_displays)) {
-        struct tui_node_display *node_display, *node_display_tmp;
-        spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays, link) {
-            free(node_display);
-        }
+
+    struct tui_node_display *node_display;
+    cc_for_each_v(&tui.node_displays, &node_display) {
+        free(node_display);
     }
+    cc_cleanup(&tui.node_displays);
 
     endwin();
 

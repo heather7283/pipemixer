@@ -2,10 +2,10 @@
 #define TUI_H
 
 #include <ncurses.h>
-#include <spa/utils/list.h>
 
 #include "pw/node.h"
 #include "thirdparty/event_loop.h"
+#include "thirdparty/cc/cc.h"
 
 enum tui_tab {
     TUI_TAB_START, PLAYBACK, RECORDING, INPUT_DEVICES, OUTPUT_DEVICES, TUI_TAB_END,
@@ -22,7 +22,7 @@ struct tui {
     WINDOW *pad_win;
     int pad_pos;
 
-    struct spa_list node_displays;
+    cc_list(struct tui_node_display *) node_displays;
     struct tui_node_display *focused;
 
     bool need_redo_layout;
@@ -38,8 +38,6 @@ struct tui_node_display {
     bool unlocked_channels;
     uint32_t focused_channel;
     bool unlocked_channels_changed;
-
-    struct spa_list link;
 };
 
 extern struct tui tui;
