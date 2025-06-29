@@ -1,7 +1,7 @@
 project('pipemixer', 'c',
   version: '0.1.0',
   license: 'GPL-3.0-or-later',
-  default_options: ['warning_level=3'])
+  default_options: ['warning_level=3', 'c_std=c11'])
 
 add_project_arguments('-Wno-pedantic', language: 'c')
 add_project_arguments('-Wno-unused-value', language: 'c')
@@ -35,7 +35,6 @@ executable('pipemixer',
   'src/pw/device.c',
   'src/pw/node.c',
   'src/pw/roundtrip.c',
-  'src/stb_ds_impl.c',
   'src/event_loop_impl.c',
   include_directories: include_dirs,
   link_with: [inih_lib],

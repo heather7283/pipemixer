@@ -4,7 +4,6 @@
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"
-#include "thirdparty/stb_ds.h"
 
 extern const struct pw_node_events node_events;
 extern const struct pw_device_events device_events;
@@ -47,7 +46,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         new_node->pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
         pw_node_add_listener(new_node->pw_node, &new_node->listener, &node_events, new_node);
 
-        stbds_hmput(pw.nodes, new_node->id, new_node);
+        cc_insert(&pw.nodes, new_node->id, new_node);
 
         pw.node_list_changed = true;
     } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
@@ -70,7 +69,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         pw_device_add_listener(new_device->pw_device, &new_device->listener,
                                &device_events, new_device);
 
-        stbds_hmput(pw.devices, new_device->id, new_device);
+        cc_insert(&pw.devices, new_device->id, new_device);
     }
 }
 
@@ -78,15 +77,15 @@ static void on_registry_global_remove(void *data, uint32_t id) {
     debug("registry global remove: id %d", id);
 
     struct node *node;
-    if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
-        stbds_hmdel(pw.nodes, id);
+    if (cc_getv(&node, &pw.nodes, id)) {
+        cc_erase(&pw.nodes, id);
         node_free(node);
 
         pw.node_list_changed = true;
     }
     struct device *device;
-    if ((device = stbds_hmget(pw.devices, id)) != NULL) {
-        stbds_hmdel(pw.devices, id);
+    if (cc_getv(&device, &pw.devices, id)) {
+        cc_erase(&pw.devices, id);
         device_free(device);
     }
 }
@@ -107,6 +106,9 @@ static const struct pw_core_events core_events = {
 };
 
 int pipewire_init(void) {
+    cc_init(&pw.nodes);
+    cc_init(&pw.devices);
+
     pw_init(NULL, NULL);
 
     pw.main_loop = pw_main_loop_new(NULL /* properties */);
@@ -133,15 +135,15 @@ int pipewire_init(void) {
 }
 
 void pipewire_cleanup(void) {
-    for (int i = 0; i < stbds_hmlen(pw.nodes); i++) {
-        node_free(pw.nodes[i].value);
+    cc_for_each(&pw.nodes, node) {
+        node_free(*node);
     }
-    stbds_hmfree(pw.nodes);
+    cc_cleanup(&pw.nodes);
 
-    for (int i = 0; i < stbds_hmlen(pw.devices); i++) {
-        device_free(pw.devices[i].value);
+    cc_for_each(&pw.devices, device) {
+        device_free(*device);
     }
-    stbds_hmfree(pw.devices);
+    cc_cleanup(&pw.devices);
 
     if (pw.registry != NULL) {
         pw_proxy_destroy((struct pw_proxy *)pw.registry);

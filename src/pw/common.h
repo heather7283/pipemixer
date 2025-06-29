@@ -3,6 +3,8 @@
 
 #include <pipewire/pipewire.h>
 
+#include "thirdparty/cc/cc.h"
+
 enum media_class {
     MEDIA_CLASS_START,
     STREAM_OUTPUT_AUDIO,
@@ -25,19 +27,13 @@ struct pw {
     struct pw_registry *registry;
     struct spa_hook registry_listener;
 
-    /* stb_ds hashmaps */
-    struct {
-        uint32_t key; /* id */
-        struct node *value;
-    } *nodes;
-    struct {
-        uint32_t key; /* id */
-        struct device *value;
-    } *devices;
+    cc_map(uint32_t, struct node *) nodes;
+    cc_map(uint32_t, struct device *) devices;
 
     /* TODO: find a more sensible name for this */
     bool node_list_changed;
 };
+#include "thirdparty/cc/cc.h"
 
 extern struct pw pw;
 

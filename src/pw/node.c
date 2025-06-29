@@ -4,12 +4,10 @@
 
 #include "pw/node.h"
 #include "pw/device.h"
-#include "pw/roundtrip.h"
 #include "log.h"
 #include "macros.h"
 #include "config.h"
 #include "utils.h"
-#include "thirdparty/stb_ds.h"
 
 void node_set_mute(struct node *node, bool mute) {
     /*
@@ -30,8 +28,8 @@ void node_set_mute(struct node *node, bool mute) {
     if (!node->has_device) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else {
-        struct device *device = stbds_hmget(pw.devices, node->device_id);
-        if (device == NULL) {
+        struct device *device;
+        if (!cc_getv(&device, &pw.devices, node->device_id)) {
             warn("tried to change mute state of node %d with associated device, "
                  "but no device with id %d was found", node->id, node->device_id);
             return;
@@ -110,8 +108,8 @@ void node_change_volume(struct node *node, bool absolute, float volume, uint32_t
 
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
     } else {
-        struct device *device = stbds_hmget(pw.devices, node->device_id);
-        if (device == NULL) {
+        struct device *device;
+        if (!cc_getv(&device, &pw.devices, node->device_id)) {
             warn("tried to change volume of node %d with associated device, "
                  "but no device with id %d was found", node->id, node->device_id);
             return;

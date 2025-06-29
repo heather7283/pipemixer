@@ -8,7 +8,6 @@
 #include "xmalloc.h"
 #include "utils.h"
 #include "config.h"
-#include "thirdparty/stb_ds.h"
 
 enum color_pair {
     DEFAULT = 0,
@@ -246,15 +245,15 @@ static int tui_create_layout(void) {
     }
 
     tui.bar_win = newwin(1, tui.term_width, 0, 0);
-    const int padsize = stbds_hmlenu(pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3);
+    const int padsize = cc_size(&pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3);
     tui.pad_win = tui_resize_pad(tui.pad_win, padsize, tui.term_width);
     nodelay(tui.pad_win, TRUE); /* getch() will fail instead of blocking waiting for input */
     keypad(tui.pad_win, TRUE);
 
     bool focused_found = false;
     int pos_y = 0;
-    for (size_t i = stbds_hmlenu(pw.nodes); i > 0; i--) {
-        struct node *node = pw.nodes[i - 1].value;
+    struct node *node;
+    cc_for_each_v(&pw.nodes, &node) {
         if (media_class_to_tui_tab(node->media_class) != tui.active_tab) {
             continue;
         }
@@ -544,13 +543,13 @@ int tui_handle_resize(struct event_loop_item *item, int signal) {
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
     wint_t ch;
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
-        struct pipemixer_config_bind *bind = stbds_hmgetp_null(config.binds, ch);
+        struct tui_bind *bind = cc_get(&config.binds, ch);
         if (bind == NULL) {
             debug("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
-        } else if (bind->value.func == TUI_BIND_QUIT) {
+        } else if (bind->func == TUI_BIND_QUIT) {
             event_loop_quit(event_loop_item_get_loop(item), 0);
         } else {
-            bind->value.func(bind->value.data);
+            bind->func(bind->data);
         }
     }
 

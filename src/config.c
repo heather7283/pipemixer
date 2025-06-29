@@ -8,15 +8,15 @@
 #include "config.h"
 #include "utils.h"
 #include "macros.h"
-#include "ini.h"
-#include "thirdparty/stb_ds.h"
+#include "xmalloc.h"
+#include "thirdparty/inih/ini.h"
 
 #define ADD_BIND(key, function, data_type, data_value) \
     do { \
         struct tui_bind bind; \
         bind.func = function; \
         bind.data.data_type = data_value; \
-        stbds_hmput(config.binds, key, bind); \
+        cc_insert(&config.binds, key, bind); \
     } while (0)
 
 struct pipemixer_config config = {
@@ -47,8 +47,6 @@ struct pipemixer_config config = {
         .bl = L"└",
         .br = L"┘",
     },
-
-    .binds = NULL,
 };
 
 static const char *get_default_config_path(void) {
@@ -231,7 +229,7 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             } else if (STREQ(k, "quit")) {
                 ADD_BIND(keycode, TUI_BIND_QUIT, nothing, NOTHING);
             } else if (STREQ(k, "unbind")) {
-                stbds_hmdel(config.binds, keycode);
+                cc_erase(&config.binds, keycode);
             } else {
                 CONFIG_LOG("unknown action: %s", k);
             }
@@ -284,6 +282,7 @@ static void add_default_binds(void) {
 void load_config(const char *config_path) {
     int fd = -1;
     char *config_str = NULL;
+    cc_init(&config.binds);
 
     add_default_binds();
 
@@ -317,6 +316,6 @@ out:
 }
 
 void config_cleanup(void) {
-    stbds_hmfree(config.binds);
+    cc_cleanup(&config.binds);
 }
 
