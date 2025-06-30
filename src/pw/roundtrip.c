@@ -13,7 +13,7 @@ struct roundtrip_async_data {
 static cc_list(struct roundtrip_async_data) callbacks = cc_initialized(&callbacks);
 
 static void on_core_done(void *data, uint32_t id, int seq) {
-    struct roundtrip_async_data *d = cc_last(&callbacks);
+    struct roundtrip_async_data *d = cc_first(&callbacks);
     if (d->seq != seq) {
         err("LIFO error: expected seq %d got %d", d->seq, seq);
     } else {
@@ -23,7 +23,6 @@ static void on_core_done(void *data, uint32_t id, int seq) {
             d->callback(d->data);
         }
         cc_erase(&callbacks, d);
-        free(d);
     }
 }
 
