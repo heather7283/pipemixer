@@ -8,9 +8,13 @@
 #include "thirdparty/event_loop.h"
 
 enum tui_tab {
-    TUI_TAB_START, PLAYBACK, RECORDING, INPUT_DEVICES, OUTPUT_DEVICES, TUI_TAB_END,
-    /* special values for keybinds */
-    NEXT, PREV,
+    TUI_TAB_FIRST,
+    PLAYBACK = TUI_TAB_FIRST,
+    RECORDING,
+    INPUT_DEVICES,
+    OUTPUT_DEVICES,
+    TUI_TAB_LAST = OUTPUT_DEVICES,
+    TUI_TAB_COUNT,
 };
 
 struct tui {
@@ -58,14 +62,14 @@ typedef void (*tui_bind_func_t)(union tui_bind_data data);
 enum tui_direction { UP, DOWN };
 void tui_bind_change_focus(union tui_bind_data data);
 void tui_bind_change_volume(union tui_bind_data data);
+void tui_bind_change_tab(union tui_bind_data data);
 
 void tui_bind_set_volume(union tui_bind_data data);
+void tui_bind_set_tab(union tui_bind_data data);
 
 enum tui_change_mode { ENABLE, DISABLE, TOGGLE };
 void tui_bind_change_mute(union tui_bind_data data);
 void tui_bind_change_channel_lock(union tui_bind_data data);
-
-void tui_bind_change_tab(union tui_bind_data data);
 
 enum tui_nothing { NOTHING };
 /* TODO: find a more sane way to do this lol */

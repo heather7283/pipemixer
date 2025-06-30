@@ -214,17 +214,17 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 }
             } else if (prefix = "tab-", STRSTARTSWITH(k, prefix)) {
                 if (STREQ(k + strlen(prefix), "next")) {
-                    ADD_BIND(keycode, tui_bind_change_tab, tab, NEXT);
+                    ADD_BIND(keycode, tui_bind_change_tab, direction, UP);
                 } else if (STREQ(k + strlen(prefix), "prev")) {
-                    ADD_BIND(keycode, tui_bind_change_tab, tab, PREV);
+                    ADD_BIND(keycode, tui_bind_change_tab, direction, DOWN);
                 } else if (STREQ(k + strlen(prefix), "playback")) {
-                    ADD_BIND(keycode, tui_bind_change_tab, tab, PLAYBACK);
+                    ADD_BIND(keycode, tui_bind_set_tab, tab, PLAYBACK);
                 } else if (STREQ(k + strlen(prefix), "recording")) {
-                    ADD_BIND(keycode, tui_bind_change_tab, tab, RECORDING);
+                    ADD_BIND(keycode, tui_bind_set_tab, tab, RECORDING);
                 } else if (STREQ(k + strlen(prefix), "input-devices")) {
-                    ADD_BIND(keycode, tui_bind_change_tab, tab, INPUT_DEVICES);
+                    ADD_BIND(keycode, tui_bind_set_tab, tab, INPUT_DEVICES);
                 } else if (STREQ(k + strlen(prefix), "output-devices")) {
-                    ADD_BIND(keycode, tui_bind_change_tab, tab, OUTPUT_DEVICES);
+                    ADD_BIND(keycode, tui_bind_set_tab, tab, OUTPUT_DEVICES);
                 } else {
                     CONFIG_LOG("unknown action: %s", k);
                 }
@@ -265,10 +265,10 @@ static void add_default_binds(void) {
     ADD_BIND('h', tui_bind_change_volume, direction, DOWN);
     ADD_BIND(KEY_LEFT, tui_bind_change_volume, direction, DOWN);
 
-    ADD_BIND('t', tui_bind_change_tab, tab, NEXT);
-    ADD_BIND('\t', tui_bind_change_tab, tab, NEXT);
-    ADD_BIND('T', tui_bind_change_tab, tab, PREV);
-    ADD_BIND(KEY_BTAB, tui_bind_change_tab, tab, PREV);
+    ADD_BIND('t', tui_bind_change_tab, direction, UP);
+    ADD_BIND('\t', tui_bind_change_tab, direction, UP);
+    ADD_BIND('T', tui_bind_change_tab, direction, DOWN);
+    ADD_BIND(KEY_BTAB, tui_bind_change_tab, direction, DOWN);
 
     ADD_BIND('1', tui_bind_change_tab, tab, PLAYBACK);
     ADD_BIND('2', tui_bind_change_tab, tab, RECORDING);

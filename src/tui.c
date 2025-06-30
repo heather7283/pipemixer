@@ -184,8 +184,8 @@ static void tui_draw_node(struct tui_node_display *disp, bool always_draw, int o
 
 static void tui_draw_status_bar(void) {
     wmove(tui.bar_win, 0, 0);
-    enum tui_tab tab = TUI_TAB_START;
-    while (++tab != TUI_TAB_END) {
+
+    for (enum tui_tab tab = TUI_TAB_FIRST; tab <= TUI_TAB_LAST; tab++) {
         wattron(tui.bar_win, (tab == tui.active_tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
         wattron(tui.bar_win, (tab == tui.active_tab) ? A_BOLD : 0);
         waddstr(tui.bar_win, tui_tab_name(tab));
@@ -193,6 +193,7 @@ static void tui_draw_status_bar(void) {
         wattroff(tui.bar_win, (tab == tui.active_tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
         waddstr(tui.bar_win, "   ");
     }
+
     wclrtoeol(tui.bar_win);
     wnoutrefresh(tui.bar_win);
 }
@@ -474,22 +475,35 @@ void tui_bind_change_channel_lock(union tui_bind_data data) {
 }
 
 void tui_bind_change_tab(union tui_bind_data data) {
+    bool change = false;
+    switch (data.direction) {
+    case UP:
+        if (tui.active_tab++ == TUI_TAB_LAST) {
+            tui.active_tab = TUI_TAB_FIRST;
+        }
+        change = true;
+        break;
+    case DOWN:
+        if (tui.active_tab-- == TUI_TAB_FIRST) {
+            tui.active_tab = TUI_TAB_LAST;
+        }
+        change = true;
+        break;
+    default:
+        assert(0 && "Invalid tab enum value passed to tui_bind_change_tab");
+    }
+
+    if (change) {
+        tui.pad_pos = 0;
+        tui.need_redo_layout = true;
+    }
+}
+
+void tui_bind_set_tab(union tui_bind_data data) {
     enum tui_tab tab = data.tab;
 
     bool change = false;
     switch (tab) {
-    case NEXT:
-        if (++tui.active_tab == TUI_TAB_END) {
-            tui.active_tab = TUI_TAB_START + 1;
-        }
-        change = true;
-        break;
-    case PREV:
-        if (--tui.active_tab == TUI_TAB_START) {
-            tui.active_tab = TUI_TAB_END - 1;
-        }
-        change = true;
-        break;
     case PLAYBACK:
         if (tui.active_tab != PLAYBACK) {
             tui.active_tab = PLAYBACK;
@@ -589,7 +603,7 @@ int tui_init(void) {
 
     tui_handle_resize(NULL, 0);
 
-    tui.active_tab = MEDIA_CLASS_START + 1;
+    tui.active_tab = TUI_TAB_FIRST;
     tui.need_redo_layout = true;
 
     return 0;
