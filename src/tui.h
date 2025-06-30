@@ -26,7 +26,7 @@ struct tui {
     WINDOW *pad_win;
     int pad_pos;
 
-    struct spa_list node_displays;
+    struct spa_list node_displays[TUI_TAB_COUNT];
     struct tui_node_display *focused;
 
     bool need_redo_layout;

@@ -204,7 +204,7 @@ static int tui_repaint(bool always_draw) {
     }
 
     struct tui_node_display *node_display;
-    spa_list_for_each(node_display, &tui.node_displays, link) {
+    spa_list_for_each(node_display, &tui.node_displays[tui.active_tab], link) {
         tui_draw_node(node_display, always_draw, node_display->pos);
     }
     pnoutrefresh(tui.pad_win, tui.pad_pos, 0, 1, 0, tui.term_height - 1, tui.term_width - 1);
@@ -240,10 +240,12 @@ static int tui_create_layout(void) {
         delwin(tui.bar_win);
         tui.bar_win = NULL;
     }
-    struct tui_node_display *node_display, *node_display_tmp;
-    spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays, link) {
-        spa_list_remove(&node_display->link);
-        free(node_display);
+    for (enum tui_tab tab = TUI_TAB_FIRST; tab <= TUI_TAB_LAST; tab++) {
+        struct tui_node_display *node_display, *node_display_tmp;
+        spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays[tab], link) {
+            spa_list_remove(&node_display->link);
+            free(node_display);
+        }
     }
 
     tui.bar_win = newwin(1, tui.term_width, 0, 0);
@@ -253,35 +255,34 @@ static int tui_create_layout(void) {
     keypad(tui.pad_win, TRUE);
 
     bool focused_found = false;
-    int pos_y = 0;
     for (size_t i = stbds_hmlenu(pw.nodes); i > 0; i--) {
         struct node *node = pw.nodes[i - 1].value;
-        if (media_class_to_tui_tab(node->media_class) != tui.active_tab) {
-            continue;
-        }
+        enum tui_tab tab = media_class_to_tui_tab(node->media_class);
 
         struct tui_node_display *node_display = xcalloc(1, sizeof(*node_display));
         node_display->node = node;
-        if (!focused_found && prev_focused_id == node->id) {
+        if (!focused_found && tab == tui.active_tab && prev_focused_id == node->id) {
             node_display->focused = true;
             tui.focused = node_display;
             focused_found = true;
         }
 
-        int subwin_height = node->props.channel_count + 3;
-        node_display->pos = pos_y;
-        node_display->height = subwin_height;
-        pos_y += subwin_height;
-
-        spa_list_insert(&tui.node_displays, &node_display->link);
-    }
-    if (!focused_found) {
-        struct tui_node_display *disp;
-        spa_list_for_each_reverse(disp, &tui.node_displays, link) {
-            disp->focused = true;
-            tui.focused = disp;
-            break;
+        node_display->height = node->props.channel_count + 3;
+        if (spa_list_is_empty(&tui.node_displays[tab])) {
+            node_display->pos = 0;
+        } else {
+            struct tui_node_display *first = spa_list_first(&tui.node_displays[tab],
+                                                            struct tui_node_display, link);
+            node_display->pos = first->pos + first->height;
         }
+
+        spa_list_insert(&tui.node_displays[tab], &node_display->link);
+    }
+    if (!focused_found && !spa_list_is_empty(&tui.node_displays[tui.active_tab])) {
+        struct tui_node_display *last = spa_list_last(&tui.node_displays[tui.active_tab],
+                                                      struct tui_node_display, link);
+            last->focused = true;
+            tui.focused = last;
     }
 
     return 0;
@@ -301,7 +302,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             f->focused_channel -= 1;
         } else {
             struct tui_node_display *disp, *disp_next = NULL;
-            spa_list_for_each_reverse(disp, &tui.node_displays, link) {
+            spa_list_for_each_reverse(disp, &tui.node_displays[tui.active_tab], link) {
                 if (disp_next != NULL && disp->focused) {
                     disp->focused = false;
                     disp_next->focused = true;
@@ -327,7 +328,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             f->focused_channel += 1;
         } else {
             struct tui_node_display *disp, *disp_prev = NULL;
-            spa_list_for_each(disp, &tui.node_displays, link) {
+            spa_list_for_each(disp, &tui.node_displays[tui.active_tab], link) {
                 if (disp_prev != NULL && disp->focused) {
                     disp->focused = false;
                     disp_prev->focused = true;
@@ -354,11 +355,11 @@ void tui_bind_change_focus(union tui_bind_data data) {
 }
 
 void tui_bind_focus_first(union tui_bind_data data) {
-    if (spa_list_is_empty(&tui.node_displays) || tui.focused == NULL) {
+    if (spa_list_is_empty(&tui.node_displays[tui.active_tab]) || tui.focused == NULL) {
         return;
     }
 
-    struct tui_node_display *first = spa_list_last(&tui.node_displays,
+    struct tui_node_display *first = spa_list_last(&tui.node_displays[tui.active_tab],
                                                    struct tui_node_display, link);
     if (first == tui.focused) {
         return;
@@ -376,11 +377,11 @@ void tui_bind_focus_first(union tui_bind_data data) {
 }
 
 void tui_bind_focus_last(union tui_bind_data data) {
-    if (spa_list_is_empty(&tui.node_displays) || tui.focused == NULL) {
+    if (spa_list_is_empty(&tui.node_displays[tui.active_tab]) || tui.focused == NULL) {
         return;
     }
 
-    struct tui_node_display *last = spa_list_first(&tui.node_displays,
+    struct tui_node_display *last = spa_list_first(&tui.node_displays[tui.active_tab],
                                                    struct tui_node_display, link);
     if (last == tui.focused) {
         return;
@@ -599,7 +600,9 @@ int tui_init(void) {
     init_pair(RED, COLOR_RED, -1);
     init_pair(GRAY, 8, -1);
 
-    spa_list_init(&tui.node_displays);
+    for (enum tui_tab tab = TUI_TAB_FIRST; tab <= TUI_TAB_LAST; tab++) {
+        spa_list_init(&tui.node_displays[tab]);
+    }
 
     tui_handle_resize(NULL, 0);
 
@@ -616,10 +619,12 @@ int tui_cleanup(void) {
     if (tui.pad_win != NULL) {
         delwin(tui.pad_win);
     }
-    if (spa_list_is_initialized(&tui.node_displays)) {
-        struct tui_node_display *node_display, *node_display_tmp;
-        spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays, link) {
-            free(node_display);
+    for (enum tui_tab tab = TUI_TAB_FIRST; tab <= TUI_TAB_LAST; tab++) {
+        if (spa_list_is_initialized(&tui.node_displays[tab])) {
+            struct tui_node_display *node_display, *node_display_tmp;
+            spa_list_for_each_safe(node_display, node_display_tmp, &tui.node_displays[tab], link) {
+                free(node_display);
+            }
         }
     }
 
