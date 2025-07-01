@@ -21,10 +21,6 @@ struct tui {
     int term_height, term_width;
 
     WINDOW *bar_win;
-    struct {
-        int start, end;
-    } tab_label_positions[TUI_TAB_COUNT];
-
     WINDOW *pad_win;
 
     enum tui_tab tab;
@@ -32,6 +28,7 @@ struct tui {
         struct spa_list items;
         struct tui_tab_item *focused;
         int scroll_pos;
+        struct { int start, end; } label_pos;
         bool user_changed_focus;
     } tabs[TUI_TAB_COUNT];
 };

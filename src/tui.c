@@ -216,9 +216,9 @@ static void tui_draw_status_bar(void) {
 
         const char *str = tui_tab_name(tab);
         waddstr(tui.bar_win, str);
-        tui.tab_label_positions[tab].start = pos;
+        tui.tabs[tab].label_pos.start = pos;
         pos += strlen(str);
-        tui.tab_label_positions[tab].end = pos;
+        tui.tabs[tab].label_pos.end = pos;
 
         wattroff(tui.bar_win, (tab == tui.tab) ? A_BOLD : 0);
         wattroff(tui.bar_win, (tab == tui.tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
@@ -622,19 +622,18 @@ int tui_handle_resize(struct pollen_callback *callback, int signal, void *data) 
 static void tui_handle_mouse(const MEVENT *const mev) {
     const int x = mev->x, y = mev->y;
     const mmask_t bstate = mev->bstate;
-    INFO("MEVENT x=%d y=%d bstate=%s", x, y, mmask_to_string(bstate));
+    TRACE("MEVENT x=%d y=%d bstate=%s", x, y, mmask_to_string(bstate));
 
     if (y == 0 && bstate & BUTTON1_PRESSED) /* top row, tab bar */ {
-        for (unsigned long i = 0; i < ARRAY_SIZE(tui.tab_label_positions); i++) {
-            if (x >= tui.tab_label_positions[i].start && x <= tui.tab_label_positions[i].end) {
-                /* TODO: I really need to do something with those enums, this is cringe */
-                tui_bind_change_tab((union tui_bind_data){.tab = media_class_to_tui_tab(i)});
+        FOR_EACH_TAB(tab) {
+            if (x >= tui.tabs[tab].label_pos.start && x <= tui.tabs[tab].label_pos.end) {
+                tui_bind_set_tab((union tui_bind_data){.tab = tab});
             }
         }
     } else if (y == 0 && bstate & BUTTON4_PRESSED) /* mouse wheel up on tab bar */ {
-        tui_bind_change_tab((union tui_bind_data){.tab = NEXT});
+        tui_bind_change_tab((union tui_bind_data){.direction = DOWN});
     } else if (y == 0 && bstate & BUTTON5_PRESSED) /* mouse wheel down on tab bar */ {
-        tui_bind_change_tab((union tui_bind_data){.tab = PREV});
+        tui_bind_change_tab((union tui_bind_data){.direction = UP});
     } else if (bstate & BUTTON5_PRESSED) /* mouse wheel down in main space */ {
         tui_bind_change_focus((union tui_bind_data){.direction = DOWN});
     } else if (bstate & BUTTON4_PRESSED) /* mouse wheel up in main space */ {
