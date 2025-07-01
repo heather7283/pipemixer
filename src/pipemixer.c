@@ -37,7 +37,7 @@ void print_help_and_exit(FILE *stream, int exit_status) {
         "\n"
         "command line options:\n"
         "    -c, --config     path to configuration file\n"
-        "    -l, --loglevel   one of DEBUG, INFO, WARN, ERROR, QUIET\n"
+        "    -l, --loglevel   one of TRACE, DEBUG, INFO, WARN, ERROR, QUIET\n"
         "    -L, --log-fd     write log to this fd (must be open for writing)\n"
         "    -C, --color      force logging with colors\n"
         "    -h, --help       print this help message and exit\n";
