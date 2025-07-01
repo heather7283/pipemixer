@@ -43,7 +43,7 @@ static const char *tui_tab_name(enum tui_tab tab) {
     }
 }
 
-static void tui_draw_node(struct tui_node_display *disp, bool always_draw, int offset) {
+static void tui_draw_node(struct tui_tab_item *disp, bool always_draw, int offset) {
     struct node *node = disp->node;
 
     const int usable_width = tui.term_width - 2; /* account for box borders */
@@ -206,9 +206,9 @@ static int tui_repaint(bool always_draw) {
         tui_draw_status_bar();
     }
 
-    struct tui_node_display *node_display;
-    spa_list_for_each(node_display, &TUI_ACTIVE_TAB.node_displays, link) {
-        tui_draw_node(node_display, always_draw, node_display->pos);
+    struct tui_tab_item *tab_item;
+    spa_list_for_each(tab_item, &TUI_ACTIVE_TAB.items, link) {
+        tui_draw_node(tab_item, always_draw, tab_item->pos);
     }
     pnoutrefresh(tui.pad_win,
                  TUI_ACTIVE_TAB.scroll_pos, 0,
@@ -247,14 +247,13 @@ static int tui_create_layout(void) {
         tui.tabs[tab].focused = NULL;
         tui.tabs[tab].scroll_pos = 0;
 
-        struct tui_node_display *node_display, *node_display_tmp;
-        spa_list_for_each_safe(node_display, node_display_tmp,
-                               &tui.tabs[tab].node_displays, link) {
-            if (node_display->focused) {
-                prev_focused[tab].id = node_display->node->id;
+        struct tui_tab_item *tab_item, *tab_item_tmp;
+        spa_list_for_each_safe(tab_item, tab_item_tmp, &tui.tabs[tab].items, link) {
+            if (tab_item->focused) {
+                prev_focused[tab].id = tab_item->node->id;
             }
-            spa_list_remove(&node_display->link);
-            free(node_display);
+            spa_list_remove(&tab_item->link);
+            free(tab_item);
         }
     }
 
@@ -272,29 +271,29 @@ static int tui_create_layout(void) {
         struct node *node = pw.nodes[i - 1].value;
         enum tui_tab tab = media_class_to_tui_tab(node->media_class);
 
-        struct tui_node_display *node_display = xcalloc(1, sizeof(*node_display));
-        node_display->node = node;
+        struct tui_tab_item *tab_item = xcalloc(1, sizeof(*tab_item));
+        tab_item->node = node;
         if (!prev_focused[tab].found && prev_focused[tab].id == node->id) {
-            node_display->focused = true;
-            tui.tabs[tab].focused = node_display;
+            tab_item->focused = true;
+            tui.tabs[tab].focused = tab_item;
             prev_focused[tab].found = true;
         }
 
-        node_display->height = node->props.channel_count + 3;
-        if (spa_list_is_empty(&tui.tabs[tab].node_displays)) {
-            node_display->pos = 0;
+        tab_item->height = node->props.channel_count + 3;
+        if (spa_list_is_empty(&tui.tabs[tab].items)) {
+            tab_item->pos = 0;
         } else {
-            struct tui_node_display *first = spa_list_first(&tui.tabs[tab].node_displays,
-                                                            struct tui_node_display, link);
-            node_display->pos = first->pos + first->height;
+            struct tui_tab_item *first = spa_list_first(&tui.tabs[tab].items,
+                                                            struct tui_tab_item, link);
+            tab_item->pos = first->pos + first->height;
         }
 
-        spa_list_insert(&tui.tabs[tab].node_displays, &node_display->link);
+        spa_list_insert(&tui.tabs[tab].items, &tab_item->link);
     }
     FOR_EACH_TAB(tab) {
-        if (!prev_focused[tab].found && !spa_list_is_empty(&tui.tabs[tab].node_displays)) {
-            struct tui_node_display *last = spa_list_last(&tui.tabs[tab].node_displays,
-                                                          struct tui_node_display, link);
+        if (!prev_focused[tab].found && !spa_list_is_empty(&tui.tabs[tab].items)) {
+            struct tui_tab_item *last = spa_list_last(&tui.tabs[tab].items,
+                                                          struct tui_tab_item, link);
             last->focused = true;
             tui.tabs[tab].focused = last;
         }
@@ -309,15 +308,15 @@ void tui_bind_change_focus(union tui_bind_data data) {
     if (TUI_ACTIVE_TAB.focused == NULL) {
         return;
     }
-    struct tui_node_display *f = TUI_ACTIVE_TAB.focused;
+    struct tui_tab_item *f = TUI_ACTIVE_TAB.focused;
 
     switch (direction) {
     case UP:
         if (f->unlocked_channels && f->focused_channel > 0) {
             f->focused_channel -= 1;
         } else {
-            struct tui_node_display *disp, *disp_next = NULL;
-            spa_list_for_each_reverse(disp, &TUI_ACTIVE_TAB.node_displays, link) {
+            struct tui_tab_item *disp, *disp_next = NULL;
+            spa_list_for_each_reverse(disp, &TUI_ACTIVE_TAB.items, link) {
                 if (disp_next != NULL && disp->focused) {
                     disp->focused = false;
                     disp_next->focused = true;
@@ -342,8 +341,8 @@ void tui_bind_change_focus(union tui_bind_data data) {
         if (f->unlocked_channels && f->focused_channel < f->node->props.channel_count - 1) {
             f->focused_channel += 1;
         } else {
-            struct tui_node_display *disp, *disp_prev = NULL;
-            spa_list_for_each(disp, &TUI_ACTIVE_TAB.node_displays, link) {
+            struct tui_tab_item *disp, *disp_prev = NULL;
+            spa_list_for_each(disp, &TUI_ACTIVE_TAB.items, link) {
                 if (disp_prev != NULL && disp->focused) {
                     disp->focused = false;
                     disp_prev->focused = true;
@@ -370,12 +369,11 @@ void tui_bind_change_focus(union tui_bind_data data) {
 }
 
 void tui_bind_focus_first(union tui_bind_data data) {
-    if (spa_list_is_empty(&TUI_ACTIVE_TAB.node_displays) || TUI_ACTIVE_TAB.focused == NULL) {
+    if (spa_list_is_empty(&TUI_ACTIVE_TAB.items) || TUI_ACTIVE_TAB.focused == NULL) {
         return;
     }
 
-    struct tui_node_display *first = spa_list_last(&TUI_ACTIVE_TAB.node_displays,
-                                                   struct tui_node_display, link);
+    struct tui_tab_item *first = spa_list_last(&TUI_ACTIVE_TAB.items, struct tui_tab_item, link);
     if (first == TUI_ACTIVE_TAB.focused) {
         return;
     }
@@ -392,12 +390,11 @@ void tui_bind_focus_first(union tui_bind_data data) {
 }
 
 void tui_bind_focus_last(union tui_bind_data data) {
-    if (spa_list_is_empty(&TUI_ACTIVE_TAB.node_displays) || TUI_ACTIVE_TAB.focused == NULL) {
+    if (spa_list_is_empty(&TUI_ACTIVE_TAB.items) || TUI_ACTIVE_TAB.focused == NULL) {
         return;
     }
 
-    struct tui_node_display *last = spa_list_first(&TUI_ACTIVE_TAB.node_displays,
-                                                   struct tui_node_display, link);
+    struct tui_tab_item *last = spa_list_first(&TUI_ACTIVE_TAB.items, struct tui_tab_item, link);
     if (last == TUI_ACTIVE_TAB.focused) {
         return;
     }
@@ -437,9 +434,11 @@ void tui_bind_set_volume(union tui_bind_data data) {
     }
 
     if (TUI_ACTIVE_TAB.focused->unlocked_channels) {
-        node_change_volume(TUI_ACTIVE_TAB.focused->node, true, vol, TUI_ACTIVE_TAB.focused->focused_channel);
+        node_change_volume(TUI_ACTIVE_TAB.focused->node,
+                           true, vol, TUI_ACTIVE_TAB.focused->focused_channel);
     } else {
-        node_change_volume(TUI_ACTIVE_TAB.focused->node, true, vol, ALL_CHANNELS);
+        node_change_volume(TUI_ACTIVE_TAB.focused->node,
+                           true, vol, ALL_CHANNELS);
     }
 }
 
@@ -616,7 +615,7 @@ int tui_init(void) {
     init_pair(GRAY, 8, -1);
 
     FOR_EACH_TAB(tab) {
-        spa_list_init(&tui.tabs[tab].node_displays);
+        spa_list_init(&tui.tabs[tab].items);
     }
 
     tui_handle_resize(NULL, 0);
@@ -635,11 +634,10 @@ int tui_cleanup(void) {
         delwin(tui.pad_win);
     }
     FOR_EACH_TAB(tab) {
-        if (spa_list_is_initialized(&tui.tabs[tab].node_displays)) {
-            struct tui_node_display *node_display, *node_display_tmp;
-            spa_list_for_each_safe(node_display, node_display_tmp,
-                                   &tui.tabs[tab].node_displays, link) {
-                free(node_display);
+        if (spa_list_is_initialized(&tui.tabs[tab].items)) {
+            struct tui_tab_item *tab_item, *tab_item_tmp;
+            spa_list_for_each_safe(tab_item, tab_item_tmp, &tui.tabs[tab].items, link) {
+                free(tab_item);
             }
         }
     }

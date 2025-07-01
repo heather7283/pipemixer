@@ -25,15 +25,15 @@ struct tui {
 
     enum tui_tab tab;
     struct {
-        struct spa_list node_displays;
-        struct tui_node_display *focused;
+        struct spa_list items;
+        struct tui_tab_item *focused;
         int scroll_pos;
     } tabs[TUI_TAB_COUNT];
 
     bool need_redo_layout;
 };
 
-struct tui_node_display {
+struct tui_tab_item {
     struct node *node;
 
     int pos, height;
