@@ -486,6 +486,8 @@ void tui_bind_set_tab(union tui_bind_data data) {
 }
 
 static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x, bool keep_contents) {
+    TRACE("tui_resize_pad: y %d x %d", y, x);
+
     WINDOW *new_pad = newpad(y, x);
 
     /* TODO: not the best place to put those functions */
@@ -512,29 +514,45 @@ static void tui_set_pad_size(enum tui_set_pad_size_policy y_policy, int y,
     if (tui.pad_win == NULL) {
         tui.pad_win = tui_resize_pad(tui.pad_win, y, x, keep_contents);
     } else {
-        int new_x, new_y, max_x, max_y;
+        bool need_resize = false;
+        int new_y, new_x;
+
+        int max_y = getmaxy(tui.pad_win);
+        int max_x = getmaxx(tui.pad_win);
 
         switch (y_policy) {
         case EXACTLY:
+            if (y != max_y) {
+                need_resize = true;
+            }
             new_y = y;
             break;
         case AT_LEAST:
-            max_y = getmaxy(tui.pad_win);
+            if (y > max_y) {
+                need_resize = true;
+            }
             new_y = MAX(max_y, y);
             break;
         }
 
         switch (x_policy) {
         case EXACTLY:
+            if (x != max_x) {
+                need_resize = true;
+            }
             new_x = x;
             break;
         case AT_LEAST:
-            max_x = getmaxx(tui.pad_win);
+            if (x > max_x) {
+                need_resize = true;
+            }
             new_x = MAX(max_x, x);
             break;
         }
 
-        tui.pad_win = tui_resize_pad(tui.pad_win, new_y, new_x, keep_contents);
+        if (need_resize) {
+            tui.pad_win = tui_resize_pad(tui.pad_win, new_y, new_x, keep_contents);
+        }
     }
 }
 
