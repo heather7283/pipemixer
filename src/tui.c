@@ -257,10 +257,6 @@ static int tui_create_layout(void) {
         }
     }
 
-    FOR_EACH_TAB(tab) {
-        err("prev_focused[%i]: id %d found %d", tab, prev_focused[tab].id, prev_focused[tab].found);
-    }
-
     tui.bar_win = newwin(1, tui.term_width, 0, 0);
     const int padsize = stbds_hmlenu(pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3);
     tui.pad_win = tui_resize_pad(tui.pad_win, padsize, tui.term_width);
