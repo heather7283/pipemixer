@@ -295,6 +295,8 @@ void tui_bind_change_focus(union tui_bind_data data) {
     }
     struct tui_tab_item *f = TUI_ACTIVE_TAB.focused;
 
+    TUI_ACTIVE_TAB.user_changed_focus = true;
+
     bool change = false;
     switch (direction) {
     case DOWN:
@@ -341,6 +343,8 @@ void tui_bind_focus_last(union tui_bind_data data) {
         return;
     }
 
+    TUI_ACTIVE_TAB.user_changed_focus = true;
+
     struct tui_tab_item *first = spa_list_last(&TUI_ACTIVE_TAB.items, struct tui_tab_item, link);
     if (tui_tab_item_set_focused(tui.tab, first)) {
         tui_repaint(false);
@@ -351,6 +355,8 @@ void tui_bind_focus_first(union tui_bind_data data) {
     if (spa_list_is_empty(&TUI_ACTIVE_TAB.items)) {
         return;
     }
+
+    TUI_ACTIVE_TAB.user_changed_focus = true;
 
     struct tui_tab_item *last = spa_list_first(&TUI_ACTIVE_TAB.items, struct tui_tab_item, link);
     if (tui_tab_item_set_focused(tui.tab, last)) {
@@ -653,9 +659,8 @@ void tui_notify_node_new(const struct node *node) {
     new_item->pos = 0;
     new_item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
 
-    if (tui.tabs[tab].focused == NULL) {
-        new_item->focused = true;
-        tui.tabs[tab].focused = new_item;
+    if (tui.tabs[tab].focused == NULL || !tui.tabs[tab].user_changed_focus) {
+        tui_tab_item_set_focused(tab, new_item);
     }
     spa_list_insert(&tui.tabs[tab].items, &new_item->link);
     tui_tab_item_resize(tab, new_item, node->props.channel_count + 3);
