@@ -62,16 +62,29 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
     const bool focused = item->focused;
     const bool muted = node->props.mute;
 
+    /* TODO: this "damage tracking" is getting really messy really fast...
+     * Is it even needed? Modern terminal emulators are very fast,
+     * and ncurses should technically optimise writes... Needs testing though.
+     */
     const bool focus_changed = item->change & TUI_TAB_ITEM_CHANGE_FOCUS;
     const bool unlocked_channels_changed = item->change & TUI_TAB_ITEM_CHANGE_CHANNEL_LOCK;
     const bool mute_changed = item->change & TUI_TAB_ITEM_CHANGE_MUTE;
     const bool info_changed = item->change & TUI_TAB_ITEM_CHANGE_INFO;
     const bool volume_changed = item->change & TUI_TAB_ITEM_CHANGE_VOLUME;
+    const bool size_changed = item->change & TUI_TAB_ITEM_CHANGE_SIZE;
 
     TRACE("tui_draw_node: id %d item_change "BYTE_BINARY_FORMAT" draw_unconditionally %d",
           node->id, BYTE_BINARY_ARGS(item->change), draw_unconditionally);
 
     WINDOW *const win = tui.pad_win;
+
+    /* prevents leftover box artifacts */
+    DRAW_IF(size_changed) {
+        for (int i = 0; i < item->height; i++) {
+            wmove(win, item->pos + i, 0);
+            wclrtoeol(win);
+        }
+    }
 
     if (focused) {
         wattron(win, A_BOLD);
@@ -224,8 +237,12 @@ static int tui_repaint(bool draw_unconditionally) {
     }
 
     /* TODO: inefficient? Only clear on tab change/node removal? */
-    wmove(tui.pad_win, bottom, 0);
-    wclrtobot(tui.pad_win);
+    TRACE("clearing pad from %d to bottom", bottom);
+    if (wmove(tui.pad_win, bottom, 0) != OK) {
+        warn("wmove(tui.pad_win, %d, 0) failed!", bottom);
+    } else {
+        wclrtobot(tui.pad_win);
+    }
     pnoutrefresh(tui.pad_win,
                  TUI_ACTIVE_TAB.scroll_pos, 0,
                  1, 0,
@@ -677,7 +694,6 @@ void tui_notify_node_change(const struct node *node) {
         item->change |= TUI_TAB_ITEM_CHANGE_VOLUME;
     }
     if (node->changed & NODE_CHANGE_CHANNEL_COUNT) {
-        item->change |= TUI_TAB_ITEM_CHANGE_CHANNEL_COUNT;
         tui_tab_item_resize(tab, item, node->props.channel_count + 3);
     }
 

@@ -38,7 +38,7 @@ enum tui_tab_item_change_mask {
     TUI_TAB_ITEM_CHANGE_INFO = 1 << 2,
     TUI_TAB_ITEM_CHANGE_MUTE = 1 << 3,
     TUI_TAB_ITEM_CHANGE_VOLUME = 1 << 4,
-    TUI_TAB_ITEM_CHANGE_CHANNEL_COUNT = 1 << 5,
+    TUI_TAB_ITEM_CHANGE_SIZE = 1 << 5,
     TUI_TAB_ITEM_CHANGE_EVERYTHING = ~0,
 };
 
