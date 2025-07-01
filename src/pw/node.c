@@ -9,7 +9,7 @@
 #include "macros.h"
 #include "config.h"
 #include "utils.h"
-#include "thirdparty/stb_ds.h"
+#include "lib/stb/stb_ds.h"
 
 void node_set_mute(const struct node *node, bool mute) {
     /*

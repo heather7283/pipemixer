@@ -9,7 +9,7 @@
 #include "config.h"
 #include "utils.h"
 #include "pw/common.h"
-#include "thirdparty/pollen/pollen.h"
+#include "lib/pollen/pollen.h"
 
 static int sigint_sigterm_handler(struct pollen_callback *callback, int signal, void *data) {
     INFO("caught signal %d, stopping main loop", signal);

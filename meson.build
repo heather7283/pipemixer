@@ -14,7 +14,7 @@ cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
 
 add_project_arguments('-DINI_HANDLER_LINENO=1', language: 'c')
-inih_lib = static_library('inih', 'thirdparty/inih/ini.c')
+inih_lib = static_library('inih', 'lib/inih/ini.c')
 
 executable('pipemixer',
   'src/pipemixer.c',

@@ -5,7 +5,7 @@
 #include <spa/utils/list.h>
 
 #include "pw/node.h"
-#include "thirdparty/pollen/pollen.h"
+#include "lib/pollen/pollen.h"
 
 enum tui_tab {
     TUI_TAB_FIRST,

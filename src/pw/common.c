@@ -4,7 +4,7 @@
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"
-#include "thirdparty/stb_ds.h"
+#include "lib/stb/stb_ds.h"
 
 struct pw pw = {0};
 
