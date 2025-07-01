@@ -29,7 +29,7 @@ static int pipewire_handler(struct pollen_callback *callback, int fd, uint32_t e
 }
 
 void print_help_and_exit(FILE *stream, int exit_status) {
-    const char *help_string =
+    const char help_string[] =
         "pipemixer - pipewire volume control\n"
         "\n"
         "usage:\n"
@@ -40,9 +40,20 @@ void print_help_and_exit(FILE *stream, int exit_status) {
         "    -l, --loglevel   one of TRACE, DEBUG, INFO, WARN, ERROR, QUIET\n"
         "    -L, --log-fd     write log to this fd (must be open for writing)\n"
         "    -C, --color      force logging with colors\n"
+        "    -V, --version    print version information\n"
         "    -h, --help       print this help message and exit\n";
 
     fputs(help_string, stream);
+    exit(exit_status);
+}
+
+void print_version_and_exit(FILE *stream, int exit_status) {
+    const char version_string[] =
+        "pipemixer version "PIPEMIXER_VERSION" "
+        "(git tag "PIPEMIXER_GIT_TAG", branch "PIPEMIXER_GIT_BRANCH")\n"
+    ;
+
+    fputs(version_string, stream);
     exit(exit_status);
 }
 
@@ -55,12 +66,13 @@ int main(int argc, char **argv) {
     enum log_loglevel loglevel = LOG_DEBUG;
     bool log_force_colors = false;
 
-    static const char shortopts[] = "c:L:l:Ch";
+    static const char shortopts[] = "c:L:l:CVh";
     static const struct option longopts[] = {
         { "config",      required_argument, NULL, 'c' },
         { "log-fd",      required_argument, NULL, 'L' },
         { "loglevel",    required_argument, NULL, 'l' },
         { "color",       no_argument,       NULL, 'C' },
+        { "version",     no_argument,       NULL, 'V' },
         { "help",        no_argument,       NULL, 'h' },
         { 0 }
     };
@@ -86,6 +98,9 @@ int main(int argc, char **argv) {
             break;
         case 'C':
             log_force_colors = true;
+            break;
+        case 'V':
+            print_version_and_exit(stdout, 0);
             break;
         case 'h':
             print_help_and_exit(stdout, 0);

@@ -7,6 +7,18 @@ add_project_arguments('-Wno-pedantic', language: 'c')
 add_project_arguments('-Wno-unused-value', language: 'c')
 add_project_arguments('-Wno-unused-parameter', language: 'c')
 
+git = find_program('git', required: false)
+if git.found()
+  git_tag = run_command(git, 'describe', '--tags', check: false).stdout().strip()
+  git_branch = run_command(git, 'branch', '--show-current', check: false).stdout().strip()
+else
+  git_commit_hash = 'unknown'
+  git_branch = 'unknown'
+endif
+add_project_arguments('-DPIPEMIXER_VERSION="@0@"'.format(meson.project_version()), language: 'c')
+add_project_arguments('-DPIPEMIXER_GIT_TAG="@0@"'.format(git_tag), language: 'c')
+add_project_arguments('-DPIPEMIXER_GIT_BRANCH="@0@"'.format(git_branch), language: 'c')
+
 pipewire_dep = dependency('libpipewire-0.3')
 ncursesw_dep = dependency('ncursesw')
 
