@@ -126,13 +126,12 @@ int pipewire_init(void) {
 }
 
 void pipewire_cleanup(void) {
-    for (int i = 0; i < stbds_hmlen(pw.nodes); i++) {
-        /* TODO: fix this */
-        //on_node_remove(pw.nodes[i].value);
+    for (int i = stbds_hmlen(pw.nodes) - 1; i >= 0; i--) {
+        on_node_remove(pw.nodes[i].value);
     }
     stbds_hmfree(pw.nodes);
 
-    for (int i = 0; i < stbds_hmlen(pw.devices); i++) {
+    for (int i = stbds_hmlen(pw.devices) - 1; i >= 0; i--) {
         device_free(pw.devices[i].value);
     }
     stbds_hmfree(pw.devices);

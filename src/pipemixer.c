@@ -136,11 +136,8 @@ int main(int argc, char **argv) {
 
 cleanup:
     event_loop_cleanup(loop);
-
-    tui_cleanup();
-
     pipewire_cleanup();
-
+    tui_cleanup();
     config_cleanup();
 
     if (log_stream != NULL) {

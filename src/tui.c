@@ -733,9 +733,6 @@ int tui_cleanup(void) {
     if (tui.pad_win != NULL) {
         delwin(tui.pad_win);
     }
-    /* TODO: fix this.
-     * It gets called in pipewire_cleanup and shits itself because items are already deleted
-     */
     FOR_EACH_TAB(tab) {
         if (spa_list_is_initialized(&tui.tabs[tab].items)) {
             struct tui_tab_item *tab_item, *tab_item_tmp;
