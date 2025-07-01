@@ -21,13 +21,14 @@ struct tui {
     int term_height, term_width;
 
     WINDOW *bar_win;
-    enum tui_tab active_tab;
-
     WINDOW *pad_win;
-    int pad_pos;
 
-    struct spa_list node_displays[TUI_TAB_COUNT];
-    struct tui_node_display *focused;
+    enum tui_tab tab;
+    struct {
+        struct spa_list node_displays;
+        struct tui_node_display *focused;
+        int scroll_pos;
+    } tabs[TUI_TAB_COUNT];
 
     bool need_redo_layout;
 };
