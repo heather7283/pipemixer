@@ -624,20 +624,41 @@ static void tui_handle_mouse(const MEVENT *const mev) {
     const mmask_t bstate = mev->bstate;
     TRACE("MEVENT x=%d y=%d bstate=%s", x, y, mmask_to_string(bstate));
 
-    if (y == 0 && bstate & BUTTON1_PRESSED) /* top row, tab bar */ {
-        FOR_EACH_TAB(tab) {
-            if (x >= tui.tabs[tab].label_pos.start && x <= tui.tabs[tab].label_pos.end) {
-                tui_bind_set_tab((union tui_bind_data){.tab = tab});
+    if (y == 0) /* status bar */ {
+        if (bstate & BUTTON1_PRESSED) {
+            FOR_EACH_TAB(tab) {
+                if (x >= tui.tabs[tab].label_pos.start && x <= tui.tabs[tab].label_pos.end) {
+                    tui_bind_set_tab((union tui_bind_data){.tab = tab});
+                }
             }
+        } else if (y == 0 && bstate & BUTTON4_PRESSED) /* mouse wheel up */ {
+            tui_bind_change_tab((union tui_bind_data){.direction = DOWN});
+        } else if (y == 0 && bstate & BUTTON5_PRESSED) /* mouse wheel down */ {
+            tui_bind_change_tab((union tui_bind_data){.direction = UP});
         }
-    } else if (y == 0 && bstate & BUTTON4_PRESSED) /* mouse wheel up on tab bar */ {
-        tui_bind_change_tab((union tui_bind_data){.direction = DOWN});
-    } else if (y == 0 && bstate & BUTTON5_PRESSED) /* mouse wheel down on tab bar */ {
-        tui_bind_change_tab((union tui_bind_data){.direction = UP});
-    } else if (bstate & BUTTON5_PRESSED) /* mouse wheel down in main space */ {
-        tui_bind_change_focus((union tui_bind_data){.direction = DOWN});
-    } else if (bstate & BUTTON4_PRESSED) /* mouse wheel up in main space */ {
-        tui_bind_change_focus((union tui_bind_data){.direction = UP});
+    } else /* main area */ {
+        if (bstate & BUTTON1_PRESSED) {
+            /* screen coords -> pad coords */
+            const int pad_y = (y - 1 /* bar */) + TUI_ACTIVE_TAB.scroll_pos;
+
+            /* find which node the mouse press landed on, inefficient but oh well */
+            bool found = false;
+            struct tui_tab_item *item;
+            spa_list_for_each(item, &TUI_ACTIVE_TAB.items, link) {
+                if (item->pos <= pad_y && pad_y <= (item->pos + item->height - 1)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                tui_tab_item_set_focused(tui.tab, item);
+                tui_repaint(false);
+            }
+        } else if (bstate & BUTTON5_PRESSED) /* mouse wheel down */ {
+            tui_bind_change_focus((union tui_bind_data){.direction = DOWN});
+        } else if (bstate & BUTTON4_PRESSED) /* mouse wheel up */ {
+            tui_bind_change_focus((union tui_bind_data){.direction = UP});
+        }
     }
 }
 
