@@ -302,6 +302,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
     case DOWN:
         if (f->unlocked_channels && f->focused_channel < f->node->props.channel_count - 1) {
             f->focused_channel += 1;
+            f->change |= TUI_TAB_ITEM_CHANGE_CHANNEL_LOCK;
             change = true;
         } else {
             struct tui_tab_item *item, *item_next = NULL;
@@ -318,6 +319,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
     case UP:
         if (f->unlocked_channels && f->focused_channel > 0) {
             f->focused_channel -= 1;
+            f->change |= TUI_TAB_ITEM_CHANGE_CHANNEL_LOCK;
             change = true;
         } else {
             struct tui_tab_item *item, *item_prev = NULL;
