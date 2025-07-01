@@ -32,7 +32,7 @@ void node_set_mute(const struct node *node, bool mute) {
     } else {
         struct device *device = stbds_hmget(pw.devices, node->device_id);
         if (device == NULL) {
-            warn("tried to change mute state of node %d with associated device, "
+            WARN("tried to change mute state of node %d with associated device, "
                  "but no device with id %d was found", node->id, node->device_id);
             return;
         }
@@ -46,7 +46,7 @@ void node_set_mute(const struct node *node, bool mute) {
             }
         }
         if (!found) {
-            warn("route with device %d was not found", node->card_profile_device);
+            WARN("route with device %d was not found", node->card_profile_device);
             return;
         }
 
@@ -112,7 +112,7 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
     } else {
         struct device *device = stbds_hmget(pw.devices, node->device_id);
         if (device == NULL) {
-            warn("tried to change volume of node %d with associated device, "
+            WARN("tried to change volume of node %d with associated device, "
                  "but no device with id %d was found", node->id, node->device_id);
             return;
         }
@@ -126,7 +126,7 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
             }
         }
         if (!found) {
-            warn("route with device %d was not found", node->card_profile_device);
+            WARN("route with device %d was not found", node->card_profile_device);
             return;
         }
 
@@ -159,7 +159,7 @@ static void on_node_roundtrip_done(void *data) {
 static void on_node_info(void *data, const struct pw_node_info *info) {
     struct node *node = data;
 
-    debug("node info: id %d, op %d/%d%s, ip %d/%d%s, state %d%s, %d params%s,%s change "
+    DEBUG("node info: id %d, op %d/%d%s, ip %d/%d%s, state %d%s, %d params%s,%s change "
           BYTE_BINARY_FORMAT,
           info->id,
           info->n_output_ports, info->max_output_ports,
@@ -232,7 +232,7 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                           uint32_t next, const struct spa_pod *param) {
     struct node *node = data;
 
-    debug("node %d param: id %d seq %d index %d next %d param %p",
+    DEBUG("node %d param: id %d seq %d index %d next %d param %p",
           node->id, id, seq, index, next, (void *)param);
 
     const struct spa_pod_prop *volumes_prop = spa_pod_find_prop(param, NULL,
@@ -270,7 +270,7 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 
     if (old_channel_count != props->channel_count) {
         node->changed |= NODE_CHANGE_CHANNEL_COUNT;
-        err("channel_count change from %d to %d", old_channel_count, props->channel_count);
+        ERROR("channel_count change from %d to %d", old_channel_count, props->channel_count);
     }
 }
 

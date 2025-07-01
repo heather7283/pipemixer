@@ -16,7 +16,7 @@ static struct spa_list callbacks = SPA_LIST_INIT(&callbacks);
 static void on_core_done(void *data, uint32_t id, int seq) {
     struct roundtrip_async_data *d = spa_list_last(&callbacks, struct roundtrip_async_data, link);
     if (d->seq != seq) {
-        err("LIFO error: expected seq %d got %d", d->seq, seq);
+        ERROR("LIFO error: expected seq %d got %d", d->seq, seq);
     } else {
         TRACE("roundtrip finished with seq %d", seq);
 

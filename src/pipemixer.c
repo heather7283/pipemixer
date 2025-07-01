@@ -12,7 +12,7 @@
 #include "thirdparty/event_loop.h"
 
 static int sigint_sigterm_handler(struct event_loop_item *item, int signal) {
-    info("caught signal %d, stopping main loop", signal);
+    INFO("caught signal %d, stopping main loop", signal);
 
     event_loop_quit(event_loop_item_get_loop(item), 0);
 

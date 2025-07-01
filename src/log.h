@@ -27,14 +27,14 @@ void log_print(enum log_loglevel level, char *msg, ...);
                   __FILE__, __LINE__, ##__VA_ARGS__); \
     } while (0)
 
-#define debug(fmt, ...) \
+#define DEBUG(fmt, ...) \
     do { \
         log_print(LOG_DEBUG, \
                   "%s:%-3d " fmt, \
                   __FILE__, __LINE__, ##__VA_ARGS__); \
     } while (0)
 
-#define info(fmt, ...) \
+#define INFO(fmt, ...) \
     do { \
         log_print(LOG_INFO, \
                   "%s:%-3d " fmt, \
@@ -42,14 +42,14 @@ void log_print(enum log_loglevel level, char *msg, ...);
     } while (0)
 
 
-#define warn(fmt, ...) \
+#define WARN(fmt, ...) \
     do { \
         log_print(LOG_WARN, \
                   "%s:%-3d " fmt, \
                   __FILE__, __LINE__, ##__VA_ARGS__); \
     } while (0)
 
-#define err(fmt, ...) \
+#define ERROR(fmt, ...) \
     do { \
         log_print(LOG_ERROR, \
                   "%s:%-3d " fmt, \

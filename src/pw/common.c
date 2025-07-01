@@ -14,7 +14,7 @@ struct pw pw = {0};
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const char *type, uint32_t version,
                                const struct spa_dict *props) {
-    debug("registry global: id %d, perms "PW_PERMISSION_FORMAT", ver %d, type %s",
+    DEBUG("registry global: id %d, perms "PW_PERMISSION_FORMAT", ver %d, type %s",
           id, PW_PERMISSION_ARGS(permissions), version, type);
     uint32_t i = 0;
     const struct spa_dict_item *item;
@@ -26,7 +26,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         enum media_class media_class_value;
         if (media_class == NULL) {
-            debug("empty media.class, not binding");
+            DEBUG("empty media.class, not binding");
             return;
         } else if (STREQ(media_class, "Audio/Source")) {
             media_class_value = AUDIO_SOURCE;
@@ -37,7 +37,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         } else if (STREQ(media_class, "Stream/Output/Audio")) {
             media_class_value = STREAM_OUTPUT_AUDIO;
         } else {
-            debug("not interested in media.class %s, not binding", media_class);
+            DEBUG("not interested in media.class %s, not binding", media_class);
             return;
         }
 
@@ -49,12 +49,12 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
     } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         if (media_class == NULL) {
-            debug("empty media.class, not binding");
+            DEBUG("empty media.class, not binding");
             return;
         } else if (STREQ(media_class, "Audio/Device")) {
             /* no-op */
         } else {
-            debug("not interested in media.class %s, not binding", media_class);
+            DEBUG("not interested in media.class %s, not binding", media_class);
             return;
         }
 
@@ -71,7 +71,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
 }
 
 static void on_registry_global_remove(void *data, uint32_t id) {
-    debug("registry global remove: id %d", id);
+    DEBUG("registry global remove: id %d", id);
 
     struct node *node;
     if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
@@ -91,7 +91,7 @@ static const struct pw_registry_events registry_events = {
 };
 
 static void on_core_error(void *data, uint32_t id, int seq, int res, const char *message) {
-    err("core error %d on object %d: %d (%s)", seq, id, res, message);
+    ERROR("core error %d on object %d: %d (%s)", seq, id, res, message);
 }
 
 static const struct pw_core_events core_events = {
@@ -108,13 +108,13 @@ int pipewire_init(void) {
 
     pw.context = pw_context_new(pw.main_loop_loop, NULL, 0);
     if (pw.context == NULL) {
-        err("failed to create pw_context: %s", strerror(errno));
+        ERROR("failed to create pw_context: %s", strerror(errno));
         return -1;
     }
 
     pw.core = pw_context_connect(pw.context, NULL, 0);
     if (pw.core == NULL) {
-        err("failed to connect to pipewire: %s", strerror(errno));
+        ERROR("failed to connect to pipewire: %s", strerror(errno));
         return -1;
     }
     pw_core_add_listener(pw.core, &pw.core_listener, &core_events, NULL);

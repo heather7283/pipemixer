@@ -26,7 +26,7 @@ void device_free(struct device *device) {
 static void on_device_info(void *data, const struct pw_device_info *info) {
     struct device *device = data;
 
-    debug("device info: id %d, %d params%s,%s change "
+    DEBUG("device info: id %d, %d params%s,%s change "
           BYTE_BINARY_FORMAT,
           info->id,
           info->n_params,
@@ -58,7 +58,7 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
                             uint32_t next, const struct spa_pod *param) {
     struct device *device = data;
 
-    debug("device %d param: id %d seq %d index %d next %d param %p",
+    DEBUG("device %d param: id %d seq %d index %d next %d param %p",
           device->id, id, seq, index, next, (void *)param);
 
     const struct spa_pod_prop *index_prop = spa_pod_find_prop(param, NULL,
@@ -66,14 +66,14 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     const struct spa_pod_prop *device_prop = spa_pod_find_prop(param, NULL,
                                                                SPA_PARAM_ROUTE_device);
     if (index_prop == NULL || device_prop == NULL) {
-        warn("didn't find index and device in route object");
+        WARN("didn't find index and device in route object");
         return;
     }
 
     /* don't even ask, this is pipewire */
     const struct spa_pod_prop *prop_ = spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_props);
     if (prop_ == NULL) {
-        warn("didn't find props in route object");
+        WARN("didn't find props in route object");
         return;
     }
 
@@ -85,7 +85,7 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     const struct spa_pod_prop *mute_prop = spa_pod_find_prop(prop, NULL,
                                                              SPA_PROP_mute);
     if (volumes_prop == NULL || channels_prop == NULL || mute_prop == NULL) {
-        warn("didn't find volumes, channels or mute in route object's props");
+        WARN("didn't find volumes, channels or mute in route object's props");
         return;
     }
 

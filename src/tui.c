@@ -239,7 +239,7 @@ static int tui_repaint(bool draw_unconditionally) {
     /* TODO: inefficient? Only clear on tab change/node removal? */
     TRACE("clearing pad from %d to bottom", bottom);
     if (wmove(tui.pad_win, bottom, 0) != OK) {
-        warn("wmove(tui.pad_win, %d, 0) failed!", bottom);
+        WARN("wmove(tui.pad_win, %d, 0) failed!", bottom);
     } else {
         wclrtobot(tui.pad_win);
     }
@@ -584,14 +584,14 @@ static void tui_set_pad_size(enum tui_set_pad_size_policy y_policy, int y,
 int tui_handle_resize(struct event_loop_item *item, int signal) {
     struct winsize winsize;
     if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
-        err("failed to get new window size: %s", strerror(errno));
+        ERROR("failed to get new window size: %s", strerror(errno));
         return -1;
     }
 
     resize_term(winsize.ws_row, winsize.ws_col);
     tui.term_height = getmaxy(stdscr);
     tui.term_width = getmaxx(stdscr);
-    debug("new window dimensions %d lines %d columns", tui.term_height, tui.term_width);
+    DEBUG("new window dimensions %d lines %d columns", tui.term_height, tui.term_width);
 
     tui_set_pad_size(AT_LEAST, tui.term_height, EXACTLY, tui.term_width, false);
     if (TUI_ACTIVE_TAB.focused != NULL) {
@@ -613,7 +613,7 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
         struct pipemixer_config_bind *bind = stbds_hmgetp_null(config.binds, ch);
         if (bind == NULL) {
-            debug("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
+            DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
         } else if (bind->value.func == TUI_BIND_QUIT) {
             event_loop_quit(event_loop_item_get_loop(item), 0);
         } else {
@@ -687,7 +687,7 @@ void tui_notify_node_change(const struct node *node) {
         }
     }
     if (!found) {
-        warn("got notify_node_change for node id %d but no tui_tab_item found", node->id);
+        WARN("got notify_node_change for node id %d but no tui_tab_item found", node->id);
         return;
     }
 
@@ -724,7 +724,7 @@ void tui_notify_node_remove(const struct node *node) {
         }
     }
     if (!found) {
-        warn("got notify_node_change for node id %d but no tui_tab_item found", node->id);
+        WARN("got notify_node_change for node id %d but no tui_tab_item found", node->id);
         return;
     }
 
