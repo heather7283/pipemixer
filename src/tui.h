@@ -31,16 +31,26 @@ struct tui {
     } tabs[TUI_TAB_COUNT];
 };
 
+enum tui_tab_item_change_mask {
+    TUI_TAB_ITEM_CHANGE_NOTHING = 0,
+    TUI_TAB_ITEM_CHANGE_FOCUS = 1 << 0,
+    TUI_TAB_ITEM_CHANGE_CHANNEL_LOCK = 1 << 1,
+    TUI_TAB_ITEM_CHANGE_INFO = 1 << 2,
+    TUI_TAB_ITEM_CHANGE_MUTE = 1 << 3,
+    TUI_TAB_ITEM_CHANGE_VOLUME = 1 << 4,
+    TUI_TAB_ITEM_CHANGE_CHANNEL_COUNT = 1 << 5,
+    TUI_TAB_ITEM_CHANGE_EVERYTHING = ~0,
+};
+
 struct tui_tab_item {
     const struct node *node;
 
     int pos, height;
     bool focused;
-    bool focus_changed;
+    enum tui_tab_item_change_mask change;
 
     bool unlocked_channels;
     uint32_t focused_channel;
-    bool unlocked_channels_changed;
 
     struct spa_list link;
 };
@@ -50,7 +60,6 @@ extern struct tui tui;
 int tui_init(void);
 int tui_cleanup(void);
 
-int tui_update(struct event_loop_item *loop_item);
 int tui_handle_resize(struct event_loop_item *item, int signal);
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events);
 

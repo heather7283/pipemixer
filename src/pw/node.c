@@ -151,6 +151,9 @@ static void on_node_roundtrip_done(void *data) {
     } else {
         tui_notify_node_change(node);
     }
+
+    /* reset changes */
+    node->changed = NODE_CHANGE_NOTHING;
 }
 
 static void on_node_info(void *data, const struct pw_node_info *info) {
