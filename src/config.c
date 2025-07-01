@@ -24,6 +24,7 @@ struct pipemixer_config config = {
     .volume_min = 0.00,
     .volume_max = 1.50,
 
+    .mouse_enabled = true,
     .hack_force_mouse_motion_tracking = false,
 
     .bar_full_char = L"#",
@@ -129,6 +130,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_GET_PERCENTAGE(&config.volume_min);
         } else if (STREQ(k, "volume-max")) {
             CONFIG_GET_PERCENTAGE(&config.volume_max);
+        } else if (STREQ(k, "mouse")) {
+            CONFIG_GET_BOOL(&config.mouse_enabled);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
