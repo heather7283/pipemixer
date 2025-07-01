@@ -812,20 +812,20 @@ static void tui_hack_force_mouse(bool enabled) {
     const char *seq;
 
     if (enabled) {
-        info("applying hack_force_mouse");
+        INFO("applying hack_force_mouse");
         seq = "\033[?1002h";
     } else {
-        info("restoring hack_force_mouse");
+        INFO("restoring hack_force_mouse");
         seq = "\033[?1002l";
     }
 
     fd = open("/dev/tty", O_WRONLY);
     if (fd < 0) {
-        warn("hack_force_mouse: failed to open /dev/tty: %s", strerror(errno));
+        WARN("hack_force_mouse: failed to open /dev/tty: %s", strerror(errno));
         goto out;
     }
     if (write(fd, seq, strlen(seq)) < 0) {
-        warn("hack_force_mouse: failed to write escape sequence: %s", strerror(errno));
+        WARN("hack_force_mouse: failed to write escape sequence: %s", strerror(errno));
         goto out;
     }
 
