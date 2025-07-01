@@ -211,14 +211,20 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
         }
     }
 
+    bool needs_roundtrip = false;
     if (info->change_mask & PW_NODE_CHANGE_MASK_PARAMS) {
         for (i = 0; i < info->n_params; i++) {
             struct spa_param_info *param = &info->params[i];
             if (param->id == SPA_PARAM_Props && param->flags & SPA_PARAM_INFO_READ) {
                 pw_node_enum_params(node->pw_node, 0, param->id, 0, -1, NULL);
-                roundtrip_async(pw.core, on_node_roundtrip_done, node);
+                needs_roundtrip = true;
             }
         }
+    }
+    if (needs_roundtrip) {
+        roundtrip_async(pw.core, on_node_roundtrip_done, node);
+    } else {
+        on_node_roundtrip_done(node);
     }
 }
 
@@ -264,6 +270,7 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 
     if (old_channel_count != props->channel_count) {
         node->changed |= NODE_CHANGE_CHANNEL_COUNT;
+        err("channel_count change from %d to %d", old_channel_count, props->channel_count);
     }
 }
 
