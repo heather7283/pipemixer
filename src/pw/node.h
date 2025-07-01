@@ -19,7 +19,6 @@ enum node_change_mask {
     NODE_CHANGE_INFO = 1 << 0,
     NODE_CHANGE_MUTE = 1 << 1,
     NODE_CHANGE_VOLUME = 1 << 2,
-    /* TODO: figure out if channel count can change after node is created */
     NODE_CHANGE_CHANNEL_COUNT = 1 << 3,
     NODE_CHANGE_EVERYTHING = ~0,
 };
@@ -41,7 +40,12 @@ struct node {
     enum node_change_mask changed;
 };
 
+void node_free(struct node *node);
+
 void on_node_remove(struct node *node);
+void on_node_info(void *data, const struct pw_node_info *info);
+void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
+                   uint32_t next, const struct spa_pod *param);
 
 void node_set_mute(const struct node *node, bool mute);
 /* (uint32_t)-1 to change all channels */

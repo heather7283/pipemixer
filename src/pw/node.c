@@ -156,7 +156,7 @@ static void on_node_roundtrip_done(void *data) {
     node->changed = NODE_CHANGE_NOTHING;
 }
 
-static void on_node_info(void *data, const struct pw_node_info *info) {
+void on_node_info(void *data, const struct pw_node_info *info) {
     struct node *node = data;
 
     DEBUG("node info: id %d, op %d/%d%s, ip %d/%d%s, state %d%s, %d params%s,%s change "
@@ -228,7 +228,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
     }
 }
 
-static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
+void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                           uint32_t next, const struct spa_pod *param) {
     struct node *node = data;
 
@@ -274,11 +274,6 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
 }
 
-static void node_free(struct node *node) {
-    pw_proxy_destroy((struct pw_proxy *)node->pw_node);
-    free(node);
-}
-
 void on_node_remove(struct node *node) {
     tui_notify_node_remove(node);
 
@@ -286,9 +281,8 @@ void on_node_remove(struct node *node) {
     node_free(node);
 }
 
-const struct pw_node_events node_events = {
-    .version = PW_VERSION_NODE_EVENTS,
-    .info = on_node_info,
-    .param = on_node_param,
-};
+void node_free(struct node *node) {
+    pw_proxy_destroy((struct pw_proxy *)node->pw_node);
+    free(node);
+}
 

@@ -6,10 +6,19 @@
 #include "xmalloc.h"
 #include "thirdparty/stb_ds.h"
 
-extern const struct pw_node_events node_events;
-extern const struct pw_device_events device_events;
-
 struct pw pw = {0};
+
+const struct pw_device_events device_events = {
+    .version = PW_VERSION_DEVICE_EVENTS,
+    .info = on_device_info,
+    .param = on_device_param,
+};
+
+const struct pw_node_events node_events = {
+    .version = PW_VERSION_NODE_EVENTS,
+    .info = on_node_info,
+    .param = on_node_param,
+};
 
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const char *type, uint32_t version,
@@ -127,7 +136,7 @@ int pipewire_init(void) {
 
 void pipewire_cleanup(void) {
     for (int i = stbds_hmlen(pw.nodes) - 1; i >= 0; i--) {
-        on_node_remove(pw.nodes[i].value);
+        node_free(pw.nodes[i].value);
     }
     stbds_hmfree(pw.nodes);
 

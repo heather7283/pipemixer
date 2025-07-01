@@ -23,7 +23,7 @@ void device_free(struct device *device) {
     free(device);
 }
 
-static void on_device_info(void *data, const struct pw_device_info *info) {
+void on_device_info(void *data, const struct pw_device_info *info) {
     struct device *device = data;
 
     DEBUG("device info: id %d, %d params%s,%s change "
@@ -54,8 +54,8 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
     }
 }
 
-static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
-                            uint32_t next, const struct spa_pod *param) {
+void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
+                     uint32_t next, const struct spa_pod *param) {
     struct device *device = data;
 
     DEBUG("device %d param: id %d seq %d index %d next %d param %p",
@@ -111,10 +111,4 @@ static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
 
     spa_list_insert(&device->routes, &new_route->link);
 }
-
-const struct pw_device_events device_events = {
-    .version = PW_VERSION_DEVICE_EVENTS,
-    .info = on_device_info,
-    .param = on_device_param,
-};
 
