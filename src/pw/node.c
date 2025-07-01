@@ -11,7 +11,7 @@
 #include "utils.h"
 #include "thirdparty/stb_ds.h"
 
-void node_set_mute(struct node *node, bool mute) {
+void node_set_mute(const struct node *node, bool mute) {
     /*
      * I can't just set mute on a Node that has a Device associated with it.
      * I need to find the Route property of a Device that has the same value of
@@ -61,7 +61,7 @@ void node_set_mute(struct node *node, bool mute) {
     }
 }
 
-void node_change_volume(struct node *node, bool absolute, float volume, uint32_t channel) {
+void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel) {
     uint8_t buffer[4096];
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));
@@ -141,10 +141,16 @@ void node_change_volume(struct node *node, bool absolute, float volume, uint32_t
     }
 }
 
-void node_free(struct node *node) {
-    pw_proxy_destroy((struct pw_proxy *)node->pw_node);
+static void on_node_roundtrip_done(void *data) {
+    struct node *node = data;
 
-    free(node);
+    if (stbds_hmgeti(pw.nodes, node->id) < 0) /* new node */ {
+        stbds_hmput(pw.nodes, node->id, node);
+
+        tui_notify_node_new(node);
+    } else {
+        tui_notify_node_change(node);
+    }
 }
 
 static void on_node_info(void *data, const struct pw_node_info *info) {
@@ -207,6 +213,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
             struct spa_param_info *param = &info->params[i];
             if (param->id == SPA_PARAM_Props && param->flags & SPA_PARAM_INFO_READ) {
                 pw_node_enum_params(node->pw_node, 0, param->id, 0, -1, NULL);
+                roundtrip_async(pw.core, on_node_roundtrip_done, node);
             }
         }
     }
@@ -253,8 +260,20 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
 
     if (old_channel_count != props->channel_count) {
-        pw.node_list_changed = true;
+        node->changed |= NODE_CHANGE_CHANNEL_COUNT;
     }
+}
+
+static void node_free(struct node *node) {
+    pw_proxy_destroy((struct pw_proxy *)node->pw_node);
+    free(node);
+}
+
+void on_node_remove(struct node *node) {
+    tui_notify_node_remove(node);
+
+    stbds_hmdel(pw.nodes, node->id);
+    node_free(node);
 }
 
 const struct pw_node_events node_events = {

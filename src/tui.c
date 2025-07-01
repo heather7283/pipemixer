@@ -43,8 +43,8 @@ static const char *tui_tab_name(enum tui_tab tab) {
     }
 }
 
-static void tui_draw_node(struct tui_tab_item *disp, bool always_draw, int offset) {
-    struct node *node = disp->node;
+static void tui_draw_node(struct tui_tab_item *item, bool always_draw) {
+    const struct node *node = item->node;
 
     const int usable_width = tui.term_width - 2; /* account for box borders */
     const int two_thirds_usable_width = usable_width / 3 * 2;
@@ -57,10 +57,10 @@ static void tui_draw_node(struct tui_tab_item *disp, bool always_draw, int offse
     const int volume_area_start = info_area_start + info_area_width + 1;
     const int volume_bar_start = volume_area_start + 12; /* minus two decorations at the end */
 
-    const bool focused = disp->focused;
-    const bool focus_changed = disp->focus_changed;
+    const bool focused = item->focused;
+    const bool focus_changed = item->focus_changed;
     const bool muted = node->props.mute;
-    const bool unlocked_channels_changed = disp->unlocked_channels_changed;
+    const bool unlocked_channels_changed = item->unlocked_channels_changed;
     const enum node_change_mask change = node->changed;
 
     WINDOW *const win = tui.pad_win;
@@ -83,13 +83,13 @@ static void tui_draw_node(struct tui_tab_item *disp, bool always_draw, int offse
                  WCSEMPTY(node->media_name) ? L"" : node->media_name,
                  usable_width, "");
         wcstrimcols(line, usable_width);
-        mvwaddnwstr(win, offset + 1, info_area_start, line, usable_width);
+        mvwaddnwstr(win, item->pos + 1, info_area_start, line, usable_width);
     }
 
     if (focus_changed || change & NODE_CHANGE_VOLUME || change & NODE_CHANGE_MUTE || always_draw) {
         /* draw info about each channel */
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
-            const int pos = offset + i + 2;
+            const int pos = item->pos + i + 2;
 
             const int vol_int = (int)roundf(node->props.channel_volumes[i] * 100);
 
@@ -115,7 +115,7 @@ static void tui_draw_node(struct tui_tab_item *disp, bool always_draw, int offse
     /* draw decorations (also focused markers) */
     if (focus_changed || unlocked_channels_changed || change & NODE_CHANGE_MUTE || always_draw) {
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
-            const int pos = offset + i + 2;
+            const int pos = item->pos + i + 2;
 
             const wchar_t *wchar_left, *wchar_right;
             cchar_t cchar_left, cchar_right;
@@ -139,7 +139,7 @@ static void tui_draw_node(struct tui_tab_item *disp, bool always_draw, int offse
             mvwadd_wch(win, pos, volume_bar_start + volume_bar_width, &cchar_right);
 
             const wchar_t *wchar_focus;
-            if (focused && (!disp->unlocked_channels || disp->focused_channel == i)) {
+            if (focused && (!item->unlocked_channels || item->focused_channel == i)) {
                 wchar_focus = config.volume_frame.f;
             } else {
                 wchar_focus = L" ";
@@ -153,27 +153,27 @@ static void tui_draw_node(struct tui_tab_item *disp, bool always_draw, int offse
 
     if (change & NODE_CHANGE_MUTE || always_draw) {
         /* box */
-        wmove(win, offset, 0);
+        wmove(win, item->pos, 0);
         waddwstr(win, config.borders.tl);
         for (int x = 1; x < tui.term_width - 1; x++) {
             waddwstr(win, config.borders.ts);
         }
         waddwstr(win, config.borders.tr);
 
-        wmove(win, offset + disp->height - 1, 0);
+        wmove(win, item->pos + item->height - 1, 0);
         waddwstr(win, config.borders.bl);
         for (int x = 1; x < tui.term_width - 1; x++) {
             waddwstr(win, config.borders.bs);
         }
         waddwstr(win, config.borders.br);
 
-        for (int y = 1; y < disp->height - 1; y++) {
-            wmove(win, offset + y, 0);
+        for (int y = 1; y < item->height - 1; y++) {
+            wmove(win, item->pos + y, 0);
             waddwstr(win, config.borders.ls);
         }
 
-        for (int y = 1; y < disp->height - 1; y++) {
-            wmove(win, offset + y, tui.term_width - 1);
+        for (int y = 1; y < item->height - 1; y++) {
+            wmove(win, item->pos + y, tui.term_width - 1);
             waddwstr(win, config.borders.ls);
         }
     }
@@ -181,8 +181,7 @@ static void tui_draw_node(struct tui_tab_item *disp, bool always_draw, int offse
     wattroff(win, A_BOLD);
     wattroff(win, COLOR_PAIR(GRAY));
 
-    node->changed = 0;
-    disp->focus_changed = false;
+    item->focus_changed = false;
 }
 
 static void tui_draw_status_bar(void) {
@@ -202,100 +201,40 @@ static void tui_draw_status_bar(void) {
 }
 
 static int tui_repaint(bool always_draw) {
-    if (tui.need_redo_layout) {
-        tui_draw_status_bar();
-    }
+    TRACE("tui_repaint: always_draw %d", always_draw);
 
+    int bottom = 0;
     struct tui_tab_item *tab_item;
     spa_list_for_each(tab_item, &TUI_ACTIVE_TAB.items, link) {
-        tui_draw_node(tab_item, always_draw, tab_item->pos);
+        tui_draw_node(tab_item, always_draw);
+        bottom += tab_item->height;
     }
+
+    /* TODO: inefficient? Only clear on tab change/node removal? */
+    wmove(tui.pad_win, bottom, 0);
+    wclrtobot(tui.pad_win);
     pnoutrefresh(tui.pad_win,
                  TUI_ACTIVE_TAB.scroll_pos, 0,
                  1, 0,
                  tui.term_height - 1, tui.term_width - 1);
+
+    tui_draw_status_bar();
 
     doupdate();
 
     return 0;
 }
 
-static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x) {
-    WINDOW *new_pad = newpad(y, x);
+static void tui_tab_item_ensure_visible(enum tui_tab tab, const struct tui_tab_item *item) {
+    const int visible_height = tui.term_height - 1 /* minus top bar */;
 
-    if (pad != NULL) {
-        copywin(pad, new_pad, 0, 0, 0, 0, y, x, 0);
-        delwin(pad);
+    if (tui.tabs[tab].scroll_pos > item->pos) /* item is above screen space */ {
+        tui.tabs[tab].scroll_pos = item->pos;
+    /*                  a + b             =                         c + d               */
+    } else if ((item->pos + item->height) > (tui.tabs[tab].scroll_pos + visible_height)) {
+        /*                     c =          a + b             - d            */
+        tui.tabs[tab].scroll_pos = (item->pos + item->height) - visible_height;
     }
-
-    return new_pad;
-}
-
-static int tui_create_layout(void) {
-    debug("tui: create_layout");
-
-    struct {
-        uint32_t id;
-        bool found;
-    } prev_focused[TUI_TAB_COUNT] = {0};
-
-    if (tui.bar_win != NULL) {
-        delwin(tui.bar_win);
-        tui.bar_win = NULL;
-    }
-    FOR_EACH_TAB(tab) {
-        tui.tabs[tab].focused = NULL;
-        tui.tabs[tab].scroll_pos = 0;
-
-        struct tui_tab_item *tab_item, *tab_item_tmp;
-        spa_list_for_each_safe(tab_item, tab_item_tmp, &tui.tabs[tab].items, link) {
-            if (tab_item->focused) {
-                prev_focused[tab].id = tab_item->node->id;
-            }
-            spa_list_remove(&tab_item->link);
-            free(tab_item);
-        }
-    }
-
-    tui.bar_win = newwin(1, tui.term_width, 0, 0);
-    const int padsize = stbds_hmlenu(pw.nodes) * (SPA_AUDIO_MAX_CHANNELS + 3);
-    tui.pad_win = tui_resize_pad(tui.pad_win, padsize, tui.term_width);
-    nodelay(tui.pad_win, TRUE); /* getch() will fail instead of blocking waiting for input */
-    keypad(tui.pad_win, TRUE);
-
-    for (size_t i = stbds_hmlenu(pw.nodes); i > 0; i--) {
-        struct node *node = pw.nodes[i - 1].value;
-        enum tui_tab tab = media_class_to_tui_tab(node->media_class);
-
-        struct tui_tab_item *tab_item = xcalloc(1, sizeof(*tab_item));
-        tab_item->node = node;
-        if (!prev_focused[tab].found && prev_focused[tab].id == node->id) {
-            tab_item->focused = true;
-            tui.tabs[tab].focused = tab_item;
-            prev_focused[tab].found = true;
-        }
-
-        tab_item->height = node->props.channel_count + 3;
-        if (spa_list_is_empty(&tui.tabs[tab].items)) {
-            tab_item->pos = 0;
-        } else {
-            struct tui_tab_item *first = spa_list_first(&tui.tabs[tab].items,
-                                                            struct tui_tab_item, link);
-            tab_item->pos = first->pos + first->height;
-        }
-
-        spa_list_insert(&tui.tabs[tab].items, &tab_item->link);
-    }
-    FOR_EACH_TAB(tab) {
-        if (!prev_focused[tab].found && !spa_list_is_empty(&tui.tabs[tab].items)) {
-            struct tui_tab_item *last = spa_list_last(&tui.tabs[tab].items,
-                                                          struct tui_tab_item, link);
-            last->focused = true;
-            tui.tabs[tab].focused = last;
-        }
-    }
-
-    return 0;
 }
 
 void tui_bind_change_focus(union tui_bind_data data) {
@@ -306,10 +245,12 @@ void tui_bind_change_focus(union tui_bind_data data) {
     }
     struct tui_tab_item *f = TUI_ACTIVE_TAB.focused;
 
+    bool change = false;
     switch (direction) {
-    case UP:
-        if (f->unlocked_channels && f->focused_channel > 0) {
-            f->focused_channel -= 1;
+    case DOWN:
+        if (f->unlocked_channels && f->focused_channel < f->node->props.channel_count - 1) {
+            f->focused_channel += 1;
+            change = true;
         } else {
             struct tui_tab_item *disp, *disp_next = NULL;
             spa_list_for_each_reverse(disp, &TUI_ACTIVE_TAB.items, link) {
@@ -326,6 +267,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
                         TUI_ACTIVE_TAB.scroll_pos = disp_next->pos;
                     }
 
+                    change = true;
                     break;
                 }
 
@@ -333,9 +275,10 @@ void tui_bind_change_focus(union tui_bind_data data) {
             }
         }
         break;
-    case DOWN:
-        if (f->unlocked_channels && f->focused_channel < f->node->props.channel_count - 1) {
-            f->focused_channel += 1;
+    case UP:
+        if (f->unlocked_channels && f->focused_channel > 0) {
+            f->focused_channel -= 1;
+            change = true;
         } else {
             struct tui_tab_item *disp, *disp_prev = NULL;
             spa_list_for_each(disp, &TUI_ACTIVE_TAB.items, link) {
@@ -354,6 +297,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
                         TUI_ACTIVE_TAB.scroll_pos = disp_prev->height - (tui.term_height - 1) + disp_prev->pos;
                     }
 
+                    change = true;
                     break;
                 }
 
@@ -362,9 +306,14 @@ void tui_bind_change_focus(union tui_bind_data data) {
         }
         break;
     }
+
+    if (change) {
+        tui_tab_item_ensure_visible(tui.tab, TUI_ACTIVE_TAB.focused);
+        tui_repaint(true /* TODO: granular redraw */);
+    }
 }
 
-void tui_bind_focus_first(union tui_bind_data data) {
+void tui_bind_focus_last(union tui_bind_data data) {
     if (spa_list_is_empty(&TUI_ACTIVE_TAB.items) || TUI_ACTIVE_TAB.focused == NULL) {
         return;
     }
@@ -383,9 +332,11 @@ void tui_bind_focus_first(union tui_bind_data data) {
     TUI_ACTIVE_TAB.scroll_pos = 0;
 
     TUI_ACTIVE_TAB.focused = first;
+
+    tui_repaint(true /* TODO: granular redraw */);
 }
 
-void tui_bind_focus_last(union tui_bind_data data) {
+void tui_bind_focus_first(union tui_bind_data data) {
     if (spa_list_is_empty(&TUI_ACTIVE_TAB.items) || TUI_ACTIVE_TAB.focused == NULL) {
         return;
     }
@@ -404,6 +355,8 @@ void tui_bind_focus_last(union tui_bind_data data) {
     TUI_ACTIVE_TAB.scroll_pos = last->height - (tui.term_height - 1) + last->pos;
 
     TUI_ACTIVE_TAB.focused = last;
+
+    tui_repaint(true /* TODO: granular redraw */);
 }
 
 void tui_bind_change_volume(union tui_bind_data data) {
@@ -465,23 +418,33 @@ void tui_bind_change_channel_lock(union tui_bind_data data) {
         return;
     }
 
+    bool change = false;
     switch (mode) {
     case ENABLE:
         if (!TUI_ACTIVE_TAB.focused->unlocked_channels) {
             TUI_ACTIVE_TAB.focused->unlocked_channels = true;
             TUI_ACTIVE_TAB.focused->unlocked_channels_changed = true;
+            change = true;
         }
         break;
     case DISABLE:
         if (TUI_ACTIVE_TAB.focused->unlocked_channels) {
             TUI_ACTIVE_TAB.focused->unlocked_channels = false;
             TUI_ACTIVE_TAB.focused->unlocked_channels_changed = true;
+            change = true;
         }
         break;
     case TOGGLE:
         TUI_ACTIVE_TAB.focused->unlocked_channels = !TUI_ACTIVE_TAB.focused->unlocked_channels;
         TUI_ACTIVE_TAB.focused->unlocked_channels_changed = true;
+        change = true;
         break;
+    }
+
+    if (change) {
+        TUI_ACTIVE_TAB.scroll_pos = 0;
+
+        tui_repaint(true /* TODO: granular redraw */);
     }
 }
 
@@ -506,8 +469,9 @@ void tui_bind_change_tab(union tui_bind_data data) {
 
     if (change) {
         TUI_ACTIVE_TAB.scroll_pos = 0;
-        tui.need_redo_layout = true;
     }
+
+    tui_repaint(true /* TODO: granular redraw */);
 }
 
 void tui_bind_set_tab(union tui_bind_data data) {
@@ -545,7 +509,61 @@ void tui_bind_set_tab(union tui_bind_data data) {
 
     if (change) {
         TUI_ACTIVE_TAB.scroll_pos = 0;
-        tui.need_redo_layout = true;
+
+        tui_repaint(true /* TODO: granular redraw */);
+    }
+}
+
+static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x, bool keep_contents) {
+    WINDOW *new_pad = newpad(y, x);
+
+    /* TODO: not the best place to put those functions */
+    nodelay(new_pad, TRUE); /* getch() will fail instead of blocking waiting for input */
+    keypad(new_pad, TRUE);
+
+    if (keep_contents && pad != NULL) {
+        copywin(pad, new_pad, 0, 0, 0, 0, y, x, FALSE);
+        delwin(pad);
+    }
+
+    return new_pad;
+}
+
+/* 0 to leave dimension as is */
+enum tui_set_pad_size_policy { EXACTLY, AT_LEAST };
+static void tui_set_pad_size(enum tui_set_pad_size_policy y_policy, int y,
+                             enum tui_set_pad_size_policy x_policy, int x,
+                             bool keep_contents) {
+    TRACE("tui_set_pad_size: y %s %d x %s %d",
+          y_policy == EXACTLY ? "exactly" : "at least", y,
+          x_policy == EXACTLY ? "exactly" : "at least", x);
+
+    if (tui.pad_win == NULL) {
+        tui.pad_win = tui_resize_pad(tui.pad_win, y, x, keep_contents);
+    } else {
+        int new_x, new_y, max_x, max_y;
+
+        switch (y_policy) {
+        case EXACTLY:
+            new_y = y;
+            break;
+        case AT_LEAST:
+            max_y = getmaxy(tui.pad_win);
+            new_y = MAX(max_y, y);
+            break;
+        }
+
+        switch (x_policy) {
+        case EXACTLY:
+            new_x = x;
+            break;
+        case AT_LEAST:
+            max_x = getmaxx(tui.pad_win);
+            new_x = MAX(max_x, x);
+            break;
+        }
+
+        tui.pad_win = tui_resize_pad(tui.pad_win, new_y, new_x, keep_contents);
     }
 }
 
@@ -561,7 +579,17 @@ int tui_handle_resize(struct event_loop_item *item, int signal) {
     tui.term_width = getmaxx(stdscr);
     debug("new window dimensions %d lines %d columns", tui.term_height, tui.term_width);
 
-    tui.need_redo_layout = true;
+    tui_set_pad_size(AT_LEAST, tui.term_height, EXACTLY, tui.term_width, false);
+    if (TUI_ACTIVE_TAB.focused != NULL) {
+        tui_tab_item_ensure_visible(tui.tab, TUI_ACTIVE_TAB.focused);
+    }
+
+    if (tui.bar_win != NULL) {
+        delwin(tui.bar_win);
+    }
+    tui.bar_win = newwin(1, tui.term_width, 0, 0);
+
+    tui_repaint(true /* TODO: granular redraw */);
 
     return 0;
 }
@@ -582,18 +610,111 @@ int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
     return 0;
 }
 
-int tui_update(struct event_loop_item *loop_item) {
-    if (tui.need_redo_layout || pw.node_list_changed) {
-        tui_create_layout();
-        tui_repaint(true);
-
-        tui.need_redo_layout = false;
-        pw.node_list_changed = false;
-    } else {
-        tui_repaint(false);
+/* Change size (height) of item to (new_height),
+ * while also adjusting positions of other items in the same tab as needed.
+ * Does not repaint. The caller must repaint.
+ */
+static void tui_tab_item_resize(enum tui_tab tab, struct tui_tab_item *item, int new_height) {
+    const int diff = new_height - item->height;
+    if (diff == 0) {
+        return;
     }
 
-    return 0;
+    TRACE("tui_tab_item_resize: resizing item %p from %d to %d",
+          (void *)item, item->height, item->height + diff);
+    item->height += diff;
+
+    struct tui_tab_item *next;
+    spa_list_for_each_next(next, &tui.tabs[tab].items, &item->link, link) {
+        TRACE("tui_tab_item_resize: shifting item %p from %d to %d",
+              (void *)next, next->pos, next->pos + diff);
+        next->pos += diff;
+    }
+
+    struct tui_tab_item *last = spa_list_last(&tui.tabs[tab].items, TYPEOF(*last), link);
+    tui_set_pad_size(AT_LEAST, last->pos + last->height, AT_LEAST, tui.term_width, true);
+}
+
+void tui_notify_node_new(const struct node *node) {
+    TRACE("tui_notify_node_new: id %d", node->id);
+
+    enum tui_tab tab = media_class_to_tui_tab(node->media_class);
+
+    struct tui_tab_item *new_item = xcalloc(1, sizeof(*new_item));
+    new_item->node = node;
+    new_item->pos = 0;
+
+    if (tui.tabs[tab].focused == NULL) {
+        new_item->focused = true;
+        tui.tabs[tab].focused = new_item;
+    }
+    spa_list_insert(&tui.tabs[tab].items, &new_item->link);
+    tui_tab_item_resize(tab, new_item, node->props.channel_count + 3);
+
+    if (tab == tui.tab) {
+        tui_repaint(true /* TODO: granular redraw */);
+    }
+}
+
+void tui_notify_node_change(const struct node *node) {
+    TRACE("tui_notify_node_change: id %d", node->id);
+
+    enum tui_tab tab = media_class_to_tui_tab(node->media_class);
+
+    /* find tui_tab_item associated with this node (FIXME: slow? do I even care?) */
+    bool found = false;
+    struct tui_tab_item *item;
+    spa_list_for_each(item, &tui.tabs[tab].items, link) {
+        if (item->node == node) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        warn("got notify_node_change for node id %d but no tui_tab_item found", node->id);
+        return;
+    }
+
+    tui_tab_item_resize(tab, item, node->props.channel_count + 3);
+
+    if (tab == tui.tab) {
+        tui_repaint(true /* TODO: granular redraw */);
+    }
+}
+
+void tui_notify_node_remove(const struct node *node) {
+    TRACE("tui_notify_node_remove: id %d", node->id);
+
+    enum tui_tab tab = media_class_to_tui_tab(node->media_class);
+
+    /* find tui_tab_item associated with this node (FIXME: slow? do I even care?) */
+    bool found = false;
+    struct tui_tab_item *item;
+    spa_list_for_each(item, &tui.tabs[tab].items, link) {
+        if (item->node == node) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        warn("got notify_node_change for node id %d but no tui_tab_item found", node->id);
+        return;
+    }
+
+    tui_tab_item_resize(tab, item, 0);
+    spa_list_remove(&item->link);
+
+    if (!spa_list_is_empty(&tui.tabs[tab].items) && item->focused) {
+        struct tui_tab_item *first = spa_list_first(&tui.tabs[tab].items, TYPEOF(*first), link);
+        first->focused = true;
+        tui.tabs[tab].focused = first;
+    }
+
+    free(item);
+
+    if (tab == tui.tab) {
+        tui_repaint(true /* TODO: granular redraw */);
+    }
 }
 
 int tui_init(void) {
@@ -617,7 +738,7 @@ int tui_init(void) {
     tui_handle_resize(NULL, 0);
 
     tui.tab = TUI_TAB_FIRST;
-    tui.need_redo_layout = true;
+    tui_repaint(true /* TODO: granular redraw */);
 
     return 0;
 }
@@ -629,10 +750,14 @@ int tui_cleanup(void) {
     if (tui.pad_win != NULL) {
         delwin(tui.pad_win);
     }
+    /* TODO: fix this.
+     * It gets called in pipewire_cleanup and shits itself because items are already deleted
+     */
     FOR_EACH_TAB(tab) {
         if (spa_list_is_initialized(&tui.tabs[tab].items)) {
             struct tui_tab_item *tab_item, *tab_item_tmp;
             spa_list_for_each_safe(tab_item, tab_item_tmp, &tui.tabs[tab].items, link) {
+                spa_list_remove(&tab_item->link);
                 free(tab_item);
             }
         }

@@ -132,7 +132,6 @@ int main(int argc, char **argv) {
     event_loop_add_signal(loop, SIGTERM, sigint_sigterm_handler, NULL);
     event_loop_add_signal(loop, SIGINT, sigint_sigterm_handler, NULL);
     event_loop_add_signal(loop, SIGWINCH, tui_handle_resize, NULL);
-    event_loop_add_unconditional(loop, 0, tui_update, NULL);
     retcode = event_loop_run(loop);
 
 cleanup:

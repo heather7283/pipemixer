@@ -34,9 +34,6 @@ struct pw {
         uint32_t key; /* id */
         struct device *value;
     } *devices;
-
-    /* TODO: find a more sensible name for this */
-    bool node_list_changed;
 };
 
 extern struct pw pw;

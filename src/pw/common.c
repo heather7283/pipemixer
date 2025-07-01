@@ -46,10 +46,6 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         new_node->media_class = media_class_value;
         new_node->pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
         pw_node_add_listener(new_node->pw_node, &new_node->listener, &node_events, new_node);
-
-        stbds_hmput(pw.nodes, new_node->id, new_node);
-
-        pw.node_list_changed = true;
     } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         if (media_class == NULL) {
@@ -79,10 +75,7 @@ static void on_registry_global_remove(void *data, uint32_t id) {
 
     struct node *node;
     if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
-        stbds_hmdel(pw.nodes, id);
-        node_free(node);
-
-        pw.node_list_changed = true;
+        on_node_remove(node);
     }
     struct device *device;
     if ((device = stbds_hmget(pw.devices, id)) != NULL) {
@@ -134,7 +127,8 @@ int pipewire_init(void) {
 
 void pipewire_cleanup(void) {
     for (int i = 0; i < stbds_hmlen(pw.nodes); i++) {
-        node_free(pw.nodes[i].value);
+        /* TODO: fix this */
+        //on_node_remove(pw.nodes[i].value);
     }
     stbds_hmfree(pw.nodes);
 

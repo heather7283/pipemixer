@@ -17,8 +17,12 @@
     ((byte) & (1 << 0) ? '1' : '0')
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 #define WCSEMPTY(str) ((str) == NULL || (str)[0] == L'\0')
+
+#define TYPEOF(x) __typeof__(x)
 
 #endif /* #ifndef MACROS_H */
 

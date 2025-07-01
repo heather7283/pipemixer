@@ -29,12 +29,10 @@ struct tui {
         struct tui_tab_item *focused;
         int scroll_pos;
     } tabs[TUI_TAB_COUNT];
-
-    bool need_redo_layout;
 };
 
 struct tui_tab_item {
-    struct node *node;
+    const struct node *node;
 
     int pos, height;
     bool focused;
@@ -55,6 +53,10 @@ int tui_cleanup(void);
 int tui_update(struct event_loop_item *loop_item);
 int tui_handle_resize(struct event_loop_item *item, int signal);
 int tui_handle_keyboard(struct event_loop_item *item, uint32_t events);
+
+void tui_notify_node_new(const struct node *node);
+void tui_notify_node_change(const struct node *node);
+void tui_notify_node_remove(const struct node *node);
 
 /* binds */
 union tui_bind_data;

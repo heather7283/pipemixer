@@ -3,7 +3,7 @@
 #include "xmalloc.h"
 
 struct roundtrip_async_data {
-    roundtrip_async_callback_func_t callback;
+    roundtrip_async_callback_t callback;
     void *data;
     int seq;
 
@@ -32,7 +32,7 @@ static const struct pw_core_events core_events = {
     .done = on_core_done,
 };
 
-void roundtrip_async(struct pw_core *core, roundtrip_async_callback_func_t callback, void *data) {
+void roundtrip_async(struct pw_core *core, roundtrip_async_callback_t callback, void *data) {
     static struct spa_hook listener;
     static bool initial_setup_done = false;
 
