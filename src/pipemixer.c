@@ -9,20 +9,18 @@
 #include "config.h"
 #include "utils.h"
 #include "pw/common.h"
-#include "thirdparty/event_loop.h"
+#include "thirdparty/pollen/pollen.h"
 
-static int sigint_sigterm_handler(struct event_loop_item *item, int signal) {
+static int sigint_sigterm_handler(struct pollen_callback *callback, int signal, void *data) {
     INFO("caught signal %d, stopping main loop", signal);
 
-    event_loop_quit(event_loop_item_get_loop(item), 0);
+    pollen_loop_quit(pollen_callback_get_loop(callback), 0);
 
     return 0;
 }
 
-static int pipewire_handler(struct event_loop_item *item, uint32_t events) {
-    int res;
-
-    res = pw_loop_iterate(pw.main_loop_loop, 0);
+static int pipewire_handler(struct pollen_callback *callback, int fd, uint32_t events, void *data) {
+    int res = pw_loop_iterate(pw.main_loop_loop, 0);
     if (res < 0 && res != -EINTR) {
         return res;
     } else {
@@ -112,7 +110,7 @@ int main(int argc, char **argv) {
     setlocale(LC_ALL, "");
     load_config(config_path);
 
-    struct event_loop *loop = event_loop_create();
+    struct pollen_loop *loop = pollen_loop_create();
     if (loop == NULL) {
         fprintf(stderr, "pipemixer: failed to create event loop\n");
         retcode = 1;
@@ -127,15 +125,15 @@ int main(int argc, char **argv) {
 
     tui_init();
 
-    event_loop_add_pollable(loop, 0 /* stdin */, EPOLLIN, false, tui_handle_keyboard, NULL);
-    event_loop_add_pollable(loop, pw.main_loop_loop_fd, EPOLLIN, false, pipewire_handler, NULL);
-    event_loop_add_signal(loop, SIGTERM, sigint_sigterm_handler, NULL);
-    event_loop_add_signal(loop, SIGINT, sigint_sigterm_handler, NULL);
-    event_loop_add_signal(loop, SIGWINCH, tui_handle_resize, NULL);
-    retcode = event_loop_run(loop);
+    pollen_loop_add_fd(loop, 0 /* stdin */, EPOLLIN, false, tui_handle_keyboard, NULL);
+    pollen_loop_add_fd(loop, pw.main_loop_loop_fd, EPOLLIN, false, pipewire_handler, NULL);
+    pollen_loop_add_signal(loop, SIGTERM, sigint_sigterm_handler, NULL);
+    pollen_loop_add_signal(loop, SIGINT, sigint_sigterm_handler, NULL);
+    pollen_loop_add_signal(loop, SIGWINCH, tui_handle_resize, NULL);
+    retcode = pollen_loop_run(loop);
 
 cleanup:
-    event_loop_cleanup(loop);
+    pollen_loop_cleanup(loop);
     pipewire_cleanup();
     tui_cleanup();
     config_cleanup();

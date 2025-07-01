@@ -581,7 +581,7 @@ static void tui_set_pad_size(enum tui_set_pad_size_policy y_policy, int y,
     }
 }
 
-int tui_handle_resize(struct event_loop_item *item, int signal) {
+int tui_handle_resize(struct pollen_callback *callback, int signal, void *data) {
     struct winsize winsize;
     if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
         ERROR("failed to get new window size: %s", strerror(errno));
@@ -608,14 +608,14 @@ int tui_handle_resize(struct event_loop_item *item, int signal) {
     return 0;
 }
 
-int tui_handle_keyboard(struct event_loop_item *item, uint32_t events) {
+int tui_handle_keyboard(struct pollen_callback *callback, int fd, uint32_t events, void *data) {
     wint_t ch;
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
         struct pipemixer_config_bind *bind = stbds_hmgetp_null(config.binds, ch);
         if (bind == NULL) {
             DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
         } else if (bind->value.func == TUI_BIND_QUIT) {
-            event_loop_quit(event_loop_item_get_loop(item), 0);
+            pollen_loop_quit(pollen_callback_get_loop(callback), 0);
         } else {
             bind->value.func(bind->value.data);
         }
@@ -762,7 +762,8 @@ int tui_init(void) {
         spa_list_init(&tui.tabs[tab].items);
     }
 
-    tui_handle_resize(NULL, 0);
+    /* manually trigger resize handler to pick up initial terminal size */
+    tui_handle_resize(NULL, 0xBAD, NULL);
 
     tui.tab = TUI_TAB_FIRST;
     tui_repaint(true);
