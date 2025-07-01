@@ -651,11 +651,14 @@ void tui_notify_node_change(const struct node *node) {
 
     if (node->changed & NODE_CHANGE_INFO) {
         item->change |= TUI_TAB_ITEM_CHANGE_INFO;
-    } else if (node->changed & NODE_CHANGE_MUTE) {
+    }
+    if (node->changed & NODE_CHANGE_MUTE) {
         item->change |= TUI_TAB_ITEM_CHANGE_MUTE;
-    } else if (node->changed & NODE_CHANGE_VOLUME) {
+    }
+    if (node->changed & NODE_CHANGE_VOLUME) {
         item->change |= TUI_TAB_ITEM_CHANGE_VOLUME;
-    } else if (node->changed & NODE_CHANGE_CHANNEL_COUNT) {
+    }
+    if (node->changed & NODE_CHANGE_CHANNEL_COUNT) {
         item->change |= TUI_TAB_ITEM_CHANGE_CHANNEL_COUNT;
         tui_tab_item_resize(tab, item, node->props.channel_count + 3);
     }
