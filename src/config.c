@@ -9,7 +9,7 @@
 #include "utils.h"
 #include "macros.h"
 #include "ini.h"
-#include "lib/stb/stb_ds.h"
+#include <stb/stb_ds.h>
 
 #define ADD_BIND(key, function, data_type, data_value) \
     do { \

@@ -6,5 +6,5 @@
 #define STBDS_NO_SHORT_NAMES
 
 #define STB_DS_IMPLEMENTATION
-#include "lib/stb/stb_ds.h"
+#include <stb/stb_ds.h>
 
