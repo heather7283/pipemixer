@@ -2,14 +2,15 @@
 #include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
+
 #include <ncurses.h>
+#include <pollen.h>
 
 #include "log.h"
 #include "tui.h"
 #include "config.h"
 #include "utils.h"
 #include "pw/common.h"
-#include "lib/pollen/pollen.h"
 
 static int sigint_sigterm_handler(struct pollen_callback *callback, int signal, void *data) {
     INFO("caught signal %d, stopping main loop", signal);

@@ -30,6 +30,8 @@ add_project_arguments('-DINI_HANDLER_LINENO=1', language: 'c')
 
 stb_dep = dependency('stb', required: get_option('system_libraries'))
 
+pollen_dep = dependency('pollen', required: get_option('system_libraries'))
+
 pipemixer_sources = [
   'src/pipemixer.c',
   'src/tui.c',
@@ -56,6 +58,10 @@ endif
 
 if not stb_dep.found()
   include_dirs += ['lib']
+endif
+
+if not pollen_dep.found()
+  include_dirs += ['lib/pollen']
 endif
 
 executable('pipemixer', pipemixer_sources,

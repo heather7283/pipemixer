@@ -3,8 +3,9 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <curses.h>
 #include <limits.h>
+
+#include <curses.h>
 
 #include "utils.h"
 #include "macros.h"

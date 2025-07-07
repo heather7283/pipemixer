@@ -3,9 +3,9 @@
 
 #include <ncurses.h>
 #include <spa/utils/list.h>
+#include <pollen.h>
 
 #include "pw/node.h"
-#include "lib/pollen/pollen.h"
 
 enum tui_tab {
     TUI_TAB_FIRST,

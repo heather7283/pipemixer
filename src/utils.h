@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <wchar.h>
+
 #include <spa/param/audio/raw.h>
 
 #define CHANNEL_NAME_LENGTH_MAX 5 /* without null terminator */
