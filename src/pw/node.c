@@ -1,6 +1,8 @@
 #include <assert.h>
+
 #include <spa/pod/builder.h>
 #include <spa/param/props.h>
+#include <stb/stb_ds.h>
 
 #include "pw/node.h"
 #include "pw/device.h"
@@ -9,7 +11,6 @@
 #include "macros.h"
 #include "config.h"
 #include "utils.h"
-#include "lib/stb/stb_ds.h"
 
 void node_set_mute(const struct node *node, bool mute) {
     /*

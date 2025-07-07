@@ -25,10 +25,12 @@ ncursesw_dep = dependency('ncursesw')
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
 
+inih_dep = dependency('inih', required: get_option('system_libraries'))
 add_project_arguments('-DINI_HANDLER_LINENO=1', language: 'c')
-inih_lib = static_library('inih', 'lib/inih/ini.c')
 
-executable('pipemixer',
+stb_dep = dependency('stb', required: get_option('system_libraries'))
+
+pipemixer_sources = [
   'src/pipemixer.c',
   'src/tui.c',
   'src/log.c',
@@ -41,9 +43,24 @@ executable('pipemixer',
   'src/pw/roundtrip.c',
   'src/stb_ds_impl.c',
   'src/pollen_impl.c',
-  include_directories: ['src'],
-  link_with: [inih_lib],
-  dependencies: [ncursesw_dep, pipewire_dep, m_dep],
+]
+
+include_dirs = [
+  'src'
+]
+
+if not inih_dep.found()
+  pipemixer_sources += ['lib/inih/ini.c']
+  include_dirs += ['lib/inih']
+endif
+
+if not stb_dep.found()
+  include_dirs += ['lib']
+endif
+
+executable('pipemixer', pipemixer_sources,
+  include_directories: include_dirs,
+  dependencies: [ncursesw_dep, pipewire_dep, m_dep, inih_dep],
   install: true)
 
 install_data(

@@ -1,10 +1,11 @@
+#include <stb/stb_ds.h>
+
 #include "pw/common.h"
 #include "pw/node.h"
 #include "pw/device.h"
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"
-#include "lib/stb/stb_ds.h"
 
 struct pw pw = {0};
 

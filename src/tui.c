@@ -2,13 +2,14 @@
 #include <math.h>
 #include <wchar.h>
 
+#include <stb/stb_ds.h>
+
 #include "tui.h"
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"
 #include "utils.h"
 #include "config.h"
-#include "lib/stb/stb_ds.h"
 
 #define TUI_ACTIVE_TAB (tui.tabs[tui.tab])
 #define FOR_EACH_TAB(var) for (enum tui_tab var = TUI_TAB_FIRST; var <= TUI_TAB_LAST; var++)
