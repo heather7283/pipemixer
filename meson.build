@@ -12,7 +12,7 @@ if git.found()
   git_tag = run_command(git, 'describe', '--tags', check: false).stdout().strip()
   git_branch = run_command(git, 'branch', '--show-current', check: false).stdout().strip()
 else
-  git_commit_hash = 'unknown'
+  git_tag = 'unknown'
   git_branch = 'unknown'
 endif
 add_project_arguments('-DPIPEMIXER_VERSION="@0@"'.format(meson.project_version()), language: 'c')
