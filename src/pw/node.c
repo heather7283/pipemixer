@@ -271,7 +271,6 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 
     if (old_channel_count != props->channel_count) {
         node->changed |= NODE_CHANGE_CHANNEL_COUNT;
-        ERROR("channel_count change from %d to %d", old_channel_count, props->channel_count);
     }
 }
 
