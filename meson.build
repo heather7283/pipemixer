@@ -36,6 +36,7 @@ pipemixer_sources = [
   'src/log.c',
   'src/xmalloc.c',
   'src/utils.c',
+  'src/strutils.c',
   'src/config.c',
   'src/pw/common.c',
   'src/pw/device.c',

@@ -183,26 +183,13 @@ void on_node_info(void *data, const struct pw_node_info *info) {
         TRACE("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
 
         if (STREQ(k, PW_KEY_MEDIA_NAME)) {
-            size_t ret = mbsrtowcs(node->media_name, &v, ARRAY_SIZE(node->media_name), NULL);
-            node->media_name[ARRAY_SIZE(node->media_name) - 1] = L'\0';
-            if (ret == (size_t)-1) {
-                wcsncpy(node->media_name, L"INVALID", ARRAY_SIZE(node->media_name));
-            }
+            wstring_from_pchar(&node->media_name, v);
             node->changed = NODE_CHANGE_INFO;
-        } else if (STREQ(k, PW_KEY_NODE_NAME) && WCSEMPTY(node->node_name)) {
-            size_t ret = mbsrtowcs(node->node_name, &v, ARRAY_SIZE(node->node_name), NULL);
-            node->node_name[ARRAY_SIZE(node->node_name) - 1] = L'\0';
-            if (ret == (size_t)-1) {
-                wcsncpy(node->node_name, L"INVALID", ARRAY_SIZE(node->node_name));
-            }
+        } else if (STREQ(k, PW_KEY_NODE_NAME) && wstring_is_empty(&node->node_name)) {
+            wstring_from_pchar(&node->node_name, v);
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_NODE_DESCRIPTION)) {
-            /* node.description is better than node.name so overwrite it */
-            size_t ret = mbsrtowcs(node->node_name, &v, ARRAY_SIZE(node->node_name), NULL);
-            node->node_name[ARRAY_SIZE(node->node_name) - 1] = L'\0';
-            if (ret == (size_t)-1) {
-                wcsncpy(node->node_name, L"INVALID", ARRAY_SIZE(node->node_name));
-            }
+            wstring_from_pchar(&node->node_name, v);
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
             node->has_device = true;
@@ -283,6 +270,8 @@ void on_node_remove(struct node *node) {
 
 void node_free(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
+    wstring_free(&node->media_name);
+    wstring_free(&node->node_name);
     free(node);
 }
 

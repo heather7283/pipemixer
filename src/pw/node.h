@@ -5,6 +5,7 @@
 #include <spa/param/audio/raw-types.h>
 
 #include "pw/common.h"
+#include "strutils.h"
 
 struct node_props {
     bool mute;
@@ -29,8 +30,8 @@ struct node {
 
     uint32_t id;
     enum media_class media_class;
-    wchar_t media_name[128];
-    wchar_t node_name[128];
+    struct wstring media_name;
+    struct wstring node_name;
     struct node_props props;
 
     bool has_device;

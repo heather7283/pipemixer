@@ -9,6 +9,7 @@
 #include "log.h"
 #include "xmalloc.h"
 #include "utils.h"
+#include "strutils.h"
 #include "config.h"
 
 #define TUI_ACTIVE_TAB (tui.tabs[tui.tab])
@@ -100,9 +101,9 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
     DRAW_IF(focus_changed || info_changed || mute_changed) {
         swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls%-*s",
                  node->id,
-                 node->node_name,
-                 WCSEMPTY(node->media_name) ? "" : ": ",
-                 WCSEMPTY(node->media_name) ? L"" : node->media_name,
+                 node->node_name.data,
+                 wstring_is_empty(&node->media_name) ? "" : ": ",
+                 wstring_is_empty(&node->media_name) ? L"" : node->media_name.data,
                  usable_width, "");
         wcstrimcols(line, usable_width);
         mvwaddnwstr(win, item->pos + 1, info_area_start, line, usable_width);
