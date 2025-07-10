@@ -2,6 +2,15 @@
 #define SRC_PIPEWIRE_COMMON_H
 
 #include <pipewire/pipewire.h>
+#include <spa/param/audio/raw-types.h>
+
+struct props {
+    bool mute;
+    uint32_t channel_count;
+    /* TODO: dynamic array? */
+    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
+    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
+};
 
 enum media_class {
     MEDIA_CLASS_START,

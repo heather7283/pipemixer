@@ -1,19 +1,15 @@
 #ifndef SRC_PIPEWIRE_DEVICE_H
 #define SRC_PIPEWIRE_DEVICE_H
 
-#include <pipewire/pipewire.h>
-#include <spa/param/audio/raw-types.h>
-
-struct route_props {
-    bool mute;
-    uint32_t channel_count;
-    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
-    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
-};
+#include "strutils.h"
+#include "pw/common.h"
 
 struct route {
     int32_t device, index;
-    struct route_props props;
+    struct string description;
+    uint32_t direction; /* enum spa_direction */
+
+    struct props props;
 
     struct spa_list link;
 };
@@ -24,7 +20,8 @@ struct device {
 
     uint32_t id;
 
-    struct spa_list routes;
+    struct spa_list active_routes;
+    struct spa_list all_routes;
 };
 
 void device_free(struct device *device);

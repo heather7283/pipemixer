@@ -7,14 +7,6 @@
 #include "pw/common.h"
 #include "strutils.h"
 
-struct node_props {
-    bool mute;
-    uint32_t channel_count;
-    /* so much wasted ram... TODO: can I optimize mem usage? */
-    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
-    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
-};
-
 enum node_change_mask {
     NODE_CHANGE_NOTHING = 0,
     NODE_CHANGE_INFO = 1 << 0,
@@ -32,7 +24,7 @@ struct node {
     enum media_class media_class;
     struct wstring media_name;
     struct wstring node_name;
-    struct node_props props;
+    struct props props;
 
     bool has_device;
     uint32_t device_id;

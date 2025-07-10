@@ -40,7 +40,7 @@ void node_set_mute(const struct node *node, bool mute) {
 
         bool found = false;
         struct route *route;
-        spa_list_for_each(route, &device->routes, link) {
+        spa_list_for_each(route, &device->active_routes, link) {
             if (route->device == node->card_profile_device) {
                 found = true;
                 break;
@@ -120,7 +120,7 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
 
         bool found = false;
         struct route *route;
-        spa_list_for_each(route, &device->routes, link) {
+        spa_list_for_each(route, &device->active_routes, link) {
             if (route->device == node->card_profile_device) {
                 found = true;
                 break;
@@ -233,7 +233,7 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         return;
     }
 
-    struct node_props *props = &node->props;
+    struct props *props = &node->props;
 
     struct spa_pod *iter;
     int i = 0;

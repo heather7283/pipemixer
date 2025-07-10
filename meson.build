@@ -44,6 +44,8 @@ pipemixer_sources = [
   'src/pw/roundtrip.c',
   'src/stb_ds_impl.c',
   'src/pollen_impl.c',
+
+  'src/debug/put_params.c',
 ]
 
 include_dirs = [
