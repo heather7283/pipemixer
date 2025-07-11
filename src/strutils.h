@@ -18,11 +18,11 @@ struct wstring {
 };
 
 void string_from_pchar(struct string *str, const char *src);
-inline bool string_is_empty(const struct string *str) { return str->len == 0; };
+static inline bool string_is_empty(const struct string *str) { return str->len == 0; };
 void string_free(struct string *str);
 
 void wstring_from_pchar(struct wstring *str, const char *src);
-inline bool wstring_is_empty(const struct wstring *str) { return str->len == 0; };
+static inline bool wstring_is_empty(const struct wstring *str) { return str->len == 0; };
 void wstring_free(struct wstring *str);
 
 #endif /* #ifndef SRC_STRUTILS_H */
