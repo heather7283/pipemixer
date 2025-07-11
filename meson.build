@@ -28,8 +28,6 @@ m_dep = cc.find_library('m')
 inih_dep = dependency('inih', required: get_option('system_libraries'))
 add_project_arguments('-DINI_HANDLER_LINENO=1', language: 'c')
 
-stb_dep = dependency('stb', required: get_option('system_libraries'))
-
 pipemixer_sources = [
   'src/pipemixer.c',
   'src/tui.c',
@@ -55,7 +53,7 @@ if not inih_dep.found()
   include_dirs += ['lib/inih']
 endif
 
-if not stb_dep.found()
+if not cc.has_header('stb/stb_ds.h', required: get_option('system_libraries'))
   include_dirs += ['lib']
 endif
 
