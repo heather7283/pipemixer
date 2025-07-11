@@ -220,8 +220,7 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                           uint32_t next, const struct spa_pod *param) {
     struct node *node = data;
 
-    DEBUG("node %d param: id %d seq %d index %d next %d param %p",
-          node->id, id, seq, index, next, (void *)param);
+    DEBUG("node %d param: id %d seq %d index %d next %d", node->id, id, seq, index, next);
 
     const struct spa_pod_prop *volumes_prop = spa_pod_find_prop(param, NULL,
                                                                 SPA_PROP_channelVolumes);

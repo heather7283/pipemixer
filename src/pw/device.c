@@ -114,8 +114,9 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
     new_route->props.channel_count = i;
     spa_pod_get_bool(&mute->value, &new_route->props.mute);
 
-    DEBUG("New route (Route) on dev %d: %s device %d index %d",
-          dev->id, new_route->description.data, new_route->device, new_route->index);
+    DEBUG("New route (Route) on dev %d: %s device %d index %d dir %d",
+          dev->id, new_route->description.data, new_route->device,
+          new_route->index, new_route->direction);
 
     spa_list_insert(&dev->active_routes, &new_route->link);
 }
@@ -141,8 +142,8 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
     spa_pod_get_string(&description->value, &description_str);
     string_from_pchar(&new_route->description, description_str);
 
-    DEBUG("New route (EnumRoute) on dev %d: %s index %d",
-          dev->id, new_route->description.data, new_route->index);
+    DEBUG("New route (EnumRoute) on dev %d: %s index %d dir %d",
+          dev->id, new_route->description.data, new_route->index, new_route->direction);
 
     spa_list_insert(&dev->all_routes, &new_route->link);
 }
@@ -151,8 +152,7 @@ void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
                      uint32_t next, const struct spa_pod *param) {
     struct device *device = data;
 
-    DEBUG("device %d param: id %d seq %d index %d next %d param %p",
-          device->id, id, seq, index, next, (void *)param);
+    DEBUG("device %d param: id %d seq %d index %d next %d", device->id, id, seq, index, next);
 
     switch (id) {
     case SPA_PARAM_Route:
