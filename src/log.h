@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#define PRINTF(fmt_index, first_arg_index) \
+    __attribute__((format(printf, fmt_index, first_arg_index)))
+
 enum log_loglevel {
     LOG_INVALID,
     LOG_QUIET,
@@ -17,7 +20,7 @@ enum log_loglevel {
 enum log_loglevel log_str_to_loglevel(const char *str);
 
 void log_init(FILE *stream, enum log_loglevel level, bool force_colors);
-void log_print(enum log_loglevel level, char *msg, ...);
+PRINTF(2, 3) void log_print(enum log_loglevel level, char *msg, ...);
 
 /* ncurses has a trace macro so make this one uppercase, TODO: make others uppercase too */
 #define TRACE(fmt, ...) \
@@ -55,6 +58,8 @@ void log_print(enum log_loglevel level, char *msg, ...);
                   "%s:%-3d " fmt, \
                   __FILE__, __LINE__, ##__VA_ARGS__); \
     } while (0)
+
+#undef PRINTF
 
 #endif /* ifndef LOG_H */
 
