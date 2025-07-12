@@ -7,6 +7,35 @@
 #include "utils.h"
 #include "macros.h"
 
+void device_set_props(const struct device *dev,
+                      const struct spa_pod *props, int32_t card_profile_device) {
+    bool found = false;
+    struct route *route;
+    spa_list_for_each(route, &dev->active_routes, link) {
+        if (route->device == card_profile_device) {
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        ERROR("could not set props on dev %d: route with device %d was not found",
+              dev->id, card_profile_device);
+        return;
+    }
+
+    uint8_t buffer[4096];
+    struct spa_pod_builder b;
+    spa_pod_builder_init(&b, buffer, sizeof(buffer));
+    struct spa_pod* param =
+        spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route,
+                                   SPA_PARAM_ROUTE_device, SPA_POD_Int(route->device),
+                                   SPA_PARAM_ROUTE_index, SPA_POD_Int(route->index),
+                                   SPA_PARAM_ROUTE_props, SPA_POD_PodObject(props),
+                                   SPA_PARAM_ROUTE_save, SPA_POD_Bool(true));
+
+    pw_device_set_param(dev->pw_device, SPA_PARAM_Route, 0, param);
+}
+
 static void device_routes_free(struct device *device, const struct spa_list *list) {
     struct route *route, *route_tmp;
     spa_list_for_each_safe(route, route_tmp, list, link) {

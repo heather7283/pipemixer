@@ -41,8 +41,6 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                    uint32_t next, const struct spa_pod *param);
 
 void node_set_mute(const struct node *node, bool mute);
-/* (uint32_t)-1 to change all channels */
-#define ALL_CHANNELS ((uint32_t)-1)
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel);
 
 #endif /* #ifndef SRC_PIPEWIRE_NODE_H */

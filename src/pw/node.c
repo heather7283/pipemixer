@@ -12,13 +12,22 @@
 #include "config.h"
 #include "utils.h"
 
+static void node_set_props(const struct node *node, const struct spa_pod *props) {
+    if (!node->has_device) {
+        pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
+    } else {
+        struct device *device = stbds_hmget(pw.devices, node->device_id);
+        if (device == NULL) {
+            WARN("tried to set props of node %d with associated device, "
+                 "but no device with id %d was found", node->id, node->device_id);
+            return;
+        }
+
+        device_set_props(device, props, node->card_profile_device);
+    }
+}
+
 void node_set_mute(const struct node *node, bool mute) {
-    /*
-     * I can't just set mute on a Node that has a Device associated with it.
-     * I need to find the Route property of a Device that has the same value of
-     * device field as card.profile.device field of the Node. Then, I take
-     * device and index fields of the Route and use them in set_param request.
-     */
     uint8_t buffer[1024];
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));
@@ -28,38 +37,7 @@ void node_set_mute(const struct node *node, bool mute) {
                                        SPA_PARAM_Props, SPA_PROP_mute,
                                        SPA_POD_Bool(mute));
 
-    if (!node->has_device) {
-        pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
-    } else {
-        struct device *device = stbds_hmget(pw.devices, node->device_id);
-        if (device == NULL) {
-            WARN("tried to change mute state of node %d with associated device, "
-                 "but no device with id %d was found", node->id, node->device_id);
-            return;
-        }
-
-        bool found = false;
-        struct route *route;
-        spa_list_for_each(route, &device->active_routes, link) {
-            if (route->device == node->card_profile_device) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            WARN("route with device %d was not found", node->card_profile_device);
-            return;
-        }
-
-        struct spa_pod* param =
-            spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route,
-                                       SPA_PARAM_ROUTE_device, SPA_POD_Int(route->device),
-                                       SPA_PARAM_ROUTE_index, SPA_POD_Int(route->index),
-                                       SPA_PARAM_ROUTE_props, SPA_POD_PodObject(props),
-                                       SPA_PARAM_ROUTE_save, SPA_POD_Bool(true));
-
-        pw_device_set_param(device->pw_device, SPA_PARAM_Route, 0, param);
-    }
+    node_set_props(node, props);
 }
 
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel) {
@@ -102,44 +80,7 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
                                    SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
                                                  ARRAY_SIZE(cubed_volumes), cubed_volumes));
 
-    if (!node->has_device) {
-        struct spa_pod *pod;
-        pod = spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props,
-                                         SPA_PARAM_Props, SPA_PROP_channelVolumes,
-                                         SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
-                                         ARRAY_SIZE(cubed_volumes), cubed_volumes));
-
-        pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, pod);
-    } else {
-        struct device *device = stbds_hmget(pw.devices, node->device_id);
-        if (device == NULL) {
-            WARN("tried to change volume of node %d with associated device, "
-                 "but no device with id %d was found", node->id, node->device_id);
-            return;
-        }
-
-        bool found = false;
-        struct route *route;
-        spa_list_for_each(route, &device->active_routes, link) {
-            if (route->device == node->card_profile_device) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            WARN("route with device %d was not found", node->card_profile_device);
-            return;
-        }
-
-        struct spa_pod* param =
-            spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route,
-                                       SPA_PARAM_ROUTE_device, SPA_POD_Int(route->device),
-                                       SPA_PARAM_ROUTE_index, SPA_POD_Int(route->index),
-                                       SPA_PARAM_ROUTE_props, SPA_POD_PodObject(props),
-                                       SPA_PARAM_ROUTE_save, SPA_POD_Bool(true));
-
-        pw_device_set_param(device->pw_device, SPA_PARAM_Route, 0, param);
-    }
+    node_set_props(node, props);
 }
 
 static void on_node_roundtrip_done(void *data) {
