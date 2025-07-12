@@ -3,12 +3,7 @@
 
 #include <curses.h>
 
-#include "tui.h"
-
-struct pipemixer_config_bind {
-    wint_t key; /* ncurses keycode, see curs_getch(3x) */
-    struct tui_bind value;
-};
+#include "collections.h"
 
 struct pipemixer_config {
     float volume_step;
@@ -23,7 +18,7 @@ struct pipemixer_config {
         wchar_t ls[2], rs[2], ts[2], bs[2], tl[2], tr[2], bl[2], br[2];
     } borders;
 
-    struct pipemixer_config_bind *binds; /* stb_ds hashmap */
+    HASHMAP_HEAD(64) binds;
 };
 
 extern struct pipemixer_config config;

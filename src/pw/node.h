@@ -31,6 +31,8 @@ struct node {
     int32_t card_profile_device;
 
     enum node_change_mask changed;
+
+    HASHMAP_ENTRY hash;
 };
 
 void node_free(struct node *node);

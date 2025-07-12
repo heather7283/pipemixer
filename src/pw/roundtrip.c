@@ -1,29 +1,31 @@
 #include "pw/roundtrip.h"
 #include "log.h"
 #include "xmalloc.h"
+#include "collections.h"
 
 struct roundtrip_async_data {
     roundtrip_async_callback_t callback;
     void *data;
     int seq;
 
-    struct spa_list link;
+    LIST_ENTRY link;
 };
 
 /* LIFO */
-static struct spa_list callbacks = SPA_LIST_INIT(&callbacks);
+static LIST_HEAD callbacks = LIST_INITIALISER(&callbacks);
 
 static void on_core_done(void *data, uint32_t id, int seq) {
-    struct roundtrip_async_data *d = spa_list_last(&callbacks, struct roundtrip_async_data, link);
+    struct roundtrip_async_data *d;
+    LIST_POP(d, LIST_LAST(&callbacks), link);
     if (d->seq != seq) {
-        ERROR("LIFO error: expected seq %d got %d", d->seq, seq);
+        ERROR("roundtrip LIFO error: expected seq %d got %d", d->seq, seq);
     } else {
         TRACE("roundtrip finished with seq %d", seq);
 
         if (d->callback != NULL) {
             d->callback(d->data);
         }
-        spa_list_remove(&d->link);
+        LIST_REMOVE(&d->link);
         free(d);
     }
 }
@@ -47,6 +49,6 @@ void roundtrip_async(struct pw_core *core, roundtrip_async_callback_t callback, 
     d->seq = pw_core_sync(core, PW_ID_CORE, 0);
     TRACE("roundtrip started with seq %d", d->seq);
 
-    spa_list_insert(&callbacks, &d->link);
+    LIST_INSERT(&callbacks, &d->link);
 }
 

@@ -11,7 +11,7 @@ struct route {
 
     struct props props;
 
-    struct spa_list link;
+    LIST_ENTRY link;
 };
 
 struct device {
@@ -20,8 +20,10 @@ struct device {
 
     uint32_t id;
 
-    struct spa_list active_routes;
-    struct spa_list all_routes;
+    LIST_HEAD active_routes;
+    LIST_HEAD all_routes;
+
+    HASHMAP_ENTRY hash;
 };
 
 void device_free(struct device *device);

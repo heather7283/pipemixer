@@ -1,5 +1,3 @@
-#include <stb/stb_ds.h>
-
 #include "pw/common.h"
 #include "pw/node.h"
 #include "pw/device.h"
@@ -69,15 +67,15 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         struct device *new_device = xcalloc(1, sizeof(*new_device));
-        spa_list_init(&new_device->active_routes);
-        spa_list_init(&new_device->all_routes);
+        LIST_INIT(&new_device->active_routes);
+        LIST_INIT(&new_device->all_routes);
 
         new_device->id = id;
         new_device->pw_device = pw_registry_bind(pw.registry, id, type, PW_VERSION_DEVICE, 0);
         pw_device_add_listener(new_device->pw_device, &new_device->listener,
                                &device_events, new_device);
 
-        stbds_hmput(pw.devices, new_device->id, new_device);
+        HASHMAP_INSERT(&pw.devices, new_device->id, &new_device->hash);
     }
 }
 
@@ -85,12 +83,11 @@ static void on_registry_global_remove(void *data, uint32_t id) {
     DEBUG("registry global remove: id %d", id);
 
     struct node *node;
-    if ((node = stbds_hmget(pw.nodes, id)) != NULL) {
+    if (HASHMAP_GET(node, &pw.nodes, id, hash)) {
         on_node_remove(node);
     }
     struct device *device;
-    if ((device = stbds_hmget(pw.devices, id)) != NULL) {
-        stbds_hmdel(pw.devices, id);
+    if (HASHMAP_GET(device, &pw.devices, id, hash)) {
         device_free(device);
     }
 }
@@ -137,15 +134,17 @@ int pipewire_init(void) {
 }
 
 void pipewire_cleanup(void) {
-    for (int i = stbds_hmlen(pw.nodes) - 1; i >= 0; i--) {
-        node_free(pw.nodes[i].value);
+    struct node *node;
+    HASHMAP_FOR_EACH(node, &pw.nodes, hash) {
+        HASHMAP_DELETE(&pw.nodes, node->id);
+        node_free(node);
     }
-    stbds_hmfree(pw.nodes);
 
-    for (int i = stbds_hmlen(pw.devices) - 1; i >= 0; i--) {
-        device_free(pw.devices[i].value);
+    struct device *device;
+    HASHMAP_FOR_EACH(device, &pw.devices, hash) {
+        HASHMAP_DELETE(&pw.devices, device->id);
+        device_free(device);
     }
-    stbds_hmfree(pw.devices);
 
     if (pw.registry != NULL) {
         pw_proxy_destroy((struct pw_proxy *)pw.registry);

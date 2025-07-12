@@ -2,8 +2,6 @@
 #include <math.h>
 #include <wchar.h>
 
-#include <stb/stb_ds.h>
-
 #include "tui.h"
 #include "macros.h"
 #include "log.h"
@@ -229,7 +227,7 @@ static int tui_repaint(bool draw_unconditionally) {
     /* TODO: maybe add a function to redraw a single node instead of doing this? */
     int bottom = 0;
     struct tui_tab_item *tab_item;
-    spa_list_for_each(tab_item, &TUI_ACTIVE_TAB.items, link) {
+    LIST_FOR_EACH(tab_item, &TUI_ACTIVE_TAB.items, link) {
         if (draw_unconditionally || tab_item->change != TUI_TAB_ITEM_CHANGE_NOTHING) {
             tui_draw_node(tab_item, draw_unconditionally);
         }
@@ -308,7 +306,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             change = true;
         } else {
             struct tui_tab_item *item, *item_next = NULL;
-            spa_list_for_each_reverse(item, &TUI_ACTIVE_TAB.items, link) {
+            LIST_FOR_EACH_REVERSE(item, &TUI_ACTIVE_TAB.items, link) {
                 if (item_next != NULL && item->focused) {
                     change = tui_tab_item_set_focused(tui.tab, item_next);
                     break;
@@ -325,7 +323,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             change = true;
         } else {
             struct tui_tab_item *item, *item_prev = NULL;
-            spa_list_for_each(item, &TUI_ACTIVE_TAB.items, link) {
+            LIST_FOR_EACH(item, &TUI_ACTIVE_TAB.items, link) {
                 if (item_prev != NULL && item->focused) {
                     change = tui_tab_item_set_focused(tui.tab, item_prev);
                     break;
@@ -343,26 +341,28 @@ void tui_bind_change_focus(union tui_bind_data data) {
 }
 
 void tui_bind_focus_last(union tui_bind_data data) {
-    if (spa_list_is_empty(&TUI_ACTIVE_TAB.items)) {
+    if (LIST_IS_EMPTY(&TUI_ACTIVE_TAB.items)) {
         return;
     }
 
     TUI_ACTIVE_TAB.user_changed_focus = true;
 
-    struct tui_tab_item *first = spa_list_last(&TUI_ACTIVE_TAB.items, struct tui_tab_item, link);
+    struct tui_tab_item *first;
+    LIST_GET_LAST(first, &TUI_ACTIVE_TAB.items, link);
     if (tui_tab_item_set_focused(tui.tab, first)) {
         tui_repaint(false);
     }
 }
 
 void tui_bind_focus_first(union tui_bind_data data) {
-    if (spa_list_is_empty(&TUI_ACTIVE_TAB.items)) {
+    if (LIST_IS_EMPTY(&TUI_ACTIVE_TAB.items)) {
         return;
     }
 
     TUI_ACTIVE_TAB.user_changed_focus = true;
 
-    struct tui_tab_item *last = spa_list_first(&TUI_ACTIVE_TAB.items, struct tui_tab_item, link);
+    struct tui_tab_item *last;
+    LIST_GET_FIRST(last, &TUI_ACTIVE_TAB.items, link);
     if (tui_tab_item_set_focused(tui.tab, last)) {
         tui_repaint(false);
     }
@@ -613,13 +613,13 @@ int tui_handle_resize(struct pollen_callback *callback, int signal, void *data) 
 int tui_handle_keyboard(struct pollen_callback *callback, int fd, uint32_t events, void *data) {
     wint_t ch;
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
-        struct pipemixer_config_bind *bind = stbds_hmgetp_null(config.binds, ch);
-        if (bind == NULL) {
+        struct tui_bind *bind;
+        if (!HASHMAP_GET(bind, &config.binds, ch, hash)) {
             DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
-        } else if (bind->value.func == TUI_BIND_QUIT) {
+        } else if (bind->func == TUI_BIND_QUIT) {
             pollen_loop_quit(pollen_callback_get_loop(callback), 0);
         } else {
-            bind->value.func(bind->value.data);
+            bind->func(bind->data);
         }
     }
 
@@ -642,14 +642,15 @@ static void tui_tab_item_resize(enum tui_tab tab, struct tui_tab_item *item, int
     item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
 
     struct tui_tab_item *next;
-    spa_list_for_each_next(next, &tui.tabs[tab].items, &item->link, link) {
+    LIST_FOR_EACH_AFTER(next, &tui.tabs[tab].items, &item->link, link) {
         TRACE("tui_tab_item_resize: shifting item %p from %d to %d",
               (void *)next, next->pos, next->pos + diff);
         next->pos += diff;
         next->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
     }
 
-    struct tui_tab_item *last = spa_list_last(&tui.tabs[tab].items, TYPEOF(*last), link);
+    struct tui_tab_item *last;
+    LIST_GET_LAST(last, &tui.tabs[tab].items, link);
     tui_set_pad_size(AT_LEAST, last->pos + last->height, AT_LEAST, tui.term_width, true);
 }
 
@@ -666,7 +667,7 @@ void tui_notify_node_new(const struct node *node) {
     if (tui.tabs[tab].focused == NULL || !tui.tabs[tab].user_changed_focus) {
         tui_tab_item_set_focused(tab, new_item);
     }
-    spa_list_insert(&tui.tabs[tab].items, &new_item->link);
+    LIST_INSERT(&tui.tabs[tab].items, &new_item->link);
     tui_tab_item_resize(tab, new_item, node->props.channel_count + 3);
 
     if (tab == tui.tab) {
@@ -682,7 +683,7 @@ void tui_notify_node_change(const struct node *node) {
     /* find tui_tab_item associated with this node (FIXME: slow? do I even care?) */
     bool found = false;
     struct tui_tab_item *item;
-    spa_list_for_each(item, &tui.tabs[tab].items, link) {
+    LIST_FOR_EACH(item, &tui.tabs[tab].items, link) {
         if (item->node == node) {
             found = true;
             break;
@@ -719,7 +720,7 @@ void tui_notify_node_remove(const struct node *node) {
     /* find tui_tab_item associated with this node (FIXME: slow? do I even care?) */
     bool found = false;
     struct tui_tab_item *item;
-    spa_list_for_each(item, &tui.tabs[tab].items, link) {
+    LIST_FOR_EACH(item, &tui.tabs[tab].items, link) {
         if (item->node == node) {
             found = true;
             break;
@@ -731,10 +732,11 @@ void tui_notify_node_remove(const struct node *node) {
     }
 
     tui_tab_item_resize(tab, item, 0);
-    spa_list_remove(&item->link);
+    LIST_REMOVE(&item->link);
 
-    if (!spa_list_is_empty(&tui.tabs[tab].items) && item->focused) {
-        struct tui_tab_item *first = spa_list_first(&tui.tabs[tab].items, TYPEOF(*first), link);
+    if (!LIST_IS_EMPTY(&tui.tabs[tab].items) && item->focused) {
+        struct tui_tab_item *first;
+        LIST_GET_FIRST(first, &tui.tabs[tab].items, link);
         first->focused = true;
         tui.tabs[tab].focused = first;
     }
@@ -761,7 +763,7 @@ int tui_init(void) {
     init_pair(GRAY, 8, -1);
 
     FOR_EACH_TAB(tab) {
-        spa_list_init(&tui.tabs[tab].items);
+        LIST_INIT(&tui.tabs[tab].items);
     }
 
     /* manually trigger resize handler to pick up initial terminal size */
@@ -781,10 +783,10 @@ int tui_cleanup(void) {
         delwin(tui.pad_win);
     }
     FOR_EACH_TAB(tab) {
-        if (spa_list_is_initialized(&tui.tabs[tab].items)) {
-            struct tui_tab_item *tab_item, *tab_item_tmp;
-            spa_list_for_each_safe(tab_item, tab_item_tmp, &tui.tabs[tab].items, link) {
-                spa_list_remove(&tab_item->link);
+        if (tui.tabs[tab].items.next != NULL) {
+            struct tui_tab_item *tab_item;
+            LIST_FOR_EACH(tab_item, &tui.tabs[tab].items, link) {
+                LIST_REMOVE(&tab_item->link);
                 free(tab_item);
             }
         }

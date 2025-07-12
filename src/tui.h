@@ -2,7 +2,6 @@
 #define TUI_H
 
 #include <ncurses.h>
-#include <spa/utils/list.h>
 
 #include "pw/node.h"
 #include "lib/pollen/pollen.h"
@@ -25,7 +24,7 @@ struct tui {
 
     enum tui_tab tab;
     struct {
-        struct spa_list items;
+        LIST_HEAD items;
         struct tui_tab_item *focused;
         int scroll_pos;
         bool user_changed_focus;
@@ -53,7 +52,7 @@ struct tui_tab_item {
     bool unlocked_channels;
     uint32_t focused_channel;
 
-    struct spa_list link;
+    LIST_ENTRY link;
 };
 
 extern struct tui tui;
@@ -101,6 +100,8 @@ union tui_bind_data {
 struct tui_bind {
     union tui_bind_data data;
     tui_bind_func_t func;
+
+    HASHMAP_ENTRY hash;
 };
 
 #endif /* #ifndef TUI_H */

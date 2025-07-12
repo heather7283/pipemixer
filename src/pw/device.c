@@ -11,7 +11,7 @@ void device_set_props(const struct device *dev,
                       const struct spa_pod *props, int32_t card_profile_device) {
     bool found = false;
     struct route *route;
-    spa_list_for_each(route, &dev->active_routes, link) {
+    LIST_FOR_EACH(route, &dev->active_routes, link) {
         if (route->device == card_profile_device) {
             found = true;
             break;
@@ -36,10 +36,10 @@ void device_set_props(const struct device *dev,
     pw_device_set_param(dev->pw_device, SPA_PARAM_Route, 0, param);
 }
 
-static void device_routes_free(struct device *device, const struct spa_list *list) {
-    struct route *route, *route_tmp;
-    spa_list_for_each_safe(route, route_tmp, list, link) {
-        spa_list_remove(&route->link);
+static void device_routes_free(struct device *device, const LIST_HEAD *list) {
+    struct route *route;
+    LIST_FOR_EACH(route, list, link) {
+        LIST_REMOVE(&route->link);
         string_free(&route->description);
         free(route);
     }
@@ -147,7 +147,7 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
           dev->id, new_route->description.data, new_route->device,
           new_route->index, new_route->direction);
 
-    spa_list_insert(&dev->active_routes, &new_route->link);
+    LIST_INSERT(&dev->active_routes, &new_route->link);
 }
 
 static void on_device_param_enum_route(struct device *dev, const struct spa_pod *param) {
@@ -174,7 +174,7 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
     DEBUG("New route (EnumRoute) on dev %d: %s index %d dir %d",
           dev->id, new_route->description.data, new_route->index, new_route->direction);
 
-    spa_list_insert(&dev->all_routes, &new_route->link);
+    LIST_INSERT(&dev->all_routes, &new_route->link);
 }
 
 void on_device_param(void *data, int seq, uint32_t id, uint32_t index,

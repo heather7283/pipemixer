@@ -4,6 +4,8 @@
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/raw-types.h>
 
+#include "collections.h"
+
 /* for use is (node|device)_set_(volume|mute) functions, see node.h, device.h */
 #define ALL_CHANNELS ((uint32_t)-1)
 
@@ -37,15 +39,8 @@ struct pw {
     struct pw_registry *registry;
     struct spa_hook registry_listener;
 
-    /* stb_ds hashmaps */
-    struct {
-        uint32_t key; /* id */
-        struct node *value;
-    } *nodes;
-    struct {
-        uint32_t key; /* id */
-        struct device *value;
-    } *devices;
+    HASHMAP_HEAD(32) nodes;
+    HASHMAP_HEAD(32) devices;
 };
 
 extern struct pw pw;
