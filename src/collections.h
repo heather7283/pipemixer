@@ -29,10 +29,14 @@ struct list {
 #define LIST_INITIALISER(head) { .next = head, .prev = head }
 #define LIST_INIT(head) ((head)->next = (head)->prev = (head))
 
-#define LIST_IS_EMPTY(head) (head->next == head && head->prev == head)
+#define LIST_IS_EMPTY(head) ((head)->next == (head) && (head)->prev == (head))
 
 #define LIST_FIRST(head) ((head)->next)
 #define LIST_LAST(head) ((head)->prev)
+
+#define LIST_GET(var, elem, member) ((var) = CONTAINER_OF(elem, var, member))
+#define LIST_GET_FIRST(var, head, member) ((var) = CONTAINER_OF(LIST_FIRST(head), var, member))
+#define LIST_GET_LAST(var, head, member) ((var) = CONTAINER_OF(LIST_LAST(head), var, member))
 
 /* Inserts new after elem. */
 #define LIST_INSERT(elem, new) \
@@ -56,22 +60,37 @@ struct list {
         (elem)->next->prev = (elem)->prev; \
     } while (0)
 
+#define LIST_FOR_EACH_AFTER_INTERNAL(var, head, elem, member, direction) \
+    for ( \
+        struct { struct list *cur, *direction; } iter = { \
+            .cur = (elem)->direction, .direction = (elem)->direction->direction \
+        }; \
+        \
+        ({ \
+            bool keep_going = true; \
+            if (iter.cur == (head)) { \
+                keep_going = false; \
+            } else { \
+                (var) = CONTAINER_OF(iter.cur, var, member); \
+            } \
+            keep_going; \
+        }); \
+        \
+        iter.cur = iter.direction, \
+        iter.direction = iter.direction->direction \
+    )
+
+#define LIST_FOR_EACH_AFTER(var, head, elem, member) \
+    LIST_FOR_EACH_AFTER_INTERNAL(var, head, elem, member, next)
+
 #define LIST_FOR_EACH(var, head, member) \
-    for (var = CONTAINER_OF((head)->next, var, member); \
-         &var->member != (head); \
-         var = CONTAINER_OF(var->member.next, var, member))
+    LIST_FOR_EACH_AFTER(var, head, head, member)
+
+#define LIST_FOR_EACH_REVERSE_BEFORE(var, head, elem, member) \
+    LIST_FOR_EACH_AFTER_INTERNAL(var, head, elem, member, prev)
 
 #define LIST_FOR_EACH_REVERSE(var, head, member) \
-    for (var = CONTAINER_OF((head)->prev, var, member); \
-         &var->member != (head); \
-         var = CONTAINER_OF(var->member.prev, var, member))
-
-#define LIST_FOR_EACH_SAFE(var, tmp, head, member) \
-    for (var = CONTAINER_OF((head)->next, var, member), \
-         tmp = CONTAINER_OF((var)->member.next, tmp, member); \
-         &var->member != (head); \
-         var = tmp, \
-         tmp = CONTAINER_OF(var->member.next, tmp, member))
+    LIST_FOR_EACH_REVERSE_BEFORE(var, head, head, member)
 
 /*
  * Hashmap.

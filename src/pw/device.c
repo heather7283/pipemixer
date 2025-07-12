@@ -37,8 +37,8 @@ void device_set_props(const struct device *dev,
 }
 
 static void device_routes_free(struct device *device, const LIST_HEAD *list) {
-    struct route *route, *route_tmp;
-    LIST_FOR_EACH_SAFE(route, route_tmp, list, link) {
+    struct route *route;
+    LIST_FOR_EACH(route, list, link) {
         LIST_REMOVE(&route->link);
         string_free(&route->description);
         free(route);
