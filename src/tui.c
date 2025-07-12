@@ -2,8 +2,6 @@
 #include <math.h>
 #include <wchar.h>
 
-#include <stb/stb_ds.h>
-
 #include "tui.h"
 #include "macros.h"
 #include "log.h"

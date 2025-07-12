@@ -1,5 +1,3 @@
-#include <stb/stb_ds.h>
-
 #include "pw/common.h"
 #include "pw/node.h"
 #include "pw/device.h"

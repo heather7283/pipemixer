@@ -40,7 +40,6 @@ pipemixer_sources = [
   'src/pw/device.c',
   'src/pw/node.c',
   'src/pw/roundtrip.c',
-  'src/stb_ds_impl.c',
   'src/pollen_impl.c',
 ]
 
@@ -51,10 +50,6 @@ include_dirs = [
 if not inih_dep.found()
   pipemixer_sources += ['lib/inih/ini.c']
   include_dirs += ['lib/inih']
-endif
-
-if not cc.has_header('stb/stb_ds.h', required: get_option('system_libraries'))
-  include_dirs += ['lib']
 endif
 
 executable('pipemixer', pipemixer_sources,

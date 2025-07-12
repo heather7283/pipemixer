@@ -6,7 +6,6 @@
 #include <limits.h>
 
 #include <ini.h>
-#include <stb/stb_ds.h>
 
 #include "xmalloc.h"
 #include "tui.h"
