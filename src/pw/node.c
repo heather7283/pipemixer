@@ -17,7 +17,7 @@ static void node_set_props(const struct node *node, const struct spa_pod *props)
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else {
         struct device *device;
-        if (HASHMAP_GET(device, &pw.devices, node->device_id, hash)) {
+        if (!HASHMAP_GET(device, &pw.devices, node->device_id, hash)) {
             WARN("tried to set props of node %d with associated device, "
                  "but no device with id %d was found", node->id, node->device_id);
             return;
