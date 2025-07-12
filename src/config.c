@@ -253,33 +253,31 @@ static void parse_config(const char *config) {
 }
 
 static void add_default_binds(void) {
-    ADD_BIND('j', tui_bind_change_focus, direction, DOWN);
-    ADD_BIND(KEY_DOWN, tui_bind_change_focus, direction, DOWN);
-    ADD_BIND('k', tui_bind_change_focus, direction, UP);
-    ADD_BIND(KEY_UP, tui_bind_change_focus, direction, UP);
+    static const char default_binds[] =
+        "[binds]\n"
+        "focus-down=j\n"
+        "focus-down=down\n"
+        "focus-up=k\n"
+        "focus-up=up\n"
+        "focus-first=g\n"
+        "focus-last=G\n"
+        "volume-up=l\n"
+        "volume-up=right\n"
+        "volume-down=h\n"
+        "volume-down=left\n"
+        "tab-next=t\n"
+        "tab-next=tab\n"
+        "tab-prev=T\n"
+        "tab-prev=backtab\n"
+        "tab-playback=1\n"
+        "tab-recording=2\n"
+        "tab-input-devices=3\n"
+        "tab-output-devices=4\n"
+        "mute-toggle=m\n"
+        "channel-lock-toggle=space\n"
+        "quit=q\n";
 
-    ADD_BIND('g', tui_bind_focus_first, nothing, NOTHING);
-    ADD_BIND('G', tui_bind_focus_last, nothing, NOTHING);
-
-    ADD_BIND('l', tui_bind_change_volume, direction, UP);
-    ADD_BIND(KEY_RIGHT, tui_bind_change_volume, direction, UP);
-    ADD_BIND('h', tui_bind_change_volume, direction, DOWN);
-    ADD_BIND(KEY_LEFT, tui_bind_change_volume, direction, DOWN);
-
-    ADD_BIND('t', tui_bind_change_tab, direction, UP);
-    ADD_BIND('\t', tui_bind_change_tab, direction, UP);
-    ADD_BIND('T', tui_bind_change_tab, direction, DOWN);
-    ADD_BIND(KEY_BTAB, tui_bind_change_tab, direction, DOWN);
-
-    ADD_BIND('1', tui_bind_change_tab, tab, PLAYBACK);
-    ADD_BIND('2', tui_bind_change_tab, tab, RECORDING);
-    ADD_BIND('3', tui_bind_change_tab, tab, INPUT_DEVICES);
-    ADD_BIND('4', tui_bind_change_tab, tab, OUTPUT_DEVICES);
-
-    ADD_BIND('m', tui_bind_change_mute, change_mode, TOGGLE);
-    ADD_BIND(' ', tui_bind_change_channel_lock, change_mode, TOGGLE);
-
-    ADD_BIND('q', TUI_BIND_QUIT, nothing, NOTHING);
+    parse_config(default_binds);
 }
 
 void load_config(const char *config_path) {
