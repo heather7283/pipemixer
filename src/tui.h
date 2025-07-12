@@ -2,7 +2,6 @@
 #define TUI_H
 
 #include <ncurses.h>
-#include <spa/utils/list.h>
 
 #include "pw/node.h"
 #include "lib/pollen/pollen.h"
