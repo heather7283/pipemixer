@@ -16,11 +16,16 @@
     ((byte) & (1 << 1) ? '1' : '0'), \
     ((byte) & (1 << 0) ? '1' : '0')
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof(arr[0]))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 
 #define TYPEOF(x) __typeof__(x)
+
+#define CONTAINER_OF(member_ptr, container_ptr, member_name) \
+    ((TYPEOF(container_ptr))((char *)(member_ptr) - offsetof(TYPEOF(*container_ptr), member_name)))
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 
 #endif /* #ifndef MACROS_H */
 

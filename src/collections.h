@@ -6,13 +6,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "macros.h"
+
 /* Below is the most cursed code I've ever written, but it was super fun lol */
-
-#define CONTAINER_OF(member_ptr, container_ptr, member_name) \
-    ((__typeof__(container_ptr))((char *)(member_ptr) - \
-     offsetof(__typeof__(*container_ptr), member_name)))
-
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 /*
  * Linked list.
@@ -30,10 +26,13 @@ struct list {
 #define LIST_HEAD struct list
 #define LIST_ENTRY struct list
 
-#define LIST_INITALISER(head) { .next = head, .prev = head }
-#define LIST_INIT(head) head->next = head->prev = head
+#define LIST_INITIALISER(head) { .next = head, .prev = head }
+#define LIST_INIT(head) ((head)->next = (head)->prev = (head))
 
-#define LIST_IS_EMPTY(head) (head->next == head)
+#define LIST_IS_EMPTY(head) (head->next == head && head->prev == head)
+
+#define LIST_FIRST(head) ((head)->next)
+#define LIST_LAST(head) ((head)->prev)
 
 /* Inserts new after elem. */
 #define LIST_INSERT(elem, new) \
@@ -46,6 +45,13 @@ struct list {
 
 #define LIST_REMOVE(elem) \
     do { \
+        (elem)->prev->next = (elem)->next; \
+        (elem)->next->prev = (elem)->prev; \
+    } while (0)
+
+#define LIST_POP(var, elem, member) \
+    do { \
+        (var) = CONTAINER_OF(elem, var, member); \
         (elem)->prev->next = (elem)->next; \
         (elem)->next->prev = (elem)->prev; \
     } while (0)
