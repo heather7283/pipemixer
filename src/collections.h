@@ -168,6 +168,14 @@ static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_H
     })
 
 /* Returns true if entry was found, false if not */
+#define HASHMAP_EXISTS(map, key) \
+    ({ \
+        struct hashmap_entry **b = HASHMAP_GET_BUCKET_FROM_KEY(map, key); \
+        struct hashmap_entry *e = HASHMAP_LOOKUP_ENTRY_IN_BUCKET(b, key); \
+        e != NULL; \
+    })
+
+/* Returns true if entry was found, false if not */
 #define HASHMAP_DELETE(map, key) \
     ({ \
         struct hashmap_entry **b = HASHMAP_GET_BUCKET_FROM_KEY(map, key); \

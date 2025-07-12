@@ -2,7 +2,6 @@
 
 #include <spa/pod/builder.h>
 #include <spa/param/props.h>
-#include <stb/stb_ds.h>
 
 #include "pw/node.h"
 #include "pw/device.h"
@@ -16,8 +15,8 @@ static void node_set_props(const struct node *node, const struct spa_pod *props)
     if (!node->has_device) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else {
-        struct device *device = stbds_hmget(pw.devices, node->device_id);
-        if (device == NULL) {
+        struct device *device;
+        if (HASHMAP_GET(device, &pw.devices, node->device_id, hash)) {
             WARN("tried to set props of node %d with associated device, "
                  "but no device with id %d was found", node->id, node->device_id);
             return;
@@ -86,8 +85,8 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
 static void on_node_roundtrip_done(void *data) {
     struct node *node = data;
 
-    if (stbds_hmgeti(pw.nodes, node->id) < 0) /* new node */ {
-        stbds_hmput(pw.nodes, node->id, node);
+    if (!HASHMAP_EXISTS(&pw.nodes, node->id)) /* new node */ {
+        HASHMAP_INSERT(&pw.nodes, node->id, &node->hash);
 
         tui_notify_node_new(node);
     } else {
@@ -204,7 +203,7 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 void on_node_remove(struct node *node) {
     tui_notify_node_remove(node);
 
-    stbds_hmdel(pw.nodes, node->id);
+    HASHMAP_DELETE(&pw.nodes, node->id);
     node_free(node);
 }
 

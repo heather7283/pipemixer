@@ -22,6 +22,8 @@ struct device {
 
     struct spa_list active_routes;
     struct spa_list all_routes;
+
+    HASHMAP_ENTRY hash;
 };
 
 void device_free(struct device *device);
