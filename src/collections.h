@@ -121,7 +121,7 @@ static_assert((sizeof(struct hashmap) + sizeof(struct hashmap_entry *)) == sizeo
 static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_HEAD(1)), buckets),
               "Definition mismatch between struct hashmap and HASHMAP macro");
 
-#define HASHMAP_INITIALISER(hashmap) {0}
+#define HASHMAP_INITIALISER { .n_items = 0, .buckets = {0} }
 #define HASHMAP_INIT(hashmap) \
     do { \
         for (size_t i = 0; i < ARRAY_SIZE((hashmap)->buckets); i++) { \
@@ -152,9 +152,11 @@ static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_H
         found ? e : NULL; \
     })
 
+/* Returns true if inserted, false if entry with the same key already exists */
 #define HASHMAP_INSERT(map, key, entry) \
-    do { \
+    ({ \
         struct hashmap_entry **b = HASHMAP_GET_BUCKET_FROM_KEY(map, key); \
+        bool key_already_exists = false; \
         if (*b == NULL) { \
             /* bucket is empty - just insert the entry */ \
             *b = (entry); \
@@ -165,7 +167,8 @@ static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_H
             /* bucket is not empty - check if entry with the same key already exists */ \
             struct hashmap_entry *e = HASHMAP_LOOKUP_ENTRY_IN_BUCKET(b, key); \
             if (e != NULL) { \
-                /* TODO: handle already existing entries */ \
+                /* don't insert */ \
+                key_already_exists = true; \
             } else { \
                 /* no entry with the same key was found, so insert a new one at the beginning */ \
                 e = *b; /* e IS THE FIRST ENTRY IN A BUCKET */ \
@@ -177,7 +180,64 @@ static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_H
             } \
         } \
         (entry)->_key = key; \
-    } while (0)
+        key_already_exists == false; \
+    })
+
+/* Returns true if replacement happened, false otherwise. Replaced item will be put in old */
+#define HASHMAP_INSERT_OR_REPLACE(map, key, entry, old, member) \
+    ({ \
+        struct hashmap_entry **b = HASHMAP_GET_BUCKET_FROM_KEY(map, key); \
+        bool replaced = false; \
+        if (*b == NULL) { \
+            /* bucket is empty - just insert the entry */ \
+            *b = (entry); \
+            (entry)->prev = NULL; \
+            (entry)->next = NULL; \
+            (map)->n_items += 1; \
+        } else { \
+            /* bucket is not empty - check if entry with the same key already exists */ \
+            struct hashmap_entry *e = HASHMAP_LOOKUP_ENTRY_IN_BUCKET(b, key); \
+            if (e != NULL) { \
+                /* entry with the same key was found. Replace it */ \
+                old = CONTAINER_OF(e, old, member); \
+                if (e->prev == NULL && e->next == NULL) { \
+                    /* e is the only entry in a bucket */ \
+                    *b = (entry); \
+                    (entry)->prev = NULL; \
+                    (entry)->next = NULL; \
+                } else if (e->prev == NULL) { \
+                    /* e is the first entry in a bucket */ \
+                    *b = (entry); \
+                    e->next->prev = (entry); \
+                    (entry)->next = e->next; \
+                    e->next = NULL; \
+                } else if (e->next == NULL) { \
+                    /* e is the last entry in a bucket */ \
+                    e->prev->next = (entry); \
+                    (entry)->prev = e->prev; \
+                    e->prev = NULL; \
+                } else { \
+                    /* e is somewhere in the middle */ \
+                    e->prev->next = (entry); \
+                    e->next->prev = (entry); \
+                    (entry)->prev = e->prev; \
+                    (entry)->next = e->next; \
+                    e->prev = e->next = NULL; \
+                } \
+                replaced = true; \
+            } else { \
+                /* no entry with the same key was found, so insert a new one at the beginning */ \
+                e = *b; /* e IS THE FIRST ENTRY IN A BUCKET */ \
+                e->prev = (entry); \
+                (entry)->next = e; \
+                (entry)->prev = NULL; \
+                *b = (entry); /* replace first entry with new entry */ \
+                (map)->n_items += 1; \
+            } \
+        } \
+        (entry)->_key = key; \
+        replaced; \
+    })
 
 /* Returns true if entry was found, false if not */
 #define HASHMAP_GET(var, map, key, member) \
@@ -207,16 +267,22 @@ static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_H
         struct hashmap_entry *e = HASHMAP_LOOKUP_ENTRY_IN_BUCKET(b, key); \
         if (e != NULL) { \
             if (e->prev == NULL && e->next == NULL) { \
+                /* e is the only entry in a bucket */ \
                 *b = NULL; \
-                e->prev = NULL; \
-                e->next = NULL; \
             } else if (e->prev == NULL) { \
+                /* e is the first entry in a bucket */ \
                 *b = e->next; \
                 e->next->prev = NULL; \
                 e->next = NULL; \
-            } else /* if (e->next == NULL) */ { \
+            } else if (e->next == NULL) { \
+                /* e is the last entry in a bucket */ \
                 e->prev->next = NULL; \
                 e->prev = NULL; \
+            } else { \
+                /* e is somewhere in the middle */ \
+                e->prev->next = e->next; \
+                e->next->prev = e->prev; \
+                e->prev = e->next = NULL; \
             } \
             (map)->n_items -= 1; \
         } \

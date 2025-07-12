@@ -15,10 +15,13 @@
 
 #define ADD_BIND(keycode, function, data_type, data_value) \
     do { \
-        struct tui_bind *bind = xmalloc(sizeof(*bind)); \
+        struct tui_bind *bind = xcalloc(1, sizeof(*bind)); \
         bind->func = function; \
         bind->data.data_type = data_value; \
-        HASHMAP_INSERT(&config.binds, keycode, &bind->hash); \
+        struct tui_bind *old_bind; \
+        if (HASHMAP_INSERT_OR_REPLACE(&config.binds, keycode, &bind->hash, old_bind, hash)) { \
+            free(old_bind); \
+        } \
     } while (0)
 
 struct pipemixer_config config = {
@@ -50,7 +53,7 @@ struct pipemixer_config config = {
         .br = L"┘",
     },
 
-    .binds = HASHMAP_INITIALISER(),
+    .binds = HASHMAP_INITIALISER,
 };
 
 static const char *get_default_config_path(void) {
