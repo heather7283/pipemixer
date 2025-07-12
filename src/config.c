@@ -8,16 +8,18 @@
 #include <ini.h>
 #include <stb/stb_ds.h>
 
+#include "xmalloc.h"
+#include "tui.h"
 #include "config.h"
 #include "utils.h"
 #include "macros.h"
 
-#define ADD_BIND(key, function, data_type, data_value) \
+#define ADD_BIND(keycode, function, data_type, data_value) \
     do { \
-        struct tui_bind bind; \
-        bind.func = function; \
-        bind.data.data_type = data_value; \
-        stbds_hmput(config.binds, key, bind); \
+        struct tui_bind *bind = xmalloc(sizeof(*bind)); \
+        bind->func = function; \
+        bind->data.data_type = data_value; \
+        HASHMAP_INSERT(&config.binds, keycode, &bind->hash); \
     } while (0)
 
 struct pipemixer_config config = {
@@ -49,7 +51,7 @@ struct pipemixer_config config = {
         .br = L"┘",
     },
 
-    .binds = NULL,
+    .binds = HASHMAP_INITIALISER(),
 };
 
 static const char *get_default_config_path(void) {
@@ -232,7 +234,7 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             } else if (STREQ(k, "quit")) {
                 ADD_BIND(keycode, TUI_BIND_QUIT, nothing, NOTHING);
             } else if (STREQ(k, "unbind")) {
-                stbds_hmdel(config.binds, keycode);
+                HASHMAP_DELETE(&config.binds, keycode);
             } else {
                 CONFIG_LOG("unknown action: %s", k);
             }
@@ -316,6 +318,9 @@ out:
 }
 
 void config_cleanup(void) {
-    stbds_hmfree(config.binds);
+    struct tui_bind *bind;
+    HASHMAP_FOR_EACH(bind, &config.binds, hash) {
+        free(bind);
+    }
 }
 

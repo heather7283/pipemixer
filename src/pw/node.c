@@ -6,6 +6,7 @@
 #include "pw/node.h"
 #include "pw/device.h"
 #include "pw/roundtrip.h"
+#include "tui.h"
 #include "log.h"
 #include "macros.h"
 #include "config.h"

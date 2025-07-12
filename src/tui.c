@@ -615,13 +615,13 @@ int tui_handle_resize(struct pollen_callback *callback, int signal, void *data) 
 int tui_handle_keyboard(struct pollen_callback *callback, int fd, uint32_t events, void *data) {
     wint_t ch;
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
-        struct pipemixer_config_bind *bind = stbds_hmgetp_null(config.binds, ch);
-        if (bind == NULL) {
+        struct tui_bind *bind;
+        if (!HASHMAP_GET(bind, &config.binds, ch, hash)) {
             DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
-        } else if (bind->value.func == TUI_BIND_QUIT) {
+        } else if (bind->func == TUI_BIND_QUIT) {
             pollen_loop_quit(pollen_callback_get_loop(callback), 0);
         } else {
-            bind->value.func(bind->value.data);
+            bind->func(bind->data);
         }
     }
 
