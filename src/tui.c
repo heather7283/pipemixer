@@ -90,14 +90,11 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
     if (focused) {
         wattron(win, A_BOLD);
     }
-    if (muted) {
-        wattron(win, COLOR_PAIR(GRAY));
-    }
 
     wchar_t line[usable_width];
 
     /* first line displays node name and media name and spans across the entire screen */
-    DRAW_IF(focus_changed || info_changed || mute_changed) {
+    DRAW_IF(focus_changed || info_changed) {
         swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls%-*s",
                  node->id,
                  node->node_name.data,
@@ -108,18 +105,12 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
         mvwaddnwstr(win, item->pos + 1, info_area_start, line, usable_width);
     }
 
-    DRAW_IF(mute_changed || focus_changed || port_changed) {
-        if (node->device != NULL) {
-            int chars_written;
-            swprintf(line, ARRAY_SIZE(line), L"Port: %s%n",
-                     node_get_current_port_name(node), &chars_written);
-            mvwaddnwstr(win, item->pos + item->height - 2, 1, line, usable_width);
-            whline(win, ' ', usable_width - chars_written);
-        }
-    }
-
     DRAW_IF(focus_changed || volume_changed || mute_changed) {
         /* draw info about each channel */
+        if (muted) {
+            wattron(win, COLOR_PAIR(GRAY));
+        }
+
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
             const int pos = item->pos + i + 2;
 
@@ -142,10 +133,17 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                 mvwadd_wch(win, pos, volume_bar_start + j, &cc);
             }
         }
+
+        wattroff(win, COLOR_PAIR(GRAY));
     }
 
     /* draw decorations (also focused markers) */
     DRAW_IF(focus_changed || unlocked_channels_changed || mute_changed) {
+        /* draw info about each channel */
+        if (muted) {
+            wattron(win, COLOR_PAIR(GRAY));
+        }
+
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
             const int pos = item->pos + i + 2;
 
@@ -181,9 +179,12 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             mvwadd_wch(win, pos, volume_bar_start - 2, &cchar_focus);
             mvwadd_wch(win, pos, volume_bar_start + volume_bar_width + 1, &cchar_focus);
         }
+
+        wattroff(win, COLOR_PAIR(GRAY));
     }
 
-    DRAW_IF(mute_changed) {
+    /* TODO: nuke tui_repaint and call this function for each node to avoid this nonsense */
+    DRAW_IF((item->change == TUI_TAB_ITEM_CHANGE_EVERYTHING)) {
         /* box */
         wmove(win, item->pos, 0);
         waddwstr(win, config.borders.tl);
@@ -211,7 +212,6 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
     }
 
     wattroff(win, A_BOLD);
-    wattroff(win, COLOR_PAIR(GRAY));
 
     #undef DRAW_IF
 }
