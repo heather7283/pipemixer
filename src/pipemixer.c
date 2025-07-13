@@ -11,6 +11,12 @@
 #include "pw/common.h"
 #include "lib/pollen/pollen.h"
 
+static void crash_handler(int sig) {
+    /* restore terminal state before crashing */
+    endwin();
+    raise(sig);
+}
+
 static int sigint_sigterm_handler(struct pollen_callback *callback, int signal, void *data) {
     INFO("caught signal %d, stopping main loop", signal);
 
@@ -138,6 +144,17 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
+    /* setup crash handler before initialising ncurses */
+    struct sigaction sa = {
+        .sa_handler = crash_handler,
+        .sa_flags = SA_NODEFER | SA_RESETHAND,
+    };
+    sigaction(SIGSEGV, &sa, NULL);
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGFPE, &sa, NULL);
+    sigaction(SIGILL, &sa, NULL);
+    sigaction(SIGBUS, &sa, NULL);
+
     tui_init();
 
     pollen_loop_add_fd(loop, 0 /* stdin */, EPOLLIN, false, tui_handle_keyboard, NULL);
@@ -160,3 +177,4 @@ cleanup:
     /* see https://invisible-island.net/ncurses/man/curs_memleaks.3x.html */
     exit_curses(retcode);
 }
+
