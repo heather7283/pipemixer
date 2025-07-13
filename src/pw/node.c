@@ -12,6 +12,19 @@
 #include "config.h"
 #include "utils.h"
 
+static enum spa_direction media_class_to_direction(enum media_class class) {
+    switch (class) {
+    case STREAM_OUTPUT_AUDIO:
+    case AUDIO_SINK:
+        return SPA_DIRECTION_OUTPUT;
+    case STREAM_INPUT_AUDIO:
+    case AUDIO_SOURCE:
+        return SPA_DIRECTION_INPUT;
+    default:
+        assert(0 && "Unexpected media_class value passed to media_class_to_direction");
+    }
+}
+
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
     if (!node->has_device) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
@@ -22,7 +35,8 @@ static void node_set_props(const struct node *node, const struct spa_pod *props)
             return;
         }
 
-        device_set_props(node->device, props, node->card_profile_device);
+        enum spa_direction direction = media_class_to_direction(node->media_class);
+        device_set_props(node->device, props, direction, node->card_profile_device);
     }
 }
 
@@ -88,8 +102,9 @@ const char *node_get_current_port_name(const struct node *node) {
     }
 
     /* Surely there's only one active route with matching direction, right? right? */
+    enum spa_direction direction = media_class_to_direction(node->media_class);
     const struct route *route;
-    LIST_FOR_EACH(route, &node->device->active_routes, link) {
+    LIST_FOR_EACH(route, &node->device->routes[direction].active, link) {
         if ((route->direction == SPA_DIRECTION_INPUT && node->media_class == AUDIO_SOURCE)
             || (route->direction == SPA_DIRECTION_OUTPUT && node->media_class == AUDIO_SINK)) {
             return route->description.data;
