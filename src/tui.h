@@ -39,6 +39,7 @@ enum tui_tab_item_change_mask {
     TUI_TAB_ITEM_CHANGE_MUTE = 1 << 3,
     TUI_TAB_ITEM_CHANGE_VOLUME = 1 << 4,
     TUI_TAB_ITEM_CHANGE_SIZE = 1 << 5,
+    TUI_TAB_ITEM_CHANGE_PORT = 1 << 6,
     TUI_TAB_ITEM_CHANGE_EVERYTHING = ~0,
 };
 
@@ -66,6 +67,8 @@ int tui_handle_keyboard(struct pollen_callback *item, int fd, uint32_t events, v
 void tui_notify_node_new(const struct node *node);
 void tui_notify_node_change(const struct node *node);
 void tui_notify_node_remove(const struct node *node);
+
+void tui_notify_device_change(const struct device *device);
 
 /* binds */
 union tui_bind_data;

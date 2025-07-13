@@ -16,14 +16,13 @@ static void node_set_props(const struct node *node, const struct spa_pod *props)
     if (!node->has_device) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else {
-        struct device *device;
-        if (!HASHMAP_GET(device, &pw.devices, node->device_id, hash)) {
+        if (!node->device) {
             WARN("tried to set props of node %d with associated device, "
-                 "but no device with id %d was found", node->id, node->device_id);
+                 "but no device was found", node->id);
             return;
         }
 
-        device_set_props(device, props, node->card_profile_device);
+        device_set_props(node->device, props, node->card_profile_device);
     }
 }
 
@@ -83,6 +82,23 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
     node_set_props(node, props);
 }
 
+const char *node_get_current_port_name(const struct node *node) {
+    if (!node->has_device) {
+        return NULL;
+    }
+
+    /* Surely there's only one active route with matching direction, right? right? */
+    const struct route *route;
+    LIST_FOR_EACH(route, &node->device->active_routes, link) {
+        if ((route->direction == SPA_DIRECTION_INPUT && node->media_class == AUDIO_SOURCE)
+            || (route->direction == SPA_DIRECTION_OUTPUT && node->media_class == AUDIO_SINK)) {
+            return route->description.data;
+        }
+    }
+
+    return NULL;
+}
+
 static void on_node_roundtrip_done(void *data) {
     struct node *node = data;
 
@@ -134,7 +150,12 @@ void on_node_info(void *data, const struct pw_node_info *info) {
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
             node->has_device = true;
-            assert(str_to_u32(v, &node->device_id));
+            uint32_t device_id;
+            assert(str_to_u32(v, &device_id));
+            /* FIXME: This relies on assumption that Node will be announced after its Device. */
+            if (!HASHMAP_GET(node->device, &pw.devices, device_id, hash)) {
+                ERROR("Got Node with device.id %d, but not device was found", device_id);
+            }
         } else if (STREQ(k, "card.profile.device")) {
             assert(str_to_i32(v, &node->card_profile_device));
         }

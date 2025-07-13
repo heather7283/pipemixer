@@ -5,6 +5,7 @@
 #include <spa/param/audio/raw-types.h>
 
 #include "pw/common.h"
+#include "pw/device.h"
 #include "strutils.h"
 
 enum node_change_mask {
@@ -27,7 +28,7 @@ struct node {
     struct props props;
 
     bool has_device;
-    uint32_t device_id;
+    struct device *device;
     int32_t card_profile_device;
 
     enum node_change_mask changed;
@@ -44,6 +45,8 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 
 void node_set_mute(const struct node *node, bool mute);
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel);
+
+const char *node_get_current_port_name(const struct node *node);
 
 #endif /* #ifndef SRC_PIPEWIRE_NODE_H */
 

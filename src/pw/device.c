@@ -2,6 +2,8 @@
 #include <spa/param/props.h>
 
 #include "pw/device.h"
+#include "pw/roundtrip.h"
+#include "tui.h"
 #include "log.h"
 #include "xmalloc.h"
 #include "utils.h"
@@ -54,6 +56,12 @@ void device_free(struct device *device) {
     free(device);
 }
 
+void on_device_roundtrip_done(void *data) {
+    const struct device *dev = data;
+
+    tui_notify_device_change(dev);
+}
+
 void on_device_info(void *data, const struct pw_device_info *info) {
     struct device *device = data;
 
@@ -74,17 +82,23 @@ void on_device_info(void *data, const struct pw_device_info *info) {
         TRACE("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
     }
 
+    bool needs_roundtrip = false;
     if (info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) {
         for (i = 0; i < info->n_params; i++) {
             struct spa_param_info *param = &info->params[i];
             if (param->id == SPA_PARAM_Route && param->flags & SPA_PARAM_INFO_READ) {
                 device_routes_free(device, &device->active_routes);
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
+                needs_roundtrip = true;
             } else if (param->id == SPA_PARAM_EnumRoute && param->flags & SPA_PARAM_INFO_READ) {
                 device_routes_free(device, &device->all_routes);
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
+                needs_roundtrip = true;
             }
         }
+    }
+    if (needs_roundtrip) {
+        roundtrip_async(pw.core, on_device_roundtrip_done, device);
     }
 }
 
