@@ -81,11 +81,17 @@ static void tui_menu_change_focus(enum tui_direction direction) {
         if (menu->selected < menu->n_items - 1) {
             menu->selected += 1;
             change = true;
+        } else if (config.wraparound) {
+            menu->selected = 0;
+            change = true;
         }
         break;
     case UP:
         if (menu->selected > 0) {
             menu->selected -= 1;
+            change = true;
+        } else if (config.wraparound) {
+            menu->selected = menu->n_items - 1;
             change = true;
         }
         break;
@@ -471,14 +477,20 @@ void tui_bind_change_focus(union tui_bind_data data) {
             f->change |= TUI_TAB_ITEM_CHANGE_CHANNEL_LOCK;
             change = true;
         } else {
-            struct tui_tab_item *item, *item_next = NULL;
-            LIST_FOR_EACH_REVERSE(item, &TUI_ACTIVE_TAB.items, link) {
-                if (item_next != NULL && item->focused) {
-                    change = tui_tab_item_set_focused(tui.tab, item_next);
-                    break;
+            if (!LIST_IS_LAST(&TUI_ACTIVE_TAB.items, &f->link)) {
+                struct tui_tab_item *next;
+                LIST_GET(next, LIST_NEXT(&f->link), link);
+                if (next->unlocked_channels) {
+                    next->focused_channel = 0;
                 }
-
-                item_next = item;
+                change = tui_tab_item_set_focused(tui.tab, next);
+            } else if (config.wraparound) {
+                struct tui_tab_item *first;
+                LIST_GET_FIRST(first, &TUI_ACTIVE_TAB.items, link);
+                if (first->unlocked_channels) {
+                    first->focused_channel = 0;
+                }
+                change = tui_tab_item_set_focused(tui.tab, first);
             }
         }
         break;
@@ -488,14 +500,20 @@ void tui_bind_change_focus(union tui_bind_data data) {
             f->change |= TUI_TAB_ITEM_CHANGE_CHANNEL_LOCK;
             change = true;
         } else {
-            struct tui_tab_item *item, *item_prev = NULL;
-            LIST_FOR_EACH(item, &TUI_ACTIVE_TAB.items, link) {
-                if (item_prev != NULL && item->focused) {
-                    change = tui_tab_item_set_focused(tui.tab, item_prev);
-                    break;
+            if (!LIST_IS_FIRST(&TUI_ACTIVE_TAB.items, &f->link)) {
+                struct tui_tab_item *prev;
+                LIST_GET(prev, LIST_PREV(&f->link), link);
+                if (prev->unlocked_channels) {
+                    prev->focused_channel = prev->node->props.channel_count - 1;
                 }
-
-                item_prev = item;
+                change = tui_tab_item_set_focused(tui.tab, prev);
+            } else if (config.wraparound) {
+                struct tui_tab_item *last;
+                LIST_GET_LAST(last, &TUI_ACTIVE_TAB.items, link);
+                if (last->unlocked_channels) {
+                    last->focused_channel = last->node->props.channel_count - 1;
+                }
+                change = tui_tab_item_set_focused(tui.tab, last);
             }
         }
         break;

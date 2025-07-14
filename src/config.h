@@ -9,6 +9,8 @@ struct pipemixer_config {
     float volume_step;
     float volume_min, volume_max;
 
+    bool wraparound;
+
     wchar_t bar_full_char[2], bar_empty_char[2];
     struct {
         wchar_t tl[2], tr[2], bl[2], br[2], cl[2], cr[2], ml[2], mr[2], f[2];

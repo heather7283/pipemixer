@@ -40,6 +40,9 @@ struct list {
 #define LIST_GET_FIRST(var, head, member) ((var) = CONTAINER_OF(LIST_FIRST(head), var, member))
 #define LIST_GET_LAST(var, head, member) ((var) = CONTAINER_OF(LIST_LAST(head), var, member))
 
+#define LIST_PREV(elem) ((elem)->prev)
+#define LIST_NEXT(elem) ((elem)->next)
+
 /* Inserts new after elem. */
 #define LIST_INSERT(elem, new) \
     do { \
