@@ -3,15 +3,15 @@
 
 #include <assert.h>
 
+#include <pipewire/pipewire.h>
+
 #include "strutils.h"
-#include "pw/common.h"
+#include "collections.h"
 
 struct route {
     int32_t device, index;
     struct string description;
     uint32_t direction; /* enum spa_direction */
-
-    struct props props;
 
     LIST_ENTRY link;
 };

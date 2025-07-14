@@ -6,7 +6,6 @@
 #include "tui.h"
 #include "log.h"
 #include "xmalloc.h"
-#include "utils.h"
 #include "macros.h"
 
 void device_set_props(const struct device *dev, const struct spa_pod *props,
@@ -109,12 +108,6 @@ void on_device_info(void *data, const struct pw_device_info *info) {
 }
 
 static void on_device_param_route(struct device *dev, const struct spa_pod *param) {
-    const struct spa_pod_prop *props = spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_props);
-    if (props == NULL) {
-        ERROR("Expected to find Props inside a Route, didn't find any!");
-        return;
-    }
-
     const struct spa_pod_prop *index = spa_pod_find_prop(param,
                                                          NULL, SPA_PARAM_ROUTE_index);
     const struct spa_pod_prop *device = spa_pod_find_prop(param,
@@ -128,17 +121,6 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
         return;
     }
 
-    const struct spa_pod_prop *volumes = spa_pod_find_prop(&props->value,
-                                                           NULL, SPA_PROP_channelVolumes);
-    const struct spa_pod_prop *channels = spa_pod_find_prop(&props->value,
-                                                            NULL, SPA_PROP_channelMap);
-    const struct spa_pod_prop *mute = spa_pod_find_prop(&props->value,
-                                                        NULL, SPA_PROP_mute);
-    if (volumes == NULL || channels == NULL || mute == NULL) {
-        ERROR("Didn't find channelVolumes or channelMap or mute in route Props");
-        return;
-    }
-
     struct route *new_route = xcalloc(1, sizeof(*new_route));
 
     spa_pod_get_int(&index->value, &new_route->index);
@@ -148,20 +130,6 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
     const char *description_str = NULL;
     spa_pod_get_string(&description->value, &description_str);
     string_from_pchar(&new_route->description, description_str);
-
-    struct spa_pod *iter;
-    int i = 0;
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&channels->value, iter) {
-        new_route->props.channel_map[i++] = channel_name_from_enum(*(enum spa_audio_channel *)iter);
-    }
-    i = 0;
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&volumes->value, iter) {
-        float vol_cubed = *(float *)iter;
-        float vol = cbrtf(vol_cubed);
-        new_route->props.channel_volumes[i++] = vol;
-    }
-    new_route->props.channel_count = i;
-    spa_pod_get_bool(&mute->value, &new_route->props.mute);
 
     DEBUG("New route (Route) on dev %d: %s device %d index %d dir %d",
           dev->id, new_route->description.data, new_route->device,
