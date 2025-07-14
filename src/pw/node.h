@@ -46,7 +46,8 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 void node_set_mute(const struct node *node, bool mute);
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel);
 
-const char *node_get_current_port_name(const struct node *node);
+const struct route *node_get_active_route(const struct node *node);
+const LIST_HEAD *node_get_routes(const struct node *node);
 
 #endif /* #ifndef SRC_PIPEWIRE_NODE_H */
 

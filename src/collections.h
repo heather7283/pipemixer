@@ -30,6 +30,8 @@ struct list {
 #define LIST_INIT(head) ((head)->next = (head)->prev = (head))
 
 #define LIST_IS_EMPTY(head) ((head)->next == (head) && (head)->prev == (head))
+#define LIST_IS_FIRST(head, elem) ((head)->next == (elem))
+#define LIST_IS_LAST(head, elem) ((head)->prev == (elem))
 
 #define LIST_FIRST(head) ((head)->next)
 #define LIST_LAST(head) ((head)->prev)

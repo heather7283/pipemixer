@@ -96,21 +96,29 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
     node_set_props(node, props);
 }
 
-const char *node_get_current_port_name(const struct node *node) {
-    if (!node->has_device) {
+const LIST_HEAD *node_get_routes(const struct node *node) {
+    if (!node->has_device || node->device == NULL) {
         return NULL;
     }
 
-    /* Surely there's only one active route with matching direction, right? right? */
+    enum spa_direction direction = media_class_to_direction(node->media_class);
+    return &node->device->routes[direction].all;
+}
+
+const struct route *node_get_active_route(const struct node *node) {
+    if (!node->has_device || node->device == NULL) {
+        return NULL;
+    }
+
     enum spa_direction direction = media_class_to_direction(node->media_class);
     const struct route *route;
     LIST_FOR_EACH(route, &node->device->routes[direction].active, link) {
-        if ((route->direction == SPA_DIRECTION_INPUT && node->media_class == AUDIO_SOURCE)
-            || (route->direction == SPA_DIRECTION_OUTPUT && node->media_class == AUDIO_SINK)) {
-            return route->description.data;
+        if (route->device == node->card_profile_device) {
+            return route;
         }
     }
 
+    WARN("did not find active route for node %d", node->id);
     return NULL;
 }
 
