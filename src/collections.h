@@ -30,6 +30,8 @@ struct list {
 #define LIST_INIT(head) ((head)->next = (head)->prev = (head))
 
 #define LIST_IS_EMPTY(head) ((head)->next == (head) && (head)->prev == (head))
+#define LIST_IS_FIRST(head, elem) ((head)->next == (elem))
+#define LIST_IS_LAST(head, elem) ((head)->prev == (elem))
 
 #define LIST_FIRST(head) ((head)->next)
 #define LIST_LAST(head) ((head)->prev)
@@ -91,6 +93,44 @@ struct list {
 
 #define LIST_FOR_EACH_REVERSE(var, head, member) \
     LIST_FOR_EACH_REVERSE_BEFORE(var, head, head, member)
+
+#define LIST_SWAP_HEADS(head1, head2) \
+    do { \
+        if ((head1) == (head2)) { \
+            break; \
+        } \
+        \
+        bool empty1 = LIST_IS_EMPTY(head1); \
+        bool empty2 = LIST_IS_EMPTY(head2); \
+        if (!empty1 && !empty2) { \
+            struct list *h1_next = (head1)->next; \
+            struct list *h1_prev = (head1)->prev; \
+            struct list *h2_next = (head2)->next; \
+            struct list *h2_prev = (head2)->prev; \
+            \
+            (head1)->next = h2_next; \
+            (head1)->prev = h2_prev; \
+            h2_next->prev = (head1); \
+            h2_prev->next = (head1); \
+            \
+            (head2)->next = h1_next; \
+            (head2)->prev = h1_prev; \
+            h1_next->prev = (head2); \
+            h1_prev->next = (head2); \
+        } else if (empty1 && !empty2) { \
+            (head1)->next = (head2)->next; \
+            (head1)->prev = (head2)->prev; \
+            (head1)->next->prev = (head1); \
+            (head1)->prev->next = (head1); \
+            LIST_INIT(head2); \
+        } else if (!empty1 && empty2) { \
+            (head2)->next = (head1)->next; \
+            (head2)->prev = (head1)->prev; \
+            (head2)->next->prev = (head2); \
+            (head2)->prev->next = (head2); \
+            LIST_INIT(head1); \
+        } \
+    } while (0)
 
 /*
  * Hashmap.

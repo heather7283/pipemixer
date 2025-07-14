@@ -26,6 +26,5 @@
 
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-
 #endif /* #ifndef MACROS_H */
 

@@ -12,18 +12,37 @@
 #include "config.h"
 #include "utils.h"
 
+static enum spa_direction media_class_to_direction(enum media_class class) {
+    switch (class) {
+    case STREAM_OUTPUT_AUDIO:
+    case AUDIO_SINK:
+        return SPA_DIRECTION_OUTPUT;
+    case STREAM_INPUT_AUDIO:
+    case AUDIO_SOURCE:
+        return SPA_DIRECTION_INPUT;
+    default:
+        assert(0 && "Unexpected media_class value passed to media_class_to_direction");
+    }
+}
+
+struct node *node_lookup(uint32_t id) {
+    struct node *node;
+    HASHMAP_GET(node, &pw.nodes, id, hash);
+    return node;
+}
+
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
     if (!node->has_device) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else {
-        struct device *device;
-        if (!HASHMAP_GET(device, &pw.devices, node->device_id, hash)) {
+        if (!node->device) {
             WARN("tried to set props of node %d with associated device, "
-                 "but no device with id %d was found", node->id, node->device_id);
+                 "but no device was found", node->id);
             return;
         }
 
-        device_set_props(device, props, node->card_profile_device);
+        enum spa_direction direction = media_class_to_direction(node->media_class);
+        device_set_props(node->device, props, direction, node->card_profile_device);
     }
 }
 
@@ -83,6 +102,42 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
     node_set_props(node, props);
 }
 
+void node_set_route(const struct node *node, uint32_t route_index) {
+    if (!node->has_device) {
+        WARN("Tried to set route on a node that does not have a device");
+    } else if (!node->device) {
+        ERROR("Tried to set route on a node but no device was found");
+    } else {
+        device_set_route(node->device, node->card_profile_device, route_index);
+    }
+}
+
+const LIST_HEAD *node_get_routes(const struct node *node) {
+    if (!node->has_device || node->device == NULL) {
+        return NULL;
+    }
+
+    enum spa_direction direction = media_class_to_direction(node->media_class);
+    return &node->device->routes[direction].all;
+}
+
+const struct route *node_get_active_route(const struct node *node) {
+    if (!node->has_device || node->device == NULL) {
+        return NULL;
+    }
+
+    enum spa_direction direction = media_class_to_direction(node->media_class);
+    const struct route *route;
+    LIST_FOR_EACH(route, &node->device->routes[direction].active, link) {
+        if (route->device == node->card_profile_device) {
+            return route;
+        }
+    }
+
+    WARN("did not find active route for node %d", node->id);
+    return NULL;
+}
+
 static void on_node_roundtrip_done(void *data) {
     struct node *node = data;
 
@@ -134,7 +189,12 @@ void on_node_info(void *data, const struct pw_node_info *info) {
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
             node->has_device = true;
-            assert(str_to_u32(v, &node->device_id));
+            uint32_t device_id;
+            assert(str_to_u32(v, &device_id));
+            /* FIXME: This relies on assumption that Node will be announced after its Device. */
+            if (!HASHMAP_GET(node->device, &pw.devices, device_id, hash)) {
+                ERROR("Got Node with device.id %d, but not device was found", device_id);
+            }
         } else if (STREQ(k, "card.profile.device")) {
             assert(str_to_i32(v, &node->card_profile_device));
         }
