@@ -37,7 +37,7 @@ void device_set_props(const struct device *dev, const struct spa_pod *props,
     pw_device_set_param(dev->pw_device, SPA_PARAM_Route, 0, param);
 }
 
-static void device_routes_free(struct device *device, const LIST_HEAD *list) {
+static void device_routes_free(const LIST_HEAD *list) {
     struct route *route;
     LIST_FOR_EACH(route, list, link) {
         LIST_REMOVE(&route->link);
@@ -50,15 +50,23 @@ void device_free(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
     for (unsigned int i = 0; i < ARRAY_SIZE(device->routes); i++) {
-        device_routes_free(device, &device->routes[i].all);
-        device_routes_free(device, &device->routes[i].active);
+        device_routes_free(&device->routes[i].all);
+        device_routes_free(&device->routes[i].active);
     }
 
     free(device);
 }
 
 void on_device_roundtrip_done(void *data) {
-    const struct device *dev = data;
+    struct device *dev = data;
+
+    for (unsigned int i = 0; i < ARRAY_SIZE(dev->routes); i++) {
+        device_routes_free(&dev->routes[i].all);
+        device_routes_free(&dev->routes[i].active);
+
+        LIST_SWAP_HEADS(&dev->routes[i].active, &dev->new_routes[i].active);
+        LIST_SWAP_HEADS(&dev->routes[i].all, &dev->new_routes[i].all);
+    }
 
     tui_notify_device_change(dev);
 }
@@ -88,15 +96,9 @@ void on_device_info(void *data, const struct pw_device_info *info) {
         for (i = 0; i < info->n_params; i++) {
             struct spa_param_info *param = &info->params[i];
             if (param->id == SPA_PARAM_Route && param->flags & SPA_PARAM_INFO_READ) {
-                device_routes_free(device, &device->routes[SPA_DIRECTION_OUTPUT].active);
-                device_routes_free(device, &device->routes[SPA_DIRECTION_INPUT].active);
-
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
                 needs_roundtrip = true;
             } else if (param->id == SPA_PARAM_EnumRoute && param->flags & SPA_PARAM_INFO_READ) {
-                device_routes_free(device, &device->routes[SPA_DIRECTION_OUTPUT].all);
-                device_routes_free(device, &device->routes[SPA_DIRECTION_INPUT].all);
-
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
                 needs_roundtrip = true;
             }
@@ -135,7 +137,7 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
           dev->id, new_route->description.data, new_route->device,
           new_route->index, new_route->direction);
 
-    LIST_INSERT(&dev->routes[new_route->direction].active, &new_route->link);
+    LIST_INSERT(&dev->new_routes[new_route->direction].active, &new_route->link);
 }
 
 static void on_device_param_enum_route(struct device *dev, const struct spa_pod *param) {
@@ -162,7 +164,7 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
     DEBUG("New route (EnumRoute) on dev %d: %s index %d dir %d",
           dev->id, new_route->description.data, new_route->index, new_route->direction);
 
-    LIST_INSERT(&dev->routes[new_route->direction].all, &new_route->link);
+    LIST_INSERT(&dev->new_routes[new_route->direction].all, &new_route->link);
 }
 
 void on_device_param(void *data, int seq, uint32_t id, uint32_t index,

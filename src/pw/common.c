@@ -70,6 +70,8 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         for (unsigned int i = 0; i < ARRAY_SIZE(new_device->routes); i++) {
             LIST_INIT(&new_device->routes[i].all);
             LIST_INIT(&new_device->routes[i].active);
+            LIST_INIT(&new_device->new_routes[i].all);
+            LIST_INIT(&new_device->new_routes[i].active);
         }
 
         new_device->id = id;

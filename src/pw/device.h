@@ -26,6 +26,10 @@ struct device {
         LIST_HEAD all;
         LIST_HEAD active;
     } routes[2];
+    struct {
+        LIST_HEAD all;
+        LIST_HEAD active;
+    } new_routes[2]; /* needed to atomically update routes. TODO: better way to do it? */
     static_assert(SPA_DIRECTION_INPUT == 0 && SPA_DIRECTION_OUTPUT == 1,
                   "Unexpected values of spa_direction enums");
 
