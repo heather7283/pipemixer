@@ -30,6 +30,8 @@ struct pipemixer_config config = {
     .volume_max = 1.50,
 
     .wraparound = false,
+    .mouse_enabled = true,
+    .hack_force_mouse_motion_tracking = false,
 
     .bar_full_char = L"#",
     .bar_empty_char = L"-",
@@ -136,6 +138,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_GET_PERCENTAGE(&config.volume_max);
         } else if (STREQ(k, "wraparound")) {
             CONFIG_GET_BOOL(&config.wraparound);
+        } else if (STREQ(k, "mouse")) {
+            CONFIG_GET_BOOL(&config.mouse_enabled);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
@@ -265,6 +269,12 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             } else {
                 CONFIG_LOG("unknown action: %s", k);
             }
+        }
+    } else if (STREQ(s, "hacks")) {
+        if (STREQ(k, "force-mouse-motion-tracking")) {
+            CONFIG_GET_BOOL(&config.hack_force_mouse_motion_tracking);
+        } else {
+            CONFIG_LOG("unknown key %s in section %s", k, s);
         }
     } else {
         CONFIG_LOG("unknown section %s", s);

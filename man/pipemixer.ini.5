@@ -29,6 +29,11 @@ Max and min volume that can be set with pipemixer. Default: 0, 150.
 .RS 4
 Whether scrolling through nodes will continue at the top after reaching the bottom and vice versa. Default: false.
 .RE
+.PP
+.B mouse
+.RS 4
+Enables or disables mouse support. Default: true.
+.RE
 
 .SH SECTION: binds
 Configure keybindings. Format is action=key. Each action can be bound to multiple keys. Key can be specified in several ways:
@@ -134,6 +139,16 @@ Characters that make up frame around per-channel volume bars.
 .B bar-empty-char, bar-full-char
 .RS 4
 Characters for drawing volume bars.
+.RE
+
+.SH SECTION: hacks
+Use those options with caution, they might break things.
+
+.PP
+.B force-mouse-motion-tracking
+.RS 4
+Force enables xterm private mode 1002 by sending an escape sequence to the TTY.
+Can help with mouse drag not working.
 .RE
 
 .SH EXAMPLE

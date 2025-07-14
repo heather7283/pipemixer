@@ -10,6 +10,8 @@ struct pipemixer_config {
     float volume_min, volume_max;
 
     bool wraparound;
+    bool mouse_enabled;
+    bool hack_force_mouse_motion_tracking;
 
     wchar_t bar_full_char[2], bar_empty_char[2];
     struct {
