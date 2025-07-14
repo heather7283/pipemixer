@@ -32,7 +32,7 @@ All printable ASCII/Unicode characters.
 .br
 Example: tab-next=t
 .IP \(bu 4
-Special keys: enter, tab, backtab, space, backspace, up, down, right, left.
+Special keys: up, down, left, right, enter, tab, backtab, space, backspace, escape.
 .br
 Example: tab-prev=backtab
 .IP \(bu 4
@@ -80,6 +80,16 @@ Set channel lock for selected node.
 .B volume-set-N
 .RS 4
 Set volume of selected node to N%.
+.RE
+.PP
+.B select-port
+.RS 4
+Enter port selection menu on nodes that support it.
+.RE
+.PP
+.B confirm-selection, cancel-selection
+.RS 4
+Self-explanatory. Applies to menu selection mode.
 .RE
 .PP
 .B quit
