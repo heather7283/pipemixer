@@ -43,8 +43,11 @@ void on_node_info(void *data, const struct pw_node_info *info);
 void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                    uint32_t next, const struct spa_pod *param);
 
+struct node *node_lookup(uint32_t id);
+
 void node_set_mute(const struct node *node, bool mute);
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel);
+void node_set_route(const struct node *node, uint32_t route_index);
 
 const struct route *node_get_active_route(const struct node *node);
 const LIST_HEAD *node_get_routes(const struct node *node);

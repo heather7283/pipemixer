@@ -18,6 +18,7 @@ struct wstring {
 };
 
 void string_from_pchar(struct string *str, const char *src);
+int string_printf(struct string *str, const char *format, ...);
 static inline bool string_is_empty(const struct string *str) { return str->len == 0; };
 void string_free(struct string *str);
 

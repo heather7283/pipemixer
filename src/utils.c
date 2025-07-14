@@ -193,11 +193,12 @@ bool key_code_from_key_name(const char *name, wint_t *keycode) {
     if (STREQ(name, "down")) { *keycode = KEY_DOWN; return true; };
     if (STREQ(name, "left")) { *keycode = KEY_LEFT; return true; };
     if (STREQ(name, "right")) { *keycode = KEY_RIGHT; return true; };
-    if (STREQ(name, "enter")) { *keycode = KEY_ENTER; return true; };
+    if (STREQ(name, "enter")) { *keycode = '\n'; return true; };
     if (STREQ(name, "tab")) { *keycode = '\t'; return true; };
     if (STREQ(name, "backtab")) { *keycode = KEY_BTAB; return true; };
     if (STREQ(name, "space")) { *keycode = ' '; return true; };
     if (STREQ(name, "backspace")) { *keycode = KEY_BACKSPACE; return true; };
+    if (STREQ(name, "escape")) { *keycode = '\e'; return true; };
 
     const char *prefix;
     if (prefix = "code:", STRSTARTSWITH(name, prefix)) {

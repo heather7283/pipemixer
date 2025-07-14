@@ -44,6 +44,7 @@ void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
 
 void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device);
+void device_set_route(const struct device *dev, int32_t card_profile_device, int32_t index);
 
 #endif /* #ifndef SRC_PIPEWIRE_DEVICE_H */
 

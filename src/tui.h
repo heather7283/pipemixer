@@ -16,11 +16,44 @@ enum tui_tab {
     TUI_TAB_COUNT,
 };
 
+struct tui_menu;
+struct tui_menu_item;
+
+typedef void (*tui_menu_callback_t)(struct tui_menu *menu, struct tui_menu_item *pick);
+
+struct tui_menu_item {
+    struct string str;
+
+    union {
+        void *ptr;
+        uintptr_t uint;
+    } data;
+};
+
+struct tui_menu {
+    WINDOW *win;
+    int x, y, w, h;
+    struct string header;
+    tui_menu_callback_t callback;
+
+    union {
+        void *ptr;
+        uintptr_t uint;
+    } data;
+
+    unsigned int n_items;
+    unsigned int selected;
+    struct tui_menu_item items[];
+};
+
 struct tui {
     int term_height, term_width;
 
     WINDOW *bar_win;
     WINDOW *pad_win;
+
+    bool menu_active;
+    struct tui_menu *menu;
 
     enum tui_tab tab;
     struct {
@@ -91,6 +124,10 @@ enum tui_nothing { NOTHING };
 #define TUI_BIND_QUIT ((tui_bind_func_t)0xDEAD)
 void tui_bind_focus_first(union tui_bind_data data);
 void tui_bind_focus_last(union tui_bind_data data);
+
+void tui_bind_select_port(union tui_bind_data data);
+void tui_bind_confirm_selection(union tui_bind_data data);
+void tui_bind_cancel_selection(union tui_bind_data data);
 
 union tui_bind_data {
     enum tui_direction direction;

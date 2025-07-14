@@ -23,6 +23,8 @@ enum color_pair {
 
 struct tui tui = {0};
 
+static void tui_repaint(bool draw_unconditionally);
+
 static enum tui_tab media_class_to_tui_tab(enum media_class class) {
     switch (class) {
     case STREAM_OUTPUT_AUDIO: return PLAYBACK;
@@ -41,6 +43,99 @@ static const char *tui_tab_name(enum tui_tab tab) {
     case INPUT_DEVICES: return "Input Devices";
     default: return "INVALID";
     }
+}
+
+static void tui_menu_free(struct tui_menu *menu) {
+    for (unsigned int i = 0; i < menu->n_items; i++) {
+        string_free(&menu->items[i].str);
+    }
+    string_free(&menu->header);
+    free(menu);
+}
+
+static void tui_menu_resize(struct tui_menu *menu, int term_width, int term_height) {
+    menu->x = 1;
+    menu->y = 2;
+    menu->w = term_width - 2;
+    menu->h = term_height - 4;
+    if (menu->win == NULL) {
+        menu->win = newwin(menu->h, menu->w, menu->y, menu->x);
+    } else {
+        wresize(menu->win, menu->h, menu->w);
+    }
+}
+
+static struct tui_menu *tui_menu_create(unsigned int n_items) {
+    struct tui_menu *menu = xcalloc(1, sizeof(*menu) + (sizeof(*menu->items) * n_items));
+    menu->n_items = n_items;
+
+    return menu;
+}
+
+static void tui_menu_change_focus(enum tui_direction direction) {
+    struct tui_menu *menu = tui.menu;
+
+    bool change = false;
+    switch (direction) {
+    case DOWN:
+        if (menu->selected < menu->n_items - 1) {
+            menu->selected += 1;
+            change = true;
+        }
+        break;
+    case UP:
+        if (menu->selected > 0) {
+            menu->selected -= 1;
+            change = true;
+        }
+        break;
+    }
+
+    if (change) {
+        tui_repaint(false);
+    }
+}
+
+static void tui_menu_draw(const struct tui_menu *menu) {
+    TRACE("tui_draw_menu: %dx%d at %dx%d", menu->w, menu->h, menu->x, menu->y);
+    WINDOW *win = menu->win;
+
+    werase(win);
+
+    /* box */
+    wmove(win, 0, 0);
+    waddwstr(win, config.borders.tl);
+    for (int x = 1; x < menu->w - 1; x++) {
+        waddwstr(win, config.borders.ts);
+    }
+    waddwstr(win, config.borders.tr);
+
+    wmove(win, menu->h - 1, 0);
+    waddwstr(win, config.borders.bl);
+    for (int x = 1; x < menu->w - 1; x++) {
+        waddwstr(win, config.borders.bs);
+    }
+    waddwstr(win, config.borders.br);
+
+    for (int y = 1; y < menu->h - 1; y++) {
+        wmove(win, y, 0);
+        waddwstr(win, config.borders.ls);
+        wmove(win, y, menu->w - 1);
+        waddwstr(win, config.borders.rs);
+    }
+
+    mvwaddnstr(win, 0, 1, menu->header.data, menu->w - 2);
+    for (unsigned int i = 0; i < menu->n_items; i++) {
+        if (i == menu->selected) {
+            wattron(win, A_BOLD);
+        }
+
+        mvwaddnstr(win, 1 + i, 1, menu->items[i].str.data, menu->w - 2);
+
+        wattroff(win, A_BOLD);
+    }
+
+    wnoutrefresh(win);
 }
 
 static void tui_draw_node(const struct tui_tab_item *item, bool draw_unconditionally) {
@@ -274,9 +369,8 @@ static void tui_draw_status_bar(void) {
     wnoutrefresh(tui.bar_win);
 }
 
-static int tui_repaint(bool draw_unconditionally) {
+static void tui_repaint(bool draw_unconditionally) {
     TRACE("tui_repaint: draw_unconditionally %d", draw_unconditionally);
-
     /* TODO: maybe add a function to redraw a single node instead of doing this? */
     int bottom = 0;
     struct tui_tab_item *tab_item;
@@ -303,9 +397,12 @@ static int tui_repaint(bool draw_unconditionally) {
 
     tui_draw_status_bar();
 
-    doupdate();
+    if (tui.menu_active) {
+        TRACE("tui_repaint: menu");
+        tui_menu_draw(tui.menu);
+    }
 
-    return 0;
+    doupdate();
 }
 
 static void tui_tab_item_ensure_visible(enum tui_tab tab, const struct tui_tab_item *item) {
@@ -342,6 +439,11 @@ static bool tui_tab_item_set_focused(enum tui_tab tab, struct tui_tab_item *item
 
 void tui_bind_change_focus(union tui_bind_data data) {
     enum tui_direction direction = data.direction;
+
+    if (tui.menu_active) {
+        tui_menu_change_focus(direction);
+        return;
+    }
 
     if (TUI_ACTIVE_TAB.focused == NULL) {
         return;
@@ -424,7 +526,7 @@ void tui_bind_focus_first(union tui_bind_data data) {
 void tui_bind_change_volume(union tui_bind_data data) {
     enum tui_direction direction = data.direction;
 
-    if (TUI_ACTIVE_TAB.focused == NULL) {
+    if (TUI_ACTIVE_TAB.focused == NULL || tui.menu_active) {
         return;
     }
 
@@ -441,7 +543,7 @@ void tui_bind_change_volume(union tui_bind_data data) {
 void tui_bind_set_volume(union tui_bind_data data) {
     float vol = data.volume;
 
-    if (TUI_ACTIVE_TAB.focused == NULL) {
+    if (TUI_ACTIVE_TAB.focused == NULL || tui.menu_active) {
         return;
     }
 
@@ -457,7 +559,7 @@ void tui_bind_set_volume(union tui_bind_data data) {
 void tui_bind_change_mute(union tui_bind_data data) {
     enum tui_change_mode mode = data.change_mode;
 
-    if (TUI_ACTIVE_TAB.focused == NULL) {
+    if (TUI_ACTIVE_TAB.focused == NULL || tui.menu_active) {
         return;
     }
 
@@ -477,7 +579,7 @@ void tui_bind_change_mute(union tui_bind_data data) {
 void tui_bind_change_channel_lock(union tui_bind_data data) {
     enum tui_change_mode mode = data.change_mode;
 
-    if (TUI_ACTIVE_TAB.focused == NULL) {
+    if (TUI_ACTIVE_TAB.focused == NULL || tui.menu_active) {
         return;
     }
 
@@ -510,6 +612,10 @@ void tui_bind_change_channel_lock(union tui_bind_data data) {
 }
 
 void tui_bind_change_tab(union tui_bind_data data) {
+    if (tui.menu_active) {
+        return;
+    }
+
     switch (data.direction) {
     case UP:
         if (tui.tab++ == TUI_TAB_LAST) {
@@ -530,6 +636,10 @@ void tui_bind_change_tab(union tui_bind_data data) {
 
 void tui_bind_set_tab(union tui_bind_data data) {
     enum tui_tab tab = data.tab;
+
+    if (tui.menu_active) {
+        return;
+    }
 
     bool tab_changed = false;
     switch (tab) {
@@ -564,6 +674,83 @@ void tui_bind_set_tab(union tui_bind_data data) {
     if (tab_changed) {
         tui_repaint(true);
     }
+}
+
+static void on_port_selection_done(struct tui_menu *menu, struct tui_menu_item *pick) {
+    const uint32_t node_id = menu->data.uint;
+    const uint32_t route_id = pick->data.uint;
+
+    TRACE("on_port_selection_done: node_id %d route_id %d", node_id, route_id);
+    struct node *node = node_lookup(node_id);
+    if (node == NULL) {
+        WARN("on_port_selection_done: node with id %d does not exist", node_id);
+    }
+    node_set_route(node, route_id);
+
+    tui_menu_free(menu);
+    tui.menu_active = false;
+    tui_repaint(true);
+}
+
+void tui_bind_select_port(union tui_bind_data data) {
+    if (TUI_ACTIVE_TAB.focused == NULL \
+        || !TUI_ACTIVE_TAB.focused->node->has_device \
+        || tui.menu_active) {
+        return;
+    }
+
+    const struct route *active_route = node_get_active_route(TUI_ACTIVE_TAB.focused->node);
+    const LIST_HEAD *routes = node_get_routes(TUI_ACTIVE_TAB.focused->node);
+    const struct route *route;
+
+    unsigned int n_items = 0;
+    LIST_FOR_EACH(route, routes, link) {
+        n_items += 1;
+    }
+
+    tui.menu = tui_menu_create(n_items);
+    tui.menu->callback = on_port_selection_done;
+    tui.menu->data.uint = TUI_ACTIVE_TAB.focused->node->id;
+
+    tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
+
+    string_printf(&tui.menu->header, "Select port for %ls",
+                  TUI_ACTIVE_TAB.focused->node->node_name.data);
+
+    int i = 0;
+    LIST_FOR_EACH_REVERSE(route, routes, link) {
+        struct tui_menu_item *item = &tui.menu->items[i];
+        string_printf(&item->str, "%d. %s", route->index, route->description.data);
+        item->data.uint = route->index;
+
+        if (route->index == active_route->index) {
+            tui.menu->selected = i;
+        }
+
+        i += 1;
+    }
+
+    tui.menu_active = true;
+    tui_repaint(false);
+}
+
+void tui_bind_cancel_selection(union tui_bind_data data) {
+    if (!tui.menu_active) {
+        return;
+    }
+
+    tui_menu_free(tui.menu);
+    tui.menu_active = false;
+    tui_repaint(true);
+}
+
+void tui_bind_confirm_selection(union tui_bind_data data) {
+    if (!tui.menu_active) {
+        return;
+    }
+
+    struct tui_menu *menu = tui.menu;
+    menu->callback(menu, &menu->items[menu->selected]);
 }
 
 static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x, bool keep_contents) {
@@ -658,6 +845,10 @@ int tui_handle_resize(struct pollen_callback *callback, int signal, void *data) 
         delwin(tui.bar_win);
     }
     tui.bar_win = newwin(1, tui.term_width, 0, 0);
+
+    if (tui.menu_active) {
+        tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
+    }
 
     tui_repaint(true);
 
@@ -824,6 +1015,7 @@ int tui_init(void) {
     cbreak();
     noecho();
     curs_set(0);
+    ESCDELAY = 50 /* ms */;
 
     start_color();
     use_default_colors();

@@ -1,5 +1,7 @@
+#include <stdio.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "strutils.h"
 #include "xmalloc.h"
@@ -15,6 +17,26 @@ void string_from_pchar(struct string *str, const char *src) {
     memcpy(str->data, src, len);
     str->data[len] = '\0';
     str->len = len;
+}
+
+int string_printf(struct string *str, const char *format, ...) {
+    va_list args, args_copy;
+    va_start(args, format);
+
+    va_copy(args_copy, args);
+    unsigned int len = vsnprintf(NULL, 0, format, args_copy);
+    if (str->cap < len + 1) {
+        str->data = xrealloc(str->data, len + 1);
+        str->cap = len + 1;
+    }
+    va_end(args_copy);
+
+    len = vsnprintf(str->data, str->cap, format, args);
+    str->len = len;
+
+    va_end(args);
+
+    return len;
 }
 
 void string_free(struct string *str) {

@@ -37,6 +37,20 @@ void device_set_props(const struct device *dev, const struct spa_pod *props,
     pw_device_set_param(dev->pw_device, SPA_PARAM_Route, 0, param);
 }
 
+void device_set_route(const struct device *dev, int32_t card_profile_device, int32_t index) {
+    uint8_t buffer[1024];
+    struct spa_pod_builder b;
+    spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+    struct spa_pod *route =
+        spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamRoute, SPA_PARAM_Route,
+                                   SPA_PARAM_ROUTE_device, SPA_POD_Int(card_profile_device),
+                                   SPA_PARAM_ROUTE_index, SPA_POD_Int(index),
+                                   SPA_PARAM_ROUTE_save, SPA_POD_Bool(true));
+
+    pw_device_set_param(dev->pw_device, SPA_PARAM_Route, 0, route);
+}
+
 static void device_routes_free(const LIST_HEAD *list) {
     struct route *route;
     LIST_FOR_EACH(route, list, link) {

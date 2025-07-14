@@ -233,6 +233,12 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 } else {
                     CONFIG_LOG("unknown action: %s", k);
                 }
+            } else if (STREQ(k, "select-port")) {
+                ADD_BIND(keycode, tui_bind_select_port, nothing, NOTHING);
+            } else if (STREQ(k, "confirm-selection")) {
+                ADD_BIND(keycode, tui_bind_confirm_selection, nothing, NOTHING);
+            } else if (STREQ(k, "cancel-selection")) {
+                ADD_BIND(keycode, tui_bind_cancel_selection, nothing, NOTHING);
             } else if (STREQ(k, "quit")) {
                 ADD_BIND(keycode, TUI_BIND_QUIT, nothing, NOTHING);
             } else if (STREQ(k, "unbind")) {
@@ -279,6 +285,9 @@ static void add_default_binds(void) {
         "tab-output-devices=4\n"
         "mute-toggle=m\n"
         "channel-lock-toggle=space\n"
+        "select-port=p\n"
+        "confirm-selection=enter\n"
+        "cancel-selection=escape\n"
         "quit=q\n";
 
     parse_config(default_binds);

@@ -25,6 +25,12 @@ static enum spa_direction media_class_to_direction(enum media_class class) {
     }
 }
 
+struct node *node_lookup(uint32_t id) {
+    struct node *node;
+    HASHMAP_GET(node, &pw.nodes, id, hash);
+    return node;
+}
+
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
     if (!node->has_device) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
@@ -94,6 +100,16 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
                                                  ARRAY_SIZE(cubed_volumes), cubed_volumes));
 
     node_set_props(node, props);
+}
+
+void node_set_route(const struct node *node, uint32_t route_index) {
+    if (!node->has_device) {
+        WARN("Tried to set route on a node that does not have a device");
+    } else if (!node->device) {
+        ERROR("Tried to set route on a node but no device was found");
+    } else {
+        device_set_route(node->device, node->card_profile_device, route_index);
+    }
 }
 
 const LIST_HEAD *node_get_routes(const struct node *node) {
