@@ -390,6 +390,17 @@ static void tui_repaint(bool draw_unconditionally) {
     } else {
         wclrtobot(tui.pad_win);
     }
+
+    if (bottom == 0) {
+        /* empty tab */
+        const char *empty = "Empty";
+        wattron(tui.pad_win, COLOR_PAIR(GRAY));
+        mvwaddstr(tui.pad_win,
+                  (tui.term_height - 1) / 2, (tui.term_width / 2) - (strlen(empty) / 2),
+                  empty);
+        wattroff(tui.pad_win, COLOR_PAIR(GRAY));
+    }
+
     pnoutrefresh(tui.pad_win,
                  TUI_ACTIVE_TAB.scroll_pos, 0,
                  1, 0,
