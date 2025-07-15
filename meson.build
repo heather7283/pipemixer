@@ -10,7 +10,13 @@ add_project_arguments('-Wno-unused-parameter', language: 'c')
 git = find_program('git', required: false)
 if git.found()
   git_tag = run_command(git, 'describe', '--tags', check: false).stdout().strip()
+  if git_tag == ''
+    git_tag = 'unknown'
+  endif
   git_branch = run_command(git, 'branch', '--show-current', check: false).stdout().strip()
+  if git_branch == ''
+    git_branch = 'unknown'
+  endif
 else
   git_tag = 'unknown'
   git_branch = 'unknown'
