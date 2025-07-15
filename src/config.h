@@ -10,6 +10,7 @@ struct pipemixer_config {
     float volume_min, volume_max;
 
     bool wraparound;
+    bool display_ids;
 
     wchar_t bar_full_char[2], bar_empty_char[2];
     struct {

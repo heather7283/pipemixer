@@ -30,6 +30,7 @@ struct pipemixer_config config = {
     .volume_max = 1.50,
 
     .wraparound = false,
+    .display_ids = false,
 
     .bar_full_char = L"#",
     .bar_empty_char = L"-",
@@ -136,6 +137,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_GET_PERCENTAGE(&config.volume_max);
         } else if (STREQ(k, "wraparound")) {
             CONFIG_GET_BOOL(&config.wraparound);
+        } else if (STREQ(k, "display-ids")) {
+            CONFIG_GET_BOOL(&config.display_ids);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }

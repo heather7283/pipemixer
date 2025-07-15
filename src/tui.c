@@ -196,12 +196,20 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
 
     /* first line displays node name and media name and spans across the entire screen */
     DRAW_IF(focus_changed || info_changed) {
-        swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls%-*s",
-                 node->id,
-                 node->node_name.data,
-                 wstring_is_empty(&node->media_name) ? "" : ": ",
-                 wstring_is_empty(&node->media_name) ? L"" : node->media_name.data,
-                 usable_width, "");
+        if (config.display_ids) {
+            swprintf(line, ARRAY_SIZE(line), L"(%d) %ls%s%ls%-*s",
+                     node->id,
+                     node->node_name.data,
+                     wstring_is_empty(&node->media_name) ? "" : ": ",
+                     wstring_is_empty(&node->media_name) ? L"" : node->media_name.data,
+                     usable_width, "");
+        } else {
+            swprintf(line, ARRAY_SIZE(line), L"%ls%s%ls%-*s",
+                     node->node_name.data,
+                     wstring_is_empty(&node->media_name) ? "" : ": ",
+                     wstring_is_empty(&node->media_name) ? L"" : node->media_name.data,
+                     usable_width, "");
+        }
         wcstrimcols(line, usable_width);
         mvwaddnwstr(win, item->pos + 1, info_area_start, line, usable_width);
     }
