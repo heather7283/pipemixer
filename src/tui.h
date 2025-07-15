@@ -60,6 +60,7 @@ struct tui {
         LIST_HEAD items;
         struct tui_tab_item *focused;
         int scroll_pos;
+        struct { int start, end; } label_pos;
         bool user_changed_focus;
     } tabs[TUI_TAB_COUNT];
 };

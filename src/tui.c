@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <fcntl.h>
 #include <math.h>
 #include <wchar.h>
 
@@ -362,13 +363,23 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
 static void tui_draw_status_bar(void) {
     wmove(tui.bar_win, 0, 0);
 
+    int pos = 0;
     FOR_EACH_TAB(tab) {
         wattron(tui.bar_win, (tab == tui.tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
         wattron(tui.bar_win, (tab == tui.tab) ? A_BOLD : 0);
-        waddstr(tui.bar_win, tui_tab_name(tab));
+
+        const char *str = tui_tab_name(tab);
+        waddstr(tui.bar_win, str);
+        tui.tabs[tab].label_pos.start = pos;
+        pos += strlen(str);
+        tui.tabs[tab].label_pos.end = pos;
+
         wattroff(tui.bar_win, (tab == tui.tab) ? A_BOLD : 0);
         wattroff(tui.bar_win, (tab == tui.tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
-        waddstr(tui.bar_win, "   ");
+
+        str = "   ";
+        waddstr(tui.bar_win, str);
+        pos += strlen(str);
     }
 
     wclrtoeol(tui.bar_win);
@@ -884,9 +895,61 @@ int tui_handle_resize(struct pollen_callback *callback, int signal, void *data) 
     return 0;
 }
 
+static void tui_handle_mouse(const MEVENT *const mev) {
+    const int x = mev->x, y = mev->y;
+    const mmask_t bstate = mev->bstate;
+    TRACE("MEVENT x=%d y=%d bstate=%s", x, y, mmask_to_string(bstate));
+
+    if (y == 0) /* status bar */ {
+        if (bstate & BUTTON1_PRESSED) {
+            FOR_EACH_TAB(tab) {
+                if (x >= tui.tabs[tab].label_pos.start && x <= tui.tabs[tab].label_pos.end) {
+                    tui_bind_set_tab((union tui_bind_data){.tab = tab});
+                }
+            }
+        } else if (y == 0 && bstate & BUTTON4_PRESSED) /* mouse wheel up */ {
+            tui_bind_change_tab((union tui_bind_data){.direction = DOWN});
+        } else if (y == 0 && bstate & BUTTON5_PRESSED) /* mouse wheel down */ {
+            tui_bind_change_tab((union tui_bind_data){.direction = UP});
+        }
+    } else /* main area */ {
+        if (bstate & BUTTON1_PRESSED) {
+            /* screen coords -> pad coords */
+            const int pad_y = (y - 1 /* bar */) + TUI_ACTIVE_TAB.scroll_pos;
+
+            /* find which node the mouse press landed on, inefficient but oh well */
+            bool found = false;
+            struct tui_tab_item *item;
+            spa_list_for_each(item, &TUI_ACTIVE_TAB.items, link) {
+                if (item->pos <= pad_y && pad_y <= (item->pos + item->height - 1)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (found) {
+                tui_tab_item_set_focused(tui.tab, item);
+                tui_repaint(false);
+            }
+        } else if (bstate & BUTTON5_PRESSED) /* mouse wheel down */ {
+            tui_bind_change_focus((union tui_bind_data){.direction = DOWN});
+        } else if (bstate & BUTTON4_PRESSED) /* mouse wheel up */ {
+            tui_bind_change_focus((union tui_bind_data){.direction = UP});
+        }
+    }
+}
+
 int tui_handle_keyboard(struct pollen_callback *callback, int fd, uint32_t events, void *data) {
     wint_t ch;
-    while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
+    int ret;
+    while (errno = 0, (ret = wget_wch(tui.pad_win, &ch)) != ERR || errno == EINTR) {
+        if (ret == KEY_CODE_YES && ch == KEY_MOUSE) {
+            MEVENT mevent;
+            while (getmouse(&mevent) == OK) {
+                tui_handle_mouse(&mevent);
+            }
+            return 0;
+        }
+
         struct tui_bind *bind;
         if (!HASHMAP_GET(bind, &config.binds, ch, hash)) {
             DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
@@ -1038,6 +1101,32 @@ void tui_notify_device_change(const struct device *dev) {
     }
 }
 
+static void tui_hack_force_mouse(bool enabled) {
+    int fd = -1;
+    const char *seq;
+
+    if (enabled) {
+        INFO("applying hack_force_mouse");
+        seq = "\033[?1002h";
+    } else {
+        INFO("restoring hack_force_mouse");
+        seq = "\033[?1002l";
+    }
+
+    fd = open("/dev/tty", O_WRONLY);
+    if (fd < 0) {
+        WARN("hack_force_mouse: failed to open /dev/tty: %s", strerror(errno));
+        goto out;
+    }
+    if (write(fd, seq, strlen(seq)) < 0) {
+        WARN("hack_force_mouse: failed to write escape sequence: %s", strerror(errno));
+        goto out;
+    }
+
+out:
+    close(fd);
+}
+
 int tui_init(void) {
     initscr();
     refresh(); /* https://stackoverflow.com/a/22121866 */
@@ -1045,6 +1134,16 @@ int tui_init(void) {
     noecho();
     curs_set(0);
     ESCDELAY = 50 /* ms */;
+
+    if (config.mouse_enabled) {
+        mousemask(ALL_MOUSE_EVENTS | REPORT_MOUSE_POSITION, NULL); /* mouse support */
+        mouseinterval(0 /* ms */);
+
+        if (config.hack_force_mouse_motion_tracking) {
+            tui_hack_force_mouse(true);
+        }
+    }
+
 
     start_color();
     use_default_colors();
@@ -1084,6 +1183,10 @@ int tui_cleanup(void) {
     }
 
     endwin();
+
+    if (config.hack_force_mouse_motion_tracking) {
+        tui_hack_force_mouse(false);
+    }
 
     return 0;
 }

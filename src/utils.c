@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <curses.h>
 #include <limits.h>
+#include <assert.h>
 
 #include "utils.h"
 #include "macros.h"
@@ -213,6 +214,63 @@ bool key_code_from_key_name(const char *name, wint_t *keycode) {
     return false;
 }
 
+const char *mmask_to_string(mmask_t mask) {
+    static char buf[1024];
+    char *buf_ptr = buf;
+
+    #define APPEND_IF_SET(flag) \
+        if (mask & (flag)) { \
+            buf_ptr += snprintf(buf_ptr, sizeof(buf) - (buf_ptr - buf), "%s|", #flag); \
+        }
+
+    APPEND_IF_SET(BUTTON1_PRESSED);
+    APPEND_IF_SET(BUTTON1_RELEASED);
+    APPEND_IF_SET(BUTTON1_CLICKED);
+    APPEND_IF_SET(BUTTON1_DOUBLE_CLICKED);
+    APPEND_IF_SET(BUTTON1_TRIPLE_CLICKED);
+
+    APPEND_IF_SET(BUTTON2_PRESSED);
+    APPEND_IF_SET(BUTTON2_RELEASED);
+    APPEND_IF_SET(BUTTON2_CLICKED);
+    APPEND_IF_SET(BUTTON2_DOUBLE_CLICKED);
+    APPEND_IF_SET(BUTTON2_TRIPLE_CLICKED);
+
+    APPEND_IF_SET(BUTTON3_PRESSED);
+    APPEND_IF_SET(BUTTON3_RELEASED);
+    APPEND_IF_SET(BUTTON3_CLICKED);
+    APPEND_IF_SET(BUTTON3_DOUBLE_CLICKED);
+    APPEND_IF_SET(BUTTON3_TRIPLE_CLICKED);
+
+    APPEND_IF_SET(BUTTON4_PRESSED);
+    APPEND_IF_SET(BUTTON4_RELEASED);
+    APPEND_IF_SET(BUTTON4_CLICKED);
+    APPEND_IF_SET(BUTTON4_DOUBLE_CLICKED);
+    APPEND_IF_SET(BUTTON4_TRIPLE_CLICKED);
+
+    APPEND_IF_SET(BUTTON5_PRESSED);
+    APPEND_IF_SET(BUTTON5_RELEASED);
+    APPEND_IF_SET(BUTTON5_CLICKED);
+    APPEND_IF_SET(BUTTON5_DOUBLE_CLICKED);
+    APPEND_IF_SET(BUTTON5_TRIPLE_CLICKED);
+
+    APPEND_IF_SET(BUTTON_SHIFT);
+    APPEND_IF_SET(BUTTON_CTRL);
+    APPEND_IF_SET(BUTTON_ALT);
+
+    APPEND_IF_SET(ALL_MOUSE_EVENTS);
+    APPEND_IF_SET(REPORT_MOUSE_POSITION);
+
+    #undef APPEND_IF_SET
+
+    if (buf_ptr > buf) {
+        buf_ptr[-1] = '\0'; /* strip | */
+    } else {
+        return "NONE";
+    }
+
+    return buf;
+}
+
 bool str_to_long(const char *str, long *res) {
     char *endptr = NULL;
     int base = 10;
@@ -230,7 +288,6 @@ bool str_to_long(const char *str, long *res) {
 
     return false;
 }
-
 
 bool str_to_ulong(const char *str, unsigned long *res) {
     char *endptr = NULL;
