@@ -1034,7 +1034,7 @@ void tui_notify_node_remove(const struct node *node) {
 }
 
 void tui_notify_device_change(const struct device *dev) {
-    TRACE("tui_notify_node_remove: id %d", dev->id);
+    TRACE("tui_notify_device_change: id %d", dev->id);
 
     struct tui_tab_item *tab_item;
     spa_list_for_each(tab_item, &TUI_ACTIVE_TAB.items, link) {
