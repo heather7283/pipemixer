@@ -296,41 +296,57 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
         const int ports_line_pos = item->pos + item->height - 2;
 
         if (node->device != NULL) {
-            const struct route *active_route = node_get_active_route(node);
-
             int written = 0, chars;
             swprintf(line, usable_width - written, L"Ports: %n", &chars);
             mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
             written = (written + chars > usable_width) ? usable_width : (written + chars);
 
-            /* draw active route first */
-            swprintf(line, usable_width - written,
-                     L"%s%n", active_route->description.data, &chars);
-            mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
-            written = (written + chars > usable_width) ? usable_width : (written + chars);
-
-            wattron(win, COLOR_PAIR(GRAY));
+            const struct route *active_route = node_get_active_route(node);
             const LIST_HEAD *routes = node_get_routes(node);
             const struct route *route;
-            LIST_FOR_EACH(route, routes, link) {
-                if (route->index == active_route->index) {
-                    continue;
-                }
 
+            if (active_route != NULL) {
+                /* draw active route first */
                 swprintf(line, usable_width - written,
-                         L" / %s%n", route->description.data, &chars);
+                         L"%s%n", active_route->description.data, &chars);
                 mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
                 written = (written + chars > usable_width) ? usable_width : (written + chars);
+
+                wattron(win, COLOR_PAIR(GRAY));
+                LIST_FOR_EACH(route, routes, link) {
+                    if (active_route != NULL && route->index == active_route->index) {
+                        continue;
+                    }
+
+                    swprintf(line, usable_width - written, L" / %s%n",
+                             route->description.data, &chars);
+                    mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
+                    written = (written + chars > usable_width) ? usable_width : (written + chars);
+                }
+            } else {
+                wattron(win, COLOR_PAIR(GRAY));
+                LIST_FOR_EACH(route, routes, link) {
+                    if (LIST_IS_FIRST(routes, &route->link)) {
+                        swprintf(line, usable_width - written, L"%s%n",
+                                 route->description.data, &chars);
+                    } else {
+                        swprintf(line, usable_width - written, L" / %s%n",
+                                 route->description.data, &chars);
+                    }
+                    mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
+                    written = (written + chars > usable_width) ? usable_width : (written + chars);
+                }
             }
-            wattroff(win, COLOR_PAIR(GRAY));
 
             if (written >= usable_width) {
                 cchar_t cc;
                 setcchar(&cc, L"…", 0, DEFAULT, NULL);
                 mvwadd_wch(win, ports_line_pos, usable_width, &cc);
             } else {
-                whline(win, ' ', usable_width - written);
+                mvwhline(win, ports_line_pos, written + 1, ' ', usable_width - written);
             }
+
+            wattroff(win, COLOR_PAIR(GRAY));
         }
     }
 
@@ -760,7 +776,7 @@ void tui_bind_select_port(union tui_bind_data data) {
         string_printf(&item->str, "%d. %s", route->index, route->description.data);
         item->data.uint = route->index;
 
-        if (route->index == active_route->index) {
+        if (active_route != NULL && route->index == active_route->index) {
             tui.menu->selected = i;
         }
 
