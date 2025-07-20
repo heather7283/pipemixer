@@ -55,6 +55,7 @@ struct pipemixer_config config = {
         .bl = L"└",
         .br = L"┘",
     },
+    .ports_separator = ", ",
 
     .binds = HASHMAP_INITIALISER,
 };
@@ -143,7 +144,9 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
     } else if (STREQ(s, "interface")) {
-        if (STREQ(k, "border-left")) {
+        if (STREQ(k, "ports-separator")) {
+            config.ports_separator = xstrdup(v);
+        } else if (STREQ(k, "border-left")) {
             CONFIG_GET_WCHAR(&config.borders.ls[0]);
         } else if (STREQ(k, "border-right")) {
             CONFIG_GET_WCHAR(&config.borders.rs[0]);

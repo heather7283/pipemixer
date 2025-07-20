@@ -319,8 +319,8 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                         continue;
                     }
 
-                    chars = snprintf(buf, usable_width - written, " / %s",
-                                     route->description.data);
+                    chars = snprintf(buf, usable_width - written, "%s%s",
+                                     config.ports_separator, route->description.data);
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
@@ -331,8 +331,8 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                         chars = snprintf(buf, usable_width - written, "%s",
                                          route->description.data);
                     } else {
-                        chars = snprintf(buf, usable_width - written, " / %s",
-                                         route->description.data);
+                        chars = snprintf(buf, usable_width - written, "%s%s",
+                                         config.ports_separator, route->description.data);
                     }
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
