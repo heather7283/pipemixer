@@ -293,12 +293,13 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
     }
 
     DRAW_IF(focus_changed || port_changed) {
+        char buf[usable_width];
         const int ports_line_pos = item->pos + item->height - 2;
 
         if (node->device != NULL) {
             int written = 0, chars;
-            swprintf(line, usable_width - written, L"Ports: %n", &chars);
-            mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
+            chars = snprintf(buf, usable_width - written, "Ports: ");
+            mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
             written = (written + chars > usable_width) ? usable_width : (written + chars);
 
             const struct route *active_route = node_get_active_route(node);
@@ -307,9 +308,9 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
 
             if (active_route != NULL) {
                 /* draw active route first */
-                swprintf(line, usable_width - written,
-                         L"%s%n", active_route->description.data, &chars);
-                mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
+                chars = snprintf(buf, usable_width - written, "%s",
+                                 active_route->description.data);
+                mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                 written = (written + chars > usable_width) ? usable_width : (written + chars);
 
                 wattron(win, COLOR_PAIR(GRAY));
@@ -318,22 +319,22 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                         continue;
                     }
 
-                    swprintf(line, usable_width - written, L" / %s%n",
-                             route->description.data, &chars);
-                    mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
+                    chars = snprintf(buf, usable_width - written, " / %s",
+                                     route->description.data);
+                    mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
             } else {
                 wattron(win, COLOR_PAIR(GRAY));
                 LIST_FOR_EACH(route, routes, link) {
                     if (LIST_IS_FIRST(routes, &route->link)) {
-                        swprintf(line, usable_width - written, L"%s%n",
-                                 route->description.data, &chars);
+                        chars = snprintf(buf, usable_width - written, "%s",
+                                         route->description.data);
                     } else {
-                        swprintf(line, usable_width - written, L" / %s%n",
-                                 route->description.data, &chars);
+                        chars = snprintf(buf, usable_width - written, " / %s",
+                                         route->description.data);
                     }
-                    mvwaddnwstr(win, ports_line_pos, 1 + written, line, usable_width - written);
+                    mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
             }
