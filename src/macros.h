@@ -24,7 +24,15 @@
 #define CONTAINER_OF(member_ptr, container_ptr, member_name) \
     ((TYPEOF(container_ptr))((char *)(member_ptr) - offsetof(TYPEOF(*container_ptr), member_name)))
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define SIZEOF_ARRAY(arr) (sizeof(arr) / sizeof((arr)[0]))
+
+#define TYPECHECK(type, x) \
+    ({ \
+        type dummy; \
+        TYPEOF(x) dummy2; \
+        (void)(&dummy == &dummy2); \
+        1; \
+    })
 
 #endif /* #ifndef MACROS_H */
 

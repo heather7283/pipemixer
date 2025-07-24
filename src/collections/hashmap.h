@@ -39,7 +39,7 @@ static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_H
 #define HASHMAP_INITIALISER { .n_items = 0, .buckets = {0} }
 #define HASHMAP_INIT(hashmap) \
     do { \
-        for (size_t i = 0; i < ARRAY_SIZE((hashmap)->buckets); i++) { \
+        for (size_t i = 0; i < SIZEOF_ARRAY((hashmap)->buckets); i++) { \
             (hashmap)->buckets[i] = NULL; \
         } \
     }
@@ -49,7 +49,7 @@ static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_H
 #define HASHMAP_GET_BUCKET_FROM_KEY(map, key) \
     ({ \
         size_t index = ((uint64_t)(key) * 0x9E3779B97F4A7C15ULL) >> \
-                        (64 - __builtin_ctzll(ARRAY_SIZE((map)->buckets))); \
+                        (64 - __builtin_ctzll(SIZEOF_ARRAY((map)->buckets))); \
         &(map)->buckets[index]; \
     })
 
@@ -214,7 +214,7 @@ static_assert(offsetof(struct hashmap, buckets) == offsetof(__typeof__(HASHMAP_H
         ({ \
             bool keep_going = true; \
             while (iter.e == NULL) { \
-                if ((++iter.b - (map)->buckets) >= (ptrdiff_t)ARRAY_SIZE((map)->buckets)) { \
+                if ((++iter.b - (map)->buckets) >= (ptrdiff_t)SIZEOF_ARRAY((map)->buckets)) { \
                     keep_going = false; \
                     break; \
                 } \

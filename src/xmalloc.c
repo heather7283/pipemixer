@@ -34,6 +34,14 @@ void *xrealloc(void *ptr, size_t size) {
     return alloc;
 }
 
+void *xreallocarray(void *ptr, size_t nmemb, size_t size) {
+    void *alloc = reallocarray(ptr, nmemb, size);
+    if (alloc == NULL) {
+        handle_alloc_failure();
+    }
+    return alloc;
+}
+
 char *xstrdup(const char *s) {
     if (s == NULL) {
         return NULL;

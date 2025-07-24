@@ -63,7 +63,7 @@ static void device_routes_free(const LIST_HEAD *list) {
 void device_free(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
-    for (unsigned int i = 0; i < ARRAY_SIZE(device->routes); i++) {
+    for (unsigned int i = 0; i < SIZEOF_ARRAY(device->routes); i++) {
         device_routes_free(&device->routes[i].all);
         device_routes_free(&device->routes[i].active);
     }
@@ -74,7 +74,7 @@ void device_free(struct device *device) {
 void on_device_roundtrip_done(void *data) {
     struct device *dev = data;
 
-    for (unsigned int i = 0; i < ARRAY_SIZE(dev->routes); i++) {
+    for (unsigned int i = 0; i < SIZEOF_ARRAY(dev->routes); i++) {
         device_routes_free(&dev->routes[i].all);
         device_routes_free(&dev->routes[i].active);
 

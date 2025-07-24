@@ -97,7 +97,7 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
         spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_Props, SPA_PARAM_Props,
                                    SPA_PROP_channelVolumes,
                                    SPA_POD_Array(sizeof(float), SPA_TYPE_Float,
-                                                 ARRAY_SIZE(cubed_volumes), cubed_volumes));
+                                                 SIZEOF_ARRAY(cubed_volumes), cubed_volumes));
 
     node_set_props(node, props);
 }

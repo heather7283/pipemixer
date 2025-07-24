@@ -67,7 +67,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         struct device *new_device = xcalloc(1, sizeof(*new_device));
-        for (unsigned int i = 0; i < ARRAY_SIZE(new_device->routes); i++) {
+        for (unsigned int i = 0; i < SIZEOF_ARRAY(new_device->routes); i++) {
             LIST_INIT(&new_device->routes[i].all);
             LIST_INIT(&new_device->routes[i].active);
             LIST_INIT(&new_device->new_routes[i].all);
