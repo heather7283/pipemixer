@@ -3,7 +3,7 @@
 
 #include <curses.h>
 
-#include "collections.h"
+#include "collections/hashmap.h"
 
 struct pipemixer_config {
     float volume_step;

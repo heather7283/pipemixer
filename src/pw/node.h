@@ -6,7 +6,7 @@
 
 #include "pw/common.h"
 #include "pw/device.h"
-#include "strutils.h"
+#include "collections/string.h"
 
 enum node_change_mask {
     NODE_CHANGE_NOTHING = 0,

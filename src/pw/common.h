@@ -4,7 +4,7 @@
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/raw-types.h>
 
-#include "collections.h"
+#include "collections/hashmap.h"
 
 /* for use is (node|device)_set_(volume|mute) functions, see node.h, device.h */
 #define ALL_CHANNELS ((uint32_t)-1)

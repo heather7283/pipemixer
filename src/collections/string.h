@@ -1,5 +1,5 @@
-#ifndef SRC_STRUTILS_H
-#define SRC_STRUTILS_H
+#ifndef SRC_COLLECTIONS_STRING_H
+#define SRC_COLLECTIONS_STRING_H
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -26,5 +26,5 @@ void wstring_from_pchar(struct wstring *str, const char *src);
 static inline bool wstring_is_empty(const struct wstring *str) { return str->len == 0; };
 void wstring_free(struct wstring *str);
 
-#endif /* #ifndef SRC_STRUTILS_H */
+#endif /* #ifndef SRC_COLLECTIONS_STRING_H */
 

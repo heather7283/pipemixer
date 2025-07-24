@@ -5,8 +5,9 @@
 
 #include <pipewire/pipewire.h>
 
-#include "strutils.h"
-#include "collections.h"
+#include "collections/string.h"
+#include "collections/list.h"
+#include "collections/hashmap.h"
 
 struct route {
     int32_t device, index;

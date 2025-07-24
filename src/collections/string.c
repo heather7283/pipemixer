@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdarg.h>
 
-#include "strutils.h"
+#include "collections/string.h"
 #include "xmalloc.h"
 
 void string_from_pchar(struct string *str, const char *src) {
