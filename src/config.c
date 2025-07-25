@@ -55,7 +55,7 @@ struct pipemixer_config config = {
         .bl = L"└",
         .br = L"┘",
     },
-    .ports_separator = ", ",
+    .routes_separator = ", ",
 
     .binds = HASHMAP_INITIALISER,
 };
@@ -145,7 +145,7 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
         }
     } else if (STREQ(s, "interface")) {
         if (STREQ(k, "ports-separator")) {
-            config.ports_separator = xstrdup(v);
+            config.routes_separator = xstrdup(v);
         } else if (STREQ(k, "border-left")) {
             CONFIG_GET_WCHAR(&config.borders.ls[0]);
         } else if (STREQ(k, "border-right")) {
@@ -258,8 +258,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 } else {
                     CONFIG_LOG("unknown action: %s", k);
                 }
-            } else if (STREQ(k, "select-port")) {
-                ADD_BIND(keycode, tui_bind_select_port, nothing, NOTHING);
+            } else if (STREQ(k, "select-route")) {
+                ADD_BIND(keycode, tui_bind_select_route, nothing, NOTHING);
             } else if (STREQ(k, "confirm-selection")) {
                 ADD_BIND(keycode, tui_bind_confirm_selection, nothing, NOTHING);
             } else if (STREQ(k, "cancel-selection")) {
@@ -311,7 +311,7 @@ static void add_default_binds(void) {
         "tab-output-devices=4\n"
         "mute-toggle=m\n"
         "channel-lock-toggle=space\n"
-        "select-port=p\n"
+        "select-route=p\n"
         "confirm-selection=enter\n"
         "cancel-selection=escape\n"
         "quit=q\n";

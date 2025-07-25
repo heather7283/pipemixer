@@ -20,7 +20,7 @@ struct pipemixer_config {
         /* see curs_border(3x) */
         wchar_t ls[2], rs[2], ts[2], bs[2], tl[2], tr[2], bl[2], br[2];
     } borders;
-    char *ports_separator;
+    char *routes_separator;
 
     HASHMAP_HEAD(64) binds;
 };

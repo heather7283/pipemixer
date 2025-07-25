@@ -298,7 +298,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
 
         if (node->device != NULL) {
             int written = 0, chars;
-            chars = snprintf(buf, usable_width - written, "Ports: ");
+            chars = snprintf(buf, usable_width - written, "Routes: ");
             mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
             written = (written + chars > usable_width) ? usable_width : (written + chars);
 
@@ -320,7 +320,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                     }
 
                     chars = snprintf(buf, usable_width - written, "%s%s",
-                                     config.ports_separator, route->description.data);
+                                     config.routes_separator, route->description.data);
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
@@ -332,7 +332,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                                          route->description.data);
                     } else {
                         chars = snprintf(buf, usable_width - written, "%s%s",
-                                         config.ports_separator, route->description.data);
+                                         config.routes_separator, route->description.data);
                     }
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
@@ -751,7 +751,7 @@ static void on_port_selection_done(struct tui_menu *menu, struct tui_menu_item *
     tui_repaint(true);
 }
 
-void tui_bind_select_port(union tui_bind_data data) {
+void tui_bind_select_route(union tui_bind_data data) {
     if (TUI_ACTIVE_TAB.focused == NULL \
         || !TUI_ACTIVE_TAB.focused->node->has_device \
         || tui.menu_active) {
@@ -777,7 +777,7 @@ void tui_bind_select_port(union tui_bind_data data) {
 
     tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
 
-    string_printf(&tui.menu->header, "Select port for %ls",
+    string_printf(&tui.menu->header, "Select route for %ls",
                   TUI_ACTIVE_TAB.focused->node->node_name.data);
 
     int i = 0;
