@@ -783,7 +783,8 @@ void tui_bind_select_route(union tui_bind_data data) {
     int i = 0;
     LIST_FOR_EACH_REVERSE(route, routes, link) {
         struct tui_menu_item *item = &tui.menu->items[i];
-        string_printf(&item->str, "%d. %s", route->index, route->description.data);
+        string_printf(&item->str, "%d. %s (%s)",
+                      route->index, route->description.data, route->name.data);
         item->data.uint = route->index;
 
         if (active_route != NULL && route->index == active_route->index) {

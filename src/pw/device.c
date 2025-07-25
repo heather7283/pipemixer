@@ -59,6 +59,7 @@ static void profile_free(struct profile *profile) {
 
 static void route_free(struct route *route) {
     string_free(&route->description);
+    string_free(&route->name);
     ARRAY_FREE(&route->devices);
     ARRAY_FREE(&route->profiles);
 }
@@ -184,6 +185,8 @@ void on_device_info(void *data, const struct pw_device_info *info) {
 }
 
 static void on_device_param_route(struct device *dev, const struct spa_pod *param) {
+    const struct spa_pod_prop *name =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_name);
     const struct spa_pod_prop *index =
         spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_index);
     const struct spa_pod_prop *device =
@@ -192,7 +195,8 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
         spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_direction);
     const struct spa_pod_prop *description =
         spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_description);
-    if (index == NULL || device == NULL || direction == NULL || description == NULL) {
+    if (index == NULL || device == NULL || direction == NULL
+        || description == NULL || name == NULL) {
         WARN("Didn't find all required fields in Route");
         return;
     }
@@ -207,12 +211,18 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
     spa_pod_get_string(&description->value, &description_str);
     string_from_pchar(&new_route->description, description_str);
 
+    const char *name_str = NULL;
+    spa_pod_get_string(&name->value, &name_str);
+    string_from_pchar(&new_route->name, name_str);
+
     DEBUG("New route (Route) on dev %d: %s device %d index %d dir %d",
           dev->id, new_route->description.data, new_route->device,
           new_route->index, new_route->direction);
 }
 
 static void on_device_param_enum_route(struct device *dev, const struct spa_pod *param) {
+    const struct spa_pod_prop *name =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_name);
     const struct spa_pod_prop *index =
         spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_index);
     const struct spa_pod_prop *devices =
@@ -224,7 +234,7 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
     const struct spa_pod_prop *description =
         spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_description);
     if (index == NULL || direction == NULL || description == NULL
-        || profiles == NULL || devices == NULL) {
+        || profiles == NULL || devices == NULL || name == NULL) {
         WARN("Didn't find all required fields in Route");
         return;
     }
@@ -237,6 +247,10 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
     const char *description_str = NULL;
     spa_pod_get_string(&description->value, &description_str);
     string_from_pchar(&new_route->description, description_str);
+
+    const char *name_str = NULL;
+    spa_pod_get_string(&name->value, &name_str);
+    string_from_pchar(&new_route->name, name_str);
 
     struct spa_pod *iter;
     SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&devices->value, iter) {

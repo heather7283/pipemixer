@@ -19,6 +19,7 @@ struct route {
     ARRAY(int32_t) profiles;
 
     struct string description;
+    struct string name;
 
     /* for use in node_get_available_routes() (kinda cringe but eh it works) */
     LIST_ENTRY link;
