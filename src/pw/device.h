@@ -8,6 +8,7 @@
 #include "collections/string.h"
 #include "collections/list.h"
 #include "collections/hashmap.h"
+#include "collections/array.h"
 
 struct route {
     int32_t device, index;
@@ -17,11 +18,27 @@ struct route {
     LIST_ENTRY link;
 };
 
+struct profile {
+    int32_t index;
+
+    struct string description;
+    struct string name;
+};
+
+enum device_modified_params {
+    ROUTE = 1 << 0,
+    ENUM_ROUTE = 1 << 1,
+    PROFILE = 1 << 2,
+    ENUM_PROFILE = 1 << 3,
+};
+
 struct device {
     struct pw_device *pw_device;
     struct spa_hook listener;
 
     uint32_t id;
+
+    enum device_modified_params modified_params;
 
     struct {
         LIST_HEAD all;
@@ -33,6 +50,11 @@ struct device {
     } new_routes[2]; /* needed to atomically update routes. TODO: better way to do it? */
     static_assert(SPA_DIRECTION_INPUT == 0 && SPA_DIRECTION_OUTPUT == 1,
                   "Unexpected values of spa_direction enums");
+
+    int profiles_index;
+    ARRAY(struct profile) profiles[2];
+    /* FIXME: relies on the assumption that only one profile can be active at a time. */
+    struct profile *active_profile;
 
     HASHMAP_ENTRY hash;
 };

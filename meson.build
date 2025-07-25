@@ -42,6 +42,7 @@ pipemixer_sources = [
   'src/utils.c',
   'src/config.c',
   'src/collections/string.c',
+  'src/collections/array.c',
   'src/pw/common.c',
   'src/pw/device.c',
   'src/pw/node.c',
