@@ -34,5 +34,12 @@
         1; \
     })
 
+#define SWAP(a, b) \
+    do { \
+        TYPEOF(a) tmp = (a); \
+        (a) = (b); \
+        (b) = tmp; \
+    } while (0)
+
 #endif /* #ifndef MACROS_H */
 

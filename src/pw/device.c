@@ -11,9 +11,10 @@
 void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device) {
     bool found = false;
-    struct route *route;
-    LIST_FOR_EACH(route, &dev->routes[direction].active, link) {
-        if (route->device == card_profile_device) {
+    struct route *route = NULL;
+    ARRAY_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
+        route = &ARRAY_AT(&dev->active_routes[dev->active_routes_index], i);
+        if (route->direction == direction && route->device == card_profile_device) {
             found = true;
             break;
         }
@@ -56,24 +57,28 @@ static void profile_free(struct profile *profile) {
     string_free(&profile->description);
 }
 
-static void device_routes_free(const LIST_HEAD *list) {
-    struct route *route;
-    LIST_FOR_EACH(route, list, link) {
-        LIST_REMOVE(&route->link);
-        string_free(&route->description);
-        free(route);
-    }
+static void route_free(struct route *route) {
+    string_free(&route->description);
+    ARRAY_FREE(&route->devices);
+    ARRAY_FREE(&route->profiles);
 }
 
 void device_free(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
-    for (unsigned int i = 0; i < SIZEOF_ARRAY(device->routes); i++) {
-        device_routes_free(&device->routes[i].all);
-        device_routes_free(&device->routes[i].active);
-    }
-
     for (int j = 0; j < 2; j++) {
+        ARRAY_FOREACH(&device->all_routes[j], i) {
+            struct route *route = &ARRAY_AT(&device->all_routes[j], i);
+            route_free(route);
+        }
+        ARRAY_FREE(&device->all_routes[j]);
+
+        ARRAY_FOREACH(&device->active_routes[j], i) {
+            struct route *route = &ARRAY_AT(&device->active_routes[j], i);
+            route_free(route);
+        }
+        ARRAY_FREE(&device->active_routes[j]);
+
         ARRAY_FOREACH(&device->profiles[j], i) {
             struct profile *profile = &ARRAY_AT(&device->profiles[j], i);
             profile_free(profile);
@@ -92,20 +97,26 @@ void on_device_roundtrip_done(void *data) {
     struct device *dev = data;
 
     if (dev->modified_params & ROUTE) {
-        for (unsigned int i = 0; i < SIZEOF_ARRAY(dev->routes); i++) {
-            device_routes_free(&dev->routes[i].active);
-
-            LIST_SWAP_HEADS(&dev->routes[i].active, &dev->new_routes[i].active);
+        ARRAY_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
+            struct route *route = &ARRAY_AT(&dev->active_routes[dev->active_routes_index], i);
+            route_free(route);
         }
+        ARRAY_CLEAR(&dev->active_routes[dev->active_routes_index]);
+
+        /* swap */
+        dev->active_routes_index = !dev->active_routes_index;
 
         dev->modified_params &= ~ROUTE;
     }
     if (dev->modified_params & ENUM_ROUTE) {
-        for (unsigned int i = 0; i < SIZEOF_ARRAY(dev->routes); i++) {
-            device_routes_free(&dev->routes[i].all);
-
-            LIST_SWAP_HEADS(&dev->routes[i].all, &dev->new_routes[i].all);
+        ARRAY_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
+            struct route *route = &ARRAY_AT(&dev->all_routes[dev->all_routes_index], i);
+            route_free(route);
         }
+        ARRAY_CLEAR(&dev->all_routes[dev->all_routes_index]);
+
+        /* swap */
+        dev->all_routes_index = !dev->all_routes_index;
 
         dev->modified_params &= ~ENUM_ROUTE;
     }
@@ -114,6 +125,7 @@ void on_device_roundtrip_done(void *data) {
             struct profile *profile = &ARRAY_AT(&dev->profiles[dev->profiles_index], i);
             profile_free(profile);
         }
+
         /* swap */
         dev->profiles_index = !dev->profiles_index;
 
@@ -156,6 +168,7 @@ void on_device_info(void *data, const struct pw_device_info *info) {
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
                 if (device->active_profile != NULL) {
                     profile_free(device->active_profile);
+                    free(device->active_profile);
                     device->active_profile = NULL;
                 }
                 device->modified_params |= PROFILE;
@@ -171,20 +184,20 @@ void on_device_info(void *data, const struct pw_device_info *info) {
 }
 
 static void on_device_param_route(struct device *dev, const struct spa_pod *param) {
-    const struct spa_pod_prop *index = spa_pod_find_prop(param,
-                                                         NULL, SPA_PARAM_ROUTE_index);
-    const struct spa_pod_prop *device = spa_pod_find_prop(param,
-                                                          NULL, SPA_PARAM_ROUTE_device);
-    const struct spa_pod_prop *direction = spa_pod_find_prop(param,
-                                                             NULL, SPA_PARAM_ROUTE_direction);
-    const struct spa_pod_prop *description = spa_pod_find_prop(param,
-                                                               NULL, SPA_PARAM_ROUTE_description);
+    const struct spa_pod_prop *index =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_index);
+    const struct spa_pod_prop *device =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_device);
+    const struct spa_pod_prop *direction =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_direction);
+    const struct spa_pod_prop *description =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_description);
     if (index == NULL || device == NULL || direction == NULL || description == NULL) {
-        WARN("Didn't find index or device or direction or description in Route");
+        WARN("Didn't find all required fields in Route");
         return;
     }
 
-    struct route *new_route = xcalloc(1, sizeof(*new_route));
+    struct route *new_route = ARRAY_EMPLACE_ZEROED(&dev->active_routes[!dev->active_routes_index]);
 
     spa_pod_get_int(&index->value, &new_route->index);
     spa_pod_get_int(&device->value, &new_route->device);
@@ -197,23 +210,26 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
     DEBUG("New route (Route) on dev %d: %s device %d index %d dir %d",
           dev->id, new_route->description.data, new_route->device,
           new_route->index, new_route->direction);
-
-    LIST_INSERT(&dev->new_routes[new_route->direction].active, &new_route->link);
 }
 
 static void on_device_param_enum_route(struct device *dev, const struct spa_pod *param) {
-    const struct spa_pod_prop *index = spa_pod_find_prop(param,
-                                                         NULL, SPA_PARAM_ROUTE_index);
-    const struct spa_pod_prop *direction = spa_pod_find_prop(param,
-                                                             NULL, SPA_PARAM_ROUTE_direction);
-    const struct spa_pod_prop *description = spa_pod_find_prop(param,
-                                                               NULL, SPA_PARAM_ROUTE_description);
-    if (index == NULL || direction == NULL || description == NULL) {
-        WARN("Didn't find index or direction or description in Route (EnumRoute)");
+    const struct spa_pod_prop *index =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_index);
+    const struct spa_pod_prop *devices =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_devices);
+    const struct spa_pod_prop *profiles =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_profiles);
+    const struct spa_pod_prop *direction =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_direction);
+    const struct spa_pod_prop *description =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_description);
+    if (index == NULL || direction == NULL || description == NULL
+        || profiles == NULL || devices == NULL) {
+        WARN("Didn't find all required fields in Route");
         return;
     }
 
-    struct route *new_route = xcalloc(1, sizeof(*new_route));
+    struct route *new_route = ARRAY_EMPLACE_ZEROED(&dev->all_routes[!dev->all_routes_index]);
 
     spa_pod_get_int(&index->value, &new_route->index);
     spa_pod_get_id(&direction->value, &new_route->direction);
@@ -222,10 +238,16 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
     spa_pod_get_string(&description->value, &description_str);
     string_from_pchar(&new_route->description, description_str);
 
+    struct spa_pod *iter;
+    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&devices->value, iter) {
+        ARRAY_APPEND(&new_route->devices, (int32_t *)iter);
+    }
+    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&profiles->value, iter) {
+        ARRAY_APPEND(&new_route->profiles, (int32_t *)iter);
+    }
+
     DEBUG("New route (EnumRoute) on dev %d: %s index %d dir %d",
           dev->id, new_route->description.data, new_route->index, new_route->direction);
-
-    LIST_INSERT(&dev->new_routes[new_route->direction].all, &new_route->link);
 }
 
 static void on_device_param_enum_profile(struct device *dev, const struct spa_pod *param) {

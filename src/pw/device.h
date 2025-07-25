@@ -11,10 +11,16 @@
 #include "collections/array.h"
 
 struct route {
-    int32_t device, index;
-    struct string description;
+    int32_t index;
+    int32_t device;
     uint32_t direction; /* enum spa_direction */
 
+    ARRAY(int32_t) devices;
+    ARRAY(int32_t) profiles;
+
+    struct string description;
+
+    /* for use in node_get_available_routes() (kinda cringe but eh it works) */
     LIST_ENTRY link;
 };
 
@@ -40,16 +46,11 @@ struct device {
 
     enum device_modified_params modified_params;
 
-    struct {
-        LIST_HEAD all;
-        LIST_HEAD active;
-    } routes[2];
-    struct {
-        LIST_HEAD all;
-        LIST_HEAD active;
-    } new_routes[2]; /* needed to atomically update routes. TODO: better way to do it? */
-    static_assert(SPA_DIRECTION_INPUT == 0 && SPA_DIRECTION_OUTPUT == 1,
-                  "Unexpected values of spa_direction enums");
+    /* needed to atomically update route list. TODO: is there a better way to do it? */
+    int all_routes_index;
+    ARRAY(struct route) all_routes[2];
+    int active_routes_index;
+    ARRAY(struct route) active_routes[2];
 
     int profiles_index;
     ARRAY(struct profile) profiles[2];

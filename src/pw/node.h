@@ -7,6 +7,7 @@
 #include "pw/common.h"
 #include "pw/device.h"
 #include "collections/string.h"
+#include "collections/list.h"
 
 enum node_change_mask {
     NODE_CHANGE_NOTHING = 0,
@@ -50,7 +51,7 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
 void node_set_route(const struct node *node, uint32_t route_index);
 
 const struct route *node_get_active_route(const struct node *node);
-const LIST_HEAD *node_get_routes(const struct node *node);
+const LIST_HEAD *node_get_available_routes(const struct node *node);
 
 #endif /* #ifndef SRC_PIPEWIRE_NODE_H */
 

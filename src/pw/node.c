@@ -112,13 +112,36 @@ void node_set_route(const struct node *node, uint32_t route_index) {
     }
 }
 
-const LIST_HEAD *node_get_routes(const struct node *node) {
+const LIST_HEAD *node_get_available_routes(const struct node *node) {
     if (!node->has_device || node->device == NULL) {
         return NULL;
     }
 
-    enum spa_direction direction = media_class_to_direction(node->media_class);
-    return &node->device->routes[direction].all;
+    const struct device *dev = node->device;
+    if (dev->active_profile == NULL) {
+        ERROR("cannot get available routes for node %d with dev %d: no active profile on node",
+              node->id, dev->id);
+        return NULL;
+    }
+
+    static LIST_HEAD routes;
+    LIST_INIT(&routes);
+    const enum spa_direction direction = media_class_to_direction(node->media_class);
+    ARRAY_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
+        struct route *route = &ARRAY_AT(&dev->all_routes[dev->all_routes_index], i);
+        if (route->direction != direction) {
+            continue;
+        }
+
+        ARRAY_FOREACH(&route->profiles, j) {
+            int32_t profile = ARRAY_AT(&route->profiles, j);
+            if (profile == dev->active_profile->index) {
+                LIST_INSERT(&routes, &route->link);
+            }
+        }
+    }
+
+    return &routes;
 }
 
 const struct route *node_get_active_route(const struct node *node) {
@@ -126,10 +149,11 @@ const struct route *node_get_active_route(const struct node *node) {
         return NULL;
     }
 
-    enum spa_direction direction = media_class_to_direction(node->media_class);
-    const struct route *route;
-    LIST_FOR_EACH(route, &node->device->routes[direction].active, link) {
-        if (route->device == node->card_profile_device) {
+    const struct device *dev = node->device;
+    const enum spa_direction direction = media_class_to_direction(node->media_class);
+    ARRAY_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
+        const struct route *route = &ARRAY_AT(&dev->active_routes[dev->active_routes_index], i);
+        if (route->device == node->card_profile_device && route->direction == direction) {
             return route;
         }
     }

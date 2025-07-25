@@ -303,9 +303,9 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             written = (written + chars > usable_width) ? usable_width : (written + chars);
 
             const struct route *active_route = node_get_active_route(node);
-            const LIST_HEAD *routes = node_get_routes(node);
-            const struct route *route;
+            const LIST_HEAD *routes = node_get_available_routes(node);
 
+            const struct route *route;
             if (active_route != NULL) {
                 /* draw active route first */
                 chars = snprintf(buf, usable_width - written, "%s",
@@ -324,7 +324,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
-            } else {
+            } else if (routes != NULL && !LIST_IS_EMPTY(routes)) {
                 wattron(win, COLOR_PAIR(GRAY));
                 LIST_FOR_EACH(route, routes, link) {
                     if (LIST_IS_FIRST(routes, &route->link)) {
@@ -337,6 +337,11 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
+            } else {
+                wattron(win, COLOR_PAIR(GRAY));
+                chars = snprintf(buf, usable_width - written, "(none)");
+                mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
+                written = (written + chars > usable_width) ? usable_width : (written + chars);
             }
 
             if (written >= usable_width) {
@@ -754,10 +759,14 @@ void tui_bind_select_port(union tui_bind_data data) {
     }
 
     const struct route *active_route = node_get_active_route(TUI_ACTIVE_TAB.focused->node);
-    const LIST_HEAD *routes = node_get_routes(TUI_ACTIVE_TAB.focused->node);
-    const struct route *route;
+    const LIST_HEAD *routes = node_get_available_routes(TUI_ACTIVE_TAB.focused->node);
+
+    if (routes == NULL || LIST_IS_EMPTY(routes)) {
+        return;
+    }
 
     unsigned int n_items = 0;
+    const struct route *route;
     LIST_FOR_EACH(route, routes, link) {
         n_items += 1;
     }
