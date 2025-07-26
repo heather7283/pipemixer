@@ -134,7 +134,7 @@ const LIST_HEAD *node_get_available_routes(const struct node *node) {
         }
 
         ARRAY_FOREACH(&route->profiles, j) {
-            int32_t profile = ARRAY_AT(&route->profiles, j);
+            const int32_t profile = ARRAY_AT(&route->profiles, j);
             if (profile == dev->active_profile->index) {
                 LIST_INSERT(&routes, &route->link);
             }
@@ -153,8 +153,15 @@ const struct route *node_get_active_route(const struct node *node) {
     const enum spa_direction direction = media_class_to_direction(node->media_class);
     ARRAY_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
         const struct route *route = &ARRAY_AT(&dev->active_routes[dev->active_routes_index], i);
-        if (route->device == node->card_profile_device && route->direction == direction) {
-            return route;
+        if (route->device != node->card_profile_device || route->direction != direction) {
+            continue;
+        }
+
+        ARRAY_FOREACH(&route->profiles, j) {
+            const int32_t profile = ARRAY_AT(&route->profiles, j);
+            if (profile == dev->active_profile->index) {
+                return route;
+            }
         }
     }
 
