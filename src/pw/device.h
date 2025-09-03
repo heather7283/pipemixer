@@ -6,7 +6,6 @@
 #include <pipewire/pipewire.h>
 
 #include "collections/string.h"
-#include "collections/list.h"
 #include "collections/hashmap.h"
 #include "collections/vec.h"
 
@@ -20,9 +19,6 @@ struct route {
 
     struct string description;
     struct string name;
-
-    /* for use in node_get_available_routes() (kinda cringe but eh it works) */
-    LIST_ENTRY link;
 };
 
 struct profile {

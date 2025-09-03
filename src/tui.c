@@ -303,9 +303,9 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             written = (written + chars > usable_width) ? usable_width : (written + chars);
 
             const struct route *active_route = node_get_active_route(node);
-            const LIST_HEAD *routes = node_get_available_routes(node);
+            const struct route *routes;
+            const size_t nroutes = node_get_available_routes(node, &routes);
 
-            const struct route *route;
             if (active_route != NULL) {
                 /* draw active route first */
                 chars = snprintf(buf, usable_width - written, "%s",
@@ -314,7 +314,8 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                 written = (written + chars > usable_width) ? usable_width : (written + chars);
 
                 wattron(win, COLOR_PAIR(GRAY));
-                LIST_FOR_EACH(route, routes, link) {
+                for (size_t i = 0; i < nroutes; i++) {
+                    const struct route *route = &routes[i];
                     if (active_route != NULL && route->index == active_route->index) {
                         continue;
                     }
@@ -324,10 +325,11 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
-            } else if (routes != NULL && !LIST_IS_EMPTY(routes)) {
+            } else if (nroutes > 0) {
                 wattron(win, COLOR_PAIR(GRAY));
-                LIST_FOR_EACH(route, routes, link) {
-                    if (LIST_IS_FIRST(routes, &route->link)) {
+                for (size_t i = 0; i < nroutes; i++) {
+                    const struct route *route = &routes[i];
+                    if (i == 0) {
                         chars = snprintf(buf, usable_width - written, "%s",
                                          route->description.data);
                     } else {
@@ -759,19 +761,14 @@ void tui_bind_select_route(union tui_bind_data data) {
     }
 
     const struct route *active_route = node_get_active_route(TUI_ACTIVE_TAB.focused->node);
-    const LIST_HEAD *routes = node_get_available_routes(TUI_ACTIVE_TAB.focused->node);
+    const struct route *routes;
+    const size_t nroutes = node_get_available_routes(TUI_ACTIVE_TAB.focused->node, &routes);
 
-    if (routes == NULL || LIST_IS_EMPTY(routes)) {
+    if (nroutes == 0) {
         return;
     }
 
-    unsigned int n_items = 0;
-    const struct route *route;
-    LIST_FOR_EACH(route, routes, link) {
-        n_items += 1;
-    }
-
-    tui.menu = tui_menu_create(n_items);
+    tui.menu = tui_menu_create(nroutes);
     tui.menu->callback = on_port_selection_done;
     tui.menu->data.uint = TUI_ACTIVE_TAB.focused->node->id;
 
@@ -780,8 +777,8 @@ void tui_bind_select_route(union tui_bind_data data) {
     string_printf(&tui.menu->header, "Select route for %ls",
                   TUI_ACTIVE_TAB.focused->node->node_name.data);
 
-    int i = 0;
-    LIST_FOR_EACH_REVERSE(route, routes, link) {
+    for (size_t i = 0; i < nroutes; i++) {
+        const struct route *route = &routes[i];
         struct tui_menu_item *item = &tui.menu->items[i];
         string_printf(&item->str, "%d. %s (%s)",
                       route->index, route->description.data, route->name.data);
@@ -790,8 +787,6 @@ void tui_bind_select_route(union tui_bind_data data) {
         if (active_route != NULL && route->index == active_route->index) {
             tui.menu->selected = i;
         }
-
-        i += 1;
     }
 
     tui.menu_active = true;

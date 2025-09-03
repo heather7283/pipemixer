@@ -51,7 +51,7 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
 void node_set_route(const struct node *node, uint32_t route_index);
 
 const struct route *node_get_active_route(const struct node *node);
-const LIST_HEAD *node_get_available_routes(const struct node *node);
+size_t node_get_available_routes(const struct node *node, const struct route **routes);
 
 #endif /* #ifndef SRC_PIPEWIRE_NODE_H */
 

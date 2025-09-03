@@ -112,21 +112,23 @@ void node_set_route(const struct node *node, uint32_t route_index) {
     }
 }
 
-const LIST_HEAD *node_get_available_routes(const struct node *node) {
+size_t node_get_available_routes(const struct node *node, const struct route **proutes) {
+    static VEC(struct route *) routes = {0};
+
     if (!node->has_device || node->device == NULL) {
-        return NULL;
+        return 0;
     }
 
     const struct device *dev = node->device;
     if (dev->active_profile == NULL) {
         ERROR("cannot get available routes for node %d with dev %d: no active profile on node",
               node->id, dev->id);
-        return NULL;
+        return 0;
     }
 
-    static LIST_HEAD routes;
-    LIST_INIT(&routes);
     const enum spa_direction direction = media_class_to_direction(node->media_class);
+
+    VEC_CLEAR(&routes);
     VEC_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
         struct route *route = VEC_AT(&dev->all_routes[dev->all_routes_index], i);
         if (route->direction != direction) {
@@ -136,12 +138,15 @@ const LIST_HEAD *node_get_available_routes(const struct node *node) {
         VEC_FOREACH(&route->profiles, j) {
             const int32_t profile = *VEC_AT(&route->profiles, j);
             if (profile == dev->active_profile->index) {
-                LIST_INSERT(&routes, &route->link);
+                VEC_APPEND(&routes, &route);
             }
         }
     }
 
-    return &routes;
+    if (proutes != NULL) {
+        *proutes = *routes.data;
+    }
+    return VEC_SIZE(&routes);
 }
 
 const struct route *node_get_active_route(const struct node *node) {
