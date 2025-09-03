@@ -52,12 +52,12 @@ void device_set_route(const struct device *dev, int32_t card_profile_device, int
     pw_device_set_param(dev->pw_device, SPA_PARAM_Route, 0, route);
 }
 
-static void profile_free(struct profile *profile) {
+static void profile_free_contents(struct profile *profile) {
     free(profile->name);
     free(profile->description);
 }
 
-static void route_free(struct route *route) {
+static void route_free_contents(struct route *route) {
     free(route->description);
     free(route->name);
     VEC_FREE(&route->devices);
@@ -70,24 +70,24 @@ void device_free(struct device *device) {
     for (int j = 0; j < 2; j++) {
         VEC_FOREACH(&device->all_routes[j], i) {
             struct route *route = VEC_AT(&device->all_routes[j], i);
-            route_free(route);
+            route_free_contents(route);
         }
         VEC_FREE(&device->all_routes[j]);
 
         VEC_FOREACH(&device->active_routes[j], i) {
             struct route *route = VEC_AT(&device->active_routes[j], i);
-            route_free(route);
+            route_free_contents(route);
         }
         VEC_FREE(&device->active_routes[j]);
 
         VEC_FOREACH(&device->profiles[j], i) {
             struct profile *profile = VEC_AT(&device->profiles[j], i);
-            profile_free(profile);
+            profile_free_contents(profile);
         }
         VEC_FREE(&device->profiles[j]);
     }
     if (device->active_profile != NULL) {
-        profile_free(device->active_profile);
+        profile_free_contents(device->active_profile);
         free(device->active_profile);
     }
 
@@ -100,7 +100,7 @@ void on_device_roundtrip_done(void *data) {
     if (dev->modified_params & ROUTE) {
         VEC_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
             struct route *route = VEC_AT(&dev->active_routes[dev->active_routes_index], i);
-            route_free(route);
+            route_free_contents(route);
         }
         VEC_CLEAR(&dev->active_routes[dev->active_routes_index]);
 
@@ -112,7 +112,7 @@ void on_device_roundtrip_done(void *data) {
     if (dev->modified_params & ENUM_ROUTE) {
         VEC_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
             struct route *route = VEC_AT(&dev->all_routes[dev->all_routes_index], i);
-            route_free(route);
+            route_free_contents(route);
         }
         VEC_CLEAR(&dev->all_routes[dev->all_routes_index]);
 
@@ -124,7 +124,7 @@ void on_device_roundtrip_done(void *data) {
     if (dev->modified_params & ENUM_PROFILE) {
         VEC_FOREACH(&dev->profiles[dev->profiles_index], i) {
             struct profile *profile = VEC_AT(&dev->profiles[dev->profiles_index], i);
-            profile_free(profile);
+            profile_free_contents(profile);
         }
 
         /* swap */
@@ -168,7 +168,7 @@ void on_device_info(void *data, const struct pw_device_info *info) {
             } else if (param->id == SPA_PARAM_Profile && param->flags & SPA_PARAM_INFO_READ) {
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
                 if (device->active_profile != NULL) {
-                    profile_free(device->active_profile);
+                    profile_free_contents(device->active_profile);
                     free(device->active_profile);
                     device->active_profile = NULL;
                 }
