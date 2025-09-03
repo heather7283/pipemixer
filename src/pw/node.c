@@ -112,8 +112,8 @@ void node_set_route(const struct node *node, uint32_t route_index) {
     }
 }
 
-size_t node_get_available_routes(const struct node *node, const struct route **proutes) {
-    static VEC(struct route *) routes = {0};
+size_t node_get_available_routes(const struct node *node, const struct route *const **proutes) {
+    static VEC(const struct route *) routes = {0};
 
     if (!node->has_device || node->device == NULL) {
         return 0;
@@ -130,7 +130,7 @@ size_t node_get_available_routes(const struct node *node, const struct route **p
 
     VEC_CLEAR(&routes);
     VEC_FOREACH(&dev->routes, i) {
-        struct route *route = VEC_AT(&dev->routes, i);
+        const struct route *route = VEC_AT(&dev->routes, i);
         if (route->direction != direction) {
             continue;
         }
@@ -144,7 +144,7 @@ size_t node_get_available_routes(const struct node *node, const struct route **p
     }
 
     if (proutes != NULL) {
-        *proutes = *routes.data;
+        *proutes = routes.data;
     }
     return VEC_SIZE(&routes);
 }

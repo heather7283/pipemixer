@@ -303,7 +303,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             written = (written + chars > usable_width) ? usable_width : (written + chars);
 
             const struct route *active_route = node_get_active_route(node);
-            const struct route *routes;
+            const struct route *const *routes;
             const size_t nroutes = node_get_available_routes(node, &routes);
 
             if (active_route != NULL) {
@@ -315,7 +315,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
 
                 wattron(win, COLOR_PAIR(GRAY));
                 for (size_t i = 0; i < nroutes; i++) {
-                    const struct route *route = &routes[i];
+                    const struct route *route = routes[i];
                     if (active_route != NULL && route->index == active_route->index) {
                         continue;
                     }
@@ -328,7 +328,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             } else if (nroutes > 0) {
                 wattron(win, COLOR_PAIR(GRAY));
                 for (size_t i = 0; i < nroutes; i++) {
-                    const struct route *route = &routes[i];
+                    const struct route *route = routes[i];
                     if (i == 0) {
                         chars = snprintf(buf, usable_width - written, "%s",
                                          route->description);
@@ -761,7 +761,7 @@ void tui_bind_select_route(union tui_bind_data data) {
     }
 
     const struct route *active_route = node_get_active_route(TUI_ACTIVE_TAB.focused->node);
-    const struct route *routes;
+    const struct route *const *routes;
     const size_t nroutes = node_get_available_routes(TUI_ACTIVE_TAB.focused->node, &routes);
 
     if (nroutes == 0) {
@@ -778,7 +778,7 @@ void tui_bind_select_route(union tui_bind_data data) {
                   TUI_ACTIVE_TAB.focused->node->node_name.data);
 
     for (size_t i = 0; i < nroutes; i++) {
-        const struct route *route = &routes[i];
+        const struct route *route = routes[i];
         struct tui_menu_item *item = &tui.menu->items[i];
         string_printf(&item->str, "%d. %s (%s)",
                       route->index, route->description, route->name);
