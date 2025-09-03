@@ -129,8 +129,8 @@ size_t node_get_available_routes(const struct node *node, const struct route **p
     const enum spa_direction direction = media_class_to_direction(node->media_class);
 
     VEC_CLEAR(&routes);
-    VEC_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
-        struct route *route = VEC_AT(&dev->all_routes[dev->all_routes_index], i);
+    VEC_FOREACH(&dev->routes, i) {
+        struct route *route = VEC_AT(&dev->routes, i);
         if (route->direction != direction) {
             continue;
         }
@@ -156,8 +156,8 @@ const struct route *node_get_active_route(const struct node *node) {
 
     const struct device *dev = node->device;
     const enum spa_direction direction = media_class_to_direction(node->media_class);
-    VEC_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
-        const struct route *route = VEC_AT(&dev->active_routes[dev->active_routes_index], i);
+    VEC_FOREACH(&dev->active_routes, i) {
+        const struct route *route = VEC_AT(&dev->active_routes, i);
         if (route->device != node->card_profile_device || route->direction != direction) {
             continue;
         }

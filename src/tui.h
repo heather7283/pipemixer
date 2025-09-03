@@ -4,6 +4,7 @@
 #include <ncurses.h>
 
 #include "pw/node.h"
+#include "collections/list.h"
 #include "lib/pollen/pollen.h"
 
 enum tui_tab {

@@ -194,6 +194,17 @@ void vec_reserve_generic(struct vec_generic *vec, size_t elem_size, size_t elem_
         vec_reserve_generic((struct vec_generic *)(pvec), sizeof(*(pvec)->data), (count)); \
     })
 
+/*
+ * Swaps contents of v1 and v2
+ */
+void vec_exchange_generic(struct vec_generic *v1, struct vec_generic *v2);
+
+#define VEC_EXCHANGE(pvec1, pvec2) \
+    ({ \
+        TYPECHECK((pvec1)->data, (pvec2)->data); \
+        vec_exchange_generic((struct vec_generic *)(pvec1), (struct vec_generic *)(pvec2)); \
+    })
+
 #define VEC_FOREACH(pvec, iter) \
     for (size_t iter = 0; iter < (pvec)->size; iter++)
 

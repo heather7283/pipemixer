@@ -12,8 +12,8 @@ void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device) {
     bool found = false;
     struct route *route = NULL;
-    VEC_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
-        route = VEC_AT(&dev->active_routes[dev->active_routes_index], i);
+    VEC_FOREACH(&dev->active_routes, i) {
+        route = VEC_AT(&dev->active_routes, i);
         if (route->direction == direction && route->device == card_profile_device) {
             found = true;
             break;
@@ -53,42 +53,69 @@ void device_set_route(const struct device *dev, int32_t card_profile_device, int
 }
 
 static void profile_free_contents(struct profile *profile) {
-    free(profile->name);
-    free(profile->description);
+    if (profile != NULL) {
+        free(profile->name);
+        free(profile->description);
+    }
 }
 
 static void route_free_contents(struct route *route) {
-    free(route->description);
-    free(route->name);
-    VEC_FREE(&route->devices);
-    VEC_FREE(&route->profiles);
+    if (route != NULL) {
+        free(route->description);
+        free(route->name);
+        VEC_FREE(&route->devices);
+        VEC_FREE(&route->profiles);
+    }
 }
 
 void device_free(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
-    for (int j = 0; j < 2; j++) {
-        VEC_FOREACH(&device->all_routes[j], i) {
-            struct route *route = VEC_AT(&device->all_routes[j], i);
-            route_free_contents(route);
-        }
-        VEC_FREE(&device->all_routes[j]);
-
-        VEC_FOREACH(&device->active_routes[j], i) {
-            struct route *route = VEC_AT(&device->active_routes[j], i);
-            route_free_contents(route);
-        }
-        VEC_FREE(&device->active_routes[j]);
-
-        VEC_FOREACH(&device->profiles[j], i) {
-            struct profile *profile = VEC_AT(&device->profiles[j], i);
-            profile_free_contents(profile);
-        }
-        VEC_FREE(&device->profiles[j]);
+    VEC_FOREACH(&device->routes, i) {
+        struct route *route = VEC_AT(&device->routes, i);
+        route_free_contents(route);
     }
+    VEC_FREE(&device->routes);
+
+    VEC_FOREACH(&device->active_routes, i) {
+        struct route *route = VEC_AT(&device->active_routes, i);
+        route_free_contents(route);
+    }
+    VEC_FREE(&device->active_routes);
+
+    VEC_FOREACH(&device->profiles, i) {
+        struct profile *profile = VEC_AT(&device->profiles, i);
+        profile_free_contents(profile);
+    }
+    VEC_FREE(&device->profiles);
+
     if (device->active_profile != NULL) {
         profile_free_contents(device->active_profile);
         free(device->active_profile);
+    }
+
+    /* staging */
+    VEC_FOREACH(&device->staging.routes, i) {
+        struct route *route = VEC_AT(&device->staging.routes, i);
+        route_free_contents(route);
+    }
+    VEC_FREE(&device->staging.routes);
+
+    VEC_FOREACH(&device->staging.active_routes, i) {
+        struct route *route = VEC_AT(&device->staging.active_routes, i);
+        route_free_contents(route);
+    }
+    VEC_FREE(&device->staging.active_routes);
+
+    VEC_FOREACH(&device->staging.profiles, i) {
+        struct profile *profile = VEC_AT(&device->staging.profiles, i);
+        profile_free_contents(profile);
+    }
+    VEC_FREE(&device->staging.profiles);
+
+    if (device->staging.active_profile != NULL) {
+        profile_free_contents(device->staging.active_profile);
+        free(device->staging.active_profile);
     }
 
     free(device);
@@ -98,39 +125,46 @@ void on_device_roundtrip_done(void *data) {
     struct device *dev = data;
 
     if (dev->modified_params & ROUTE) {
-        VEC_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
-            struct route *route = VEC_AT(&dev->active_routes[dev->active_routes_index], i);
+        VEC_FOREACH(&dev->active_routes, i) {
+            struct route *route = VEC_AT(&dev->active_routes, i);
             route_free_contents(route);
         }
-        VEC_CLEAR(&dev->active_routes[dev->active_routes_index]);
+        VEC_CLEAR(&dev->active_routes);
 
-        /* swap */
-        dev->active_routes_index = !dev->active_routes_index;
+        VEC_EXCHANGE(&dev->active_routes, &dev->staging.active_routes);
 
         dev->modified_params &= ~ROUTE;
     }
     if (dev->modified_params & ENUM_ROUTE) {
-        VEC_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
-            struct route *route = VEC_AT(&dev->all_routes[dev->all_routes_index], i);
+        VEC_FOREACH(&dev->routes, i) {
+            struct route *route = VEC_AT(&dev->routes, i);
             route_free_contents(route);
         }
-        VEC_CLEAR(&dev->all_routes[dev->all_routes_index]);
+        VEC_CLEAR(&dev->routes);
 
-        /* swap */
-        dev->all_routes_index = !dev->all_routes_index;
+        VEC_EXCHANGE(&dev->routes, &dev->staging.routes);
 
         dev->modified_params &= ~ENUM_ROUTE;
     }
     if (dev->modified_params & ENUM_PROFILE) {
-        VEC_FOREACH(&dev->profiles[dev->profiles_index], i) {
-            struct profile *profile = VEC_AT(&dev->profiles[dev->profiles_index], i);
+        VEC_FOREACH(&dev->profiles, i) {
+            struct profile *profile = VEC_AT(&dev->profiles, i);
             profile_free_contents(profile);
         }
+        VEC_CLEAR(&dev->profiles);
 
-        /* swap */
-        dev->profiles_index = !dev->profiles_index;
+        VEC_EXCHANGE(&dev->profiles, &dev->staging.profiles);
 
         dev->modified_params &= ~ENUM_PROFILE;
+    }
+    if (dev->modified_params & PROFILE) {
+        profile_free_contents(dev->active_profile);
+        free(dev->active_profile);
+        dev->active_profile = NULL;
+
+        SWAP(dev->active_profile, dev->staging.active_profile);
+
+        dev->modified_params &= ~PROFILE;
     }
 
     tui_notify_device_change(dev);
@@ -167,11 +201,6 @@ void on_device_info(void *data, const struct pw_device_info *info) {
                 device->modified_params |= ENUM_ROUTE;
             } else if (param->id == SPA_PARAM_Profile && param->flags & SPA_PARAM_INFO_READ) {
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
-                if (device->active_profile != NULL) {
-                    profile_free_contents(device->active_profile);
-                    free(device->active_profile);
-                    device->active_profile = NULL;
-                }
                 device->modified_params |= PROFILE;
             } else if (param->id == SPA_PARAM_EnumProfile && param->flags & SPA_PARAM_INFO_READ) {
                 pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
@@ -201,8 +230,7 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
         return;
     }
 
-    struct route *new_route =
-        VEC_EMPLACE_BACK_ZEROED(&dev->active_routes[!dev->active_routes_index]);
+    struct route *new_route = VEC_EMPLACE_BACK_ZEROED(&dev->staging.active_routes);
 
     spa_pod_get_int(&index->value, &new_route->index);
     spa_pod_get_int(&device->value, &new_route->device);
@@ -240,7 +268,7 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
         return;
     }
 
-    struct route *new_route = VEC_EMPLACE_BACK_ZEROED(&dev->all_routes[!dev->all_routes_index]);
+    struct route *new_route = VEC_EMPLACE_BACK_ZEROED(&dev->staging.routes);
 
     spa_pod_get_int(&index->value, &new_route->index);
     spa_pod_get_id(&direction->value, &new_route->direction);
@@ -277,7 +305,7 @@ static void on_device_param_enum_profile(struct device *dev, const struct spa_po
         return;
     }
 
-    struct profile *new_profile = VEC_EMPLACE_BACK_ZEROED(&dev->profiles[!dev->profiles_index]);
+    struct profile *new_profile = VEC_EMPLACE_BACK_ZEROED(&dev->staging.profiles);
 
     spa_pod_get_int(&index->value, &new_profile->index);
 
@@ -294,7 +322,7 @@ static void on_device_param_enum_profile(struct device *dev, const struct spa_po
 }
 
 static void on_device_param_profile(struct device *dev, const struct spa_pod *param) {
-    if (dev->active_profile != NULL) {
+    if (dev->staging.active_profile != NULL) {
         ERROR("Got Profile for dev %d, but active profile is already set to %d (%s), "
               "PLEASE REPORT THIS AS A BUG!!!",
               dev->id, dev->active_profile->index, dev->active_profile->name);
@@ -324,7 +352,7 @@ static void on_device_param_profile(struct device *dev, const struct spa_pod *pa
     spa_pod_get_string(&name->value, &name_str);
     new_profile->name = xstrdup(name_str);
 
-    dev->active_profile = new_profile;
+    dev->staging.active_profile = new_profile;
     DEBUG("New profile (Profile) on dev %d: %s (%s) index %d",
           dev->id, new_profile->description, new_profile->name, new_profile->index);
 }

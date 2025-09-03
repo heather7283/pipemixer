@@ -100,3 +100,9 @@ void vec_reserve_generic(struct vec_generic *vec, size_t elem_size, size_t elem_
     vec_ensure_capacity(vec, elem_size, elem_count);
 }
 
+void vec_exchange_generic(struct vec_generic *v1, struct vec_generic *v2) {
+    struct vec_generic tmp = *v1;
+    *v1 = *v2;
+    *v2 = tmp;
+}
+

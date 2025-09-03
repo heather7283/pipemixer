@@ -42,16 +42,19 @@ struct device {
 
     enum device_modified_params modified_params;
 
-    /* needed to atomically update route list. TODO: is there a better way to do it? */
-    int all_routes_index;
-    VEC(struct route) all_routes[2];
-    int active_routes_index;
-    VEC(struct route) active_routes[2];
-
-    int profiles_index;
-    VEC(struct profile) profiles[2];
+    VEC(struct route) routes;
+    VEC(struct route) active_routes;
+    VEC(struct profile) profiles;
     /* FIXME: relies on the assumption that only one profile can be active at a time. */
     struct profile *active_profile;
+
+    /* needed to atomically update routes and profiles */
+    struct {
+        VEC(struct route) routes;
+        VEC(struct route) active_routes;
+        VEC(struct profile) profiles;
+        struct profile *active_profile;
+    } staging;
 
     HASHMAP_ENTRY hash;
 };

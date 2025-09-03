@@ -7,7 +7,6 @@
 #include "pw/common.h"
 #include "pw/device.h"
 #include "collections/string.h"
-#include "collections/list.h"
 
 enum node_change_mask {
     NODE_CHANGE_NOTHING = 0,
