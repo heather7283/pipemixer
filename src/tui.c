@@ -764,7 +764,7 @@ void tui_bind_select_route(union tui_bind_data data) {
     const struct route *const *routes;
     const size_t nroutes = node_get_available_routes(TUI_ACTIVE_TAB.focused->node, &routes);
 
-    if (nroutes == 0) {
+    if (nroutes < 2) {
         return;
     }
 
