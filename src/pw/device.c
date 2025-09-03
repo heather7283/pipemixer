@@ -12,8 +12,8 @@ void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device) {
     bool found = false;
     struct route *route = NULL;
-    ARRAY_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
-        route = &ARRAY_AT(&dev->active_routes[dev->active_routes_index], i);
+    VEC_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
+        route = VEC_AT(&dev->active_routes[dev->active_routes_index], i);
         if (route->direction == direction && route->device == card_profile_device) {
             found = true;
             break;
@@ -60,31 +60,31 @@ static void profile_free(struct profile *profile) {
 static void route_free(struct route *route) {
     string_free(&route->description);
     string_free(&route->name);
-    ARRAY_FREE(&route->devices);
-    ARRAY_FREE(&route->profiles);
+    VEC_FREE(&route->devices);
+    VEC_FREE(&route->profiles);
 }
 
 void device_free(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
     for (int j = 0; j < 2; j++) {
-        ARRAY_FOREACH(&device->all_routes[j], i) {
-            struct route *route = &ARRAY_AT(&device->all_routes[j], i);
+        VEC_FOREACH(&device->all_routes[j], i) {
+            struct route *route = VEC_AT(&device->all_routes[j], i);
             route_free(route);
         }
-        ARRAY_FREE(&device->all_routes[j]);
+        VEC_FREE(&device->all_routes[j]);
 
-        ARRAY_FOREACH(&device->active_routes[j], i) {
-            struct route *route = &ARRAY_AT(&device->active_routes[j], i);
+        VEC_FOREACH(&device->active_routes[j], i) {
+            struct route *route = VEC_AT(&device->active_routes[j], i);
             route_free(route);
         }
-        ARRAY_FREE(&device->active_routes[j]);
+        VEC_FREE(&device->active_routes[j]);
 
-        ARRAY_FOREACH(&device->profiles[j], i) {
-            struct profile *profile = &ARRAY_AT(&device->profiles[j], i);
+        VEC_FOREACH(&device->profiles[j], i) {
+            struct profile *profile = VEC_AT(&device->profiles[j], i);
             profile_free(profile);
         }
-        ARRAY_FREE(&device->profiles[j]);
+        VEC_FREE(&device->profiles[j]);
     }
     if (device->active_profile != NULL) {
         profile_free(device->active_profile);
@@ -98,11 +98,11 @@ void on_device_roundtrip_done(void *data) {
     struct device *dev = data;
 
     if (dev->modified_params & ROUTE) {
-        ARRAY_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
-            struct route *route = &ARRAY_AT(&dev->active_routes[dev->active_routes_index], i);
+        VEC_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
+            struct route *route = VEC_AT(&dev->active_routes[dev->active_routes_index], i);
             route_free(route);
         }
-        ARRAY_CLEAR(&dev->active_routes[dev->active_routes_index]);
+        VEC_CLEAR(&dev->active_routes[dev->active_routes_index]);
 
         /* swap */
         dev->active_routes_index = !dev->active_routes_index;
@@ -110,11 +110,11 @@ void on_device_roundtrip_done(void *data) {
         dev->modified_params &= ~ROUTE;
     }
     if (dev->modified_params & ENUM_ROUTE) {
-        ARRAY_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
-            struct route *route = &ARRAY_AT(&dev->all_routes[dev->all_routes_index], i);
+        VEC_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
+            struct route *route = VEC_AT(&dev->all_routes[dev->all_routes_index], i);
             route_free(route);
         }
-        ARRAY_CLEAR(&dev->all_routes[dev->all_routes_index]);
+        VEC_CLEAR(&dev->all_routes[dev->all_routes_index]);
 
         /* swap */
         dev->all_routes_index = !dev->all_routes_index;
@@ -122,8 +122,8 @@ void on_device_roundtrip_done(void *data) {
         dev->modified_params &= ~ENUM_ROUTE;
     }
     if (dev->modified_params & ENUM_PROFILE) {
-        ARRAY_FOREACH(&dev->profiles[dev->profiles_index], i) {
-            struct profile *profile = &ARRAY_AT(&dev->profiles[dev->profiles_index], i);
+        VEC_FOREACH(&dev->profiles[dev->profiles_index], i) {
+            struct profile *profile = VEC_AT(&dev->profiles[dev->profiles_index], i);
             profile_free(profile);
         }
 
@@ -201,7 +201,8 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
         return;
     }
 
-    struct route *new_route = ARRAY_EMPLACE_ZEROED(&dev->active_routes[!dev->active_routes_index]);
+    struct route *new_route =
+        VEC_EMPLACE_BACK_ZEROED(&dev->active_routes[!dev->active_routes_index]);
 
     spa_pod_get_int(&index->value, &new_route->index);
     spa_pod_get_int(&device->value, &new_route->device);
@@ -239,7 +240,7 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
         return;
     }
 
-    struct route *new_route = ARRAY_EMPLACE_ZEROED(&dev->all_routes[!dev->all_routes_index]);
+    struct route *new_route = VEC_EMPLACE_BACK_ZEROED(&dev->all_routes[!dev->all_routes_index]);
 
     spa_pod_get_int(&index->value, &new_route->index);
     spa_pod_get_id(&direction->value, &new_route->direction);
@@ -254,10 +255,10 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
 
     struct spa_pod *iter;
     SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&devices->value, iter) {
-        ARRAY_APPEND(&new_route->devices, (int32_t *)iter);
+        VEC_APPEND(&new_route->devices, (int32_t *)iter);
     }
     SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&profiles->value, iter) {
-        ARRAY_APPEND(&new_route->profiles, (int32_t *)iter);
+        VEC_APPEND(&new_route->profiles, (int32_t *)iter);
     }
 
     DEBUG("New route (EnumRoute) on dev %d: %s index %d dir %d",
@@ -276,7 +277,7 @@ static void on_device_param_enum_profile(struct device *dev, const struct spa_po
         return;
     }
 
-    struct profile *new_profile = ARRAY_EMPLACE_ZEROED(&dev->profiles[!dev->profiles_index]);
+    struct profile *new_profile = VEC_EMPLACE_BACK_ZEROED(&dev->profiles[!dev->profiles_index]);
 
     spa_pod_get_int(&index->value, &new_profile->index);
 

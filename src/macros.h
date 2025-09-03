@@ -26,14 +26,6 @@
 
 #define SIZEOF_ARRAY(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-#define TYPECHECK(type, x) \
-    ({ \
-        type dummy; \
-        TYPEOF(x) dummy2; \
-        (void)(&dummy == &dummy2); \
-        1; \
-    })
-
 #define SWAP(a, b) \
     do { \
         TYPEOF(a) tmp = (a); \

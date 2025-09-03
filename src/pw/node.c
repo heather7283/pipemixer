@@ -127,14 +127,14 @@ const LIST_HEAD *node_get_available_routes(const struct node *node) {
     static LIST_HEAD routes;
     LIST_INIT(&routes);
     const enum spa_direction direction = media_class_to_direction(node->media_class);
-    ARRAY_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
-        struct route *route = &ARRAY_AT(&dev->all_routes[dev->all_routes_index], i);
+    VEC_FOREACH(&dev->all_routes[dev->all_routes_index], i) {
+        struct route *route = VEC_AT(&dev->all_routes[dev->all_routes_index], i);
         if (route->direction != direction) {
             continue;
         }
 
-        ARRAY_FOREACH(&route->profiles, j) {
-            const int32_t profile = ARRAY_AT(&route->profiles, j);
+        VEC_FOREACH(&route->profiles, j) {
+            const int32_t profile = *VEC_AT(&route->profiles, j);
             if (profile == dev->active_profile->index) {
                 LIST_INSERT(&routes, &route->link);
             }
@@ -151,14 +151,14 @@ const struct route *node_get_active_route(const struct node *node) {
 
     const struct device *dev = node->device;
     const enum spa_direction direction = media_class_to_direction(node->media_class);
-    ARRAY_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
-        const struct route *route = &ARRAY_AT(&dev->active_routes[dev->active_routes_index], i);
+    VEC_FOREACH(&dev->active_routes[dev->active_routes_index], i) {
+        const struct route *route = VEC_AT(&dev->active_routes[dev->active_routes_index], i);
         if (route->device != node->card_profile_device || route->direction != direction) {
             continue;
         }
 
-        ARRAY_FOREACH(&route->profiles, j) {
-            const int32_t profile = ARRAY_AT(&route->profiles, j);
+        VEC_FOREACH(&route->profiles, j) {
+            const int32_t profile = *VEC_AT(&route->profiles, j);
             if (profile == dev->active_profile->index) {
                 return route;
             }

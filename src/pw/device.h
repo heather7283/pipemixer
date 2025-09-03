@@ -8,15 +8,15 @@
 #include "collections/string.h"
 #include "collections/list.h"
 #include "collections/hashmap.h"
-#include "collections/array.h"
+#include "collections/vec.h"
 
 struct route {
     int32_t index;
     int32_t device;
     uint32_t direction; /* enum spa_direction */
 
-    ARRAY(int32_t) devices;
-    ARRAY(int32_t) profiles;
+    VEC(int32_t) devices;
+    VEC(int32_t) profiles;
 
     struct string description;
     struct string name;
@@ -49,12 +49,12 @@ struct device {
 
     /* needed to atomically update route list. TODO: is there a better way to do it? */
     int all_routes_index;
-    ARRAY(struct route) all_routes[2];
+    VEC(struct route) all_routes[2];
     int active_routes_index;
-    ARRAY(struct route) active_routes[2];
+    VEC(struct route) active_routes[2];
 
     int profiles_index;
-    ARRAY(struct profile) profiles[2];
+    VEC(struct profile) profiles[2];
     /* FIXME: relies on the assumption that only one profile can be active at a time. */
     struct profile *active_profile;
 
