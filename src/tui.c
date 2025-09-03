@@ -309,7 +309,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             if (active_route != NULL) {
                 /* draw active route first */
                 chars = snprintf(buf, usable_width - written, "%s",
-                                 active_route->description.data);
+                                 active_route->description);
                 mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                 written = (written + chars > usable_width) ? usable_width : (written + chars);
 
@@ -321,7 +321,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                     }
 
                     chars = snprintf(buf, usable_width - written, "%s%s",
-                                     config.routes_separator, route->description.data);
+                                     config.routes_separator, route->description);
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
@@ -331,10 +331,10 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                     const struct route *route = &routes[i];
                     if (i == 0) {
                         chars = snprintf(buf, usable_width - written, "%s",
-                                         route->description.data);
+                                         route->description);
                     } else {
                         chars = snprintf(buf, usable_width - written, "%s%s",
-                                         config.routes_separator, route->description.data);
+                                         config.routes_separator, route->description);
                     }
                     mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
@@ -781,7 +781,7 @@ void tui_bind_select_route(union tui_bind_data data) {
         const struct route *route = &routes[i];
         struct tui_menu_item *item = &tui.menu->items[i];
         string_printf(&item->str, "%d. %s (%s)",
-                      route->index, route->description.data, route->name.data);
+                      route->index, route->description, route->name);
         item->data.uint = route->index;
 
         if (active_route != NULL && route->index == active_route->index) {

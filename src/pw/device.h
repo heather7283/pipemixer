@@ -5,7 +5,6 @@
 
 #include <pipewire/pipewire.h>
 
-#include "collections/string.h"
 #include "collections/hashmap.h"
 #include "collections/vec.h"
 
@@ -17,15 +16,15 @@ struct route {
     VEC(int32_t) devices;
     VEC(int32_t) profiles;
 
-    struct string description;
-    struct string name;
+    char *description;
+    char *name;
 };
 
 struct profile {
     int32_t index;
 
-    struct string description;
-    struct string name;
+    char *description;
+    char *name;
 };
 
 enum device_modified_params {

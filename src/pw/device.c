@@ -53,13 +53,13 @@ void device_set_route(const struct device *dev, int32_t card_profile_device, int
 }
 
 static void profile_free(struct profile *profile) {
-    string_free(&profile->name);
-    string_free(&profile->description);
+    free(profile->name);
+    free(profile->description);
 }
 
 static void route_free(struct route *route) {
-    string_free(&route->description);
-    string_free(&route->name);
+    free(route->description);
+    free(route->name);
     VEC_FREE(&route->devices);
     VEC_FREE(&route->profiles);
 }
@@ -210,14 +210,14 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
 
     const char *description_str = NULL;
     spa_pod_get_string(&description->value, &description_str);
-    string_from_pchar(&new_route->description, description_str);
+    new_route->description = xstrdup(description_str);
 
     const char *name_str = NULL;
     spa_pod_get_string(&name->value, &name_str);
-    string_from_pchar(&new_route->name, name_str);
+    new_route->name = xstrdup(name_str);
 
     DEBUG("New route (Route) on dev %d: %s device %d index %d dir %d",
-          dev->id, new_route->description.data, new_route->device,
+          dev->id, new_route->description, new_route->device,
           new_route->index, new_route->direction);
 }
 
@@ -247,11 +247,11 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
 
     const char *description_str = NULL;
     spa_pod_get_string(&description->value, &description_str);
-    string_from_pchar(&new_route->description, description_str);
+    new_route->description = xstrdup(description_str);
 
     const char *name_str = NULL;
     spa_pod_get_string(&name->value, &name_str);
-    string_from_pchar(&new_route->name, name_str);
+    new_route->name = xstrdup(name_str);
 
     struct spa_pod *iter;
     SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&devices->value, iter) {
@@ -262,7 +262,7 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
     }
 
     DEBUG("New route (EnumRoute) on dev %d: %s index %d dir %d",
-          dev->id, new_route->description.data, new_route->index, new_route->direction);
+          dev->id, new_route->description, new_route->index, new_route->direction);
 }
 
 static void on_device_param_enum_profile(struct device *dev, const struct spa_pod *param) {
@@ -283,21 +283,21 @@ static void on_device_param_enum_profile(struct device *dev, const struct spa_po
 
     const char *description_str = NULL;
     spa_pod_get_string(&description->value, &description_str);
-    string_from_pchar(&new_profile->description, description_str);
+    new_profile->description = xstrdup(description_str);
 
     const char *name_str = NULL;
     spa_pod_get_string(&name->value, &name_str);
-    string_from_pchar(&new_profile->name, name_str);
+    new_profile->name = xstrdup(name_str);
 
     DEBUG("New profile (EnumProfile) on dev %d: %s (%s) index %d",
-          dev->id, new_profile->description.data, new_profile->name.data, new_profile->index);
+          dev->id, new_profile->description, new_profile->name, new_profile->index);
 }
 
 static void on_device_param_profile(struct device *dev, const struct spa_pod *param) {
     if (dev->active_profile != NULL) {
         ERROR("Got Profile for dev %d, but active profile is already set to %d (%s), "
               "PLEASE REPORT THIS AS A BUG!!!",
-              dev->id, dev->active_profile->index, dev->active_profile->name.data);
+              dev->id, dev->active_profile->index, dev->active_profile->name);
         return;
     }
 
@@ -318,15 +318,15 @@ static void on_device_param_profile(struct device *dev, const struct spa_pod *pa
 
     const char *description_str = NULL;
     spa_pod_get_string(&description->value, &description_str);
-    string_from_pchar(&new_profile->description, description_str);
+    new_profile->description = xstrdup(description_str);
 
     const char *name_str = NULL;
     spa_pod_get_string(&name->value, &name_str);
-    string_from_pchar(&new_profile->name, name_str);
+    new_profile->name = xstrdup(name_str);
 
     dev->active_profile = new_profile;
     DEBUG("New profile (Profile) on dev %d: %s (%s) index %d",
-          dev->id, new_profile->description.data, new_profile->name.data, new_profile->index);
+          dev->id, new_profile->description, new_profile->name, new_profile->index);
 }
 
 void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
