@@ -18,7 +18,6 @@ enum color_pair {
     GREEN = 1,
     YELLOW = 2,
     RED = 3,
-    GRAY = 4,
 };
 
 struct tui tui = {0};
@@ -217,7 +216,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
     DRAW_IF(focus_changed || volume_changed || mute_changed) {
         /* draw info about each channel */
         if (muted) {
-            wattron(win, COLOR_PAIR(GRAY));
+            wattron(win, A_DIM);
         }
 
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
@@ -243,14 +242,14 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             }
         }
 
-        wattroff(win, COLOR_PAIR(GRAY));
+        wattroff(win, A_DIM);
     }
 
     /* draw decorations (also focused markers) */
     DRAW_IF(focus_changed || unlocked_channels_changed || mute_changed) {
         /* draw info about each channel */
         if (muted) {
-            wattron(win, COLOR_PAIR(GRAY));
+            wattron(win, A_DIM);
         }
 
         for (uint32_t i = 0; i < node->props.channel_count; i++) {
@@ -289,7 +288,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             mvwadd_wch(win, pos, volume_bar_start + volume_bar_width + 1, &cchar_focus);
         }
 
-        wattroff(win, COLOR_PAIR(GRAY));
+        wattroff(win, A_DIM);
     }
 
     DRAW_IF(focus_changed || port_changed) {
@@ -313,7 +312,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                 mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                 written = (written + chars > usable_width) ? usable_width : (written + chars);
 
-                wattron(win, COLOR_PAIR(GRAY));
+                wattron(win, A_DIM);
                 for (size_t i = 0; i < nroutes; i++) {
                     const struct route *route = routes[i];
                     if (active_route != NULL && route->index == active_route->index) {
@@ -326,7 +325,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
             } else if (nroutes > 0) {
-                wattron(win, COLOR_PAIR(GRAY));
+                wattron(win, A_DIM);
                 for (size_t i = 0; i < nroutes; i++) {
                     const struct route *route = routes[i];
                     if (i == 0) {
@@ -340,7 +339,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                     written = (written + chars > usable_width) ? usable_width : (written + chars);
                 }
             } else {
-                wattron(win, COLOR_PAIR(GRAY));
+                wattron(win, A_DIM);
                 chars = snprintf(buf, usable_width - written, "(none)");
                 mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                 written = (written + chars > usable_width) ? usable_width : (written + chars);
@@ -354,7 +353,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
                 mvwhline(win, ports_line_pos, written + 1, ' ', usable_width - written);
             }
 
-            wattroff(win, COLOR_PAIR(GRAY));
+            wattroff(win, A_DIM);
         }
     }
 
@@ -395,11 +394,17 @@ static void tui_draw_status_bar(void) {
     wmove(tui.bar_win, 0, 0);
 
     FOR_EACH_TAB(tab) {
-        wattron(tui.bar_win, (tab == tui.tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
-        wattron(tui.bar_win, (tab == tui.tab) ? A_BOLD : 0);
+        if (tab != tui.tab) {
+            wattron(tui.bar_win, A_DIM);
+        } else {
+            wattron(tui.bar_win, A_BOLD);
+        }
         waddstr(tui.bar_win, tui_tab_name(tab));
-        wattroff(tui.bar_win, (tab == tui.tab) ? A_BOLD : 0);
-        wattroff(tui.bar_win, (tab == tui.tab) ? COLOR_PAIR(DEFAULT) : COLOR_PAIR(GRAY));
+        if (tab != tui.tab) {
+            wattroff(tui.bar_win, A_DIM);
+        } else {
+            wattroff(tui.bar_win, A_BOLD);
+        }
         waddstr(tui.bar_win, "   ");
     }
 
@@ -432,11 +437,11 @@ static void tui_repaint(bool draw_unconditionally) {
     if (bottom == 0) {
         /* empty tab */
         const char *empty = "Empty";
-        wattron(tui.pad_win, COLOR_PAIR(GRAY));
+        wattron(tui.pad_win, A_DIM);
         mvwaddstr(tui.pad_win,
                   (tui.term_height - 1) / 2, (tui.term_width / 2) - (strlen(empty) / 2),
                   empty);
-        wattroff(tui.pad_win, COLOR_PAIR(GRAY));
+        wattroff(tui.pad_win, A_DIM);
     }
 
     pnoutrefresh(tui.pad_win,
@@ -1081,7 +1086,6 @@ int tui_init(void) {
     init_pair(GREEN, COLOR_GREEN, -1);
     init_pair(YELLOW, COLOR_YELLOW, -1);
     init_pair(RED, COLOR_RED, -1);
-    init_pair(GRAY, 8, -1);
 
     FOR_EACH_TAB(tab) {
         LIST_INIT(&tui.tabs[tab].items);
