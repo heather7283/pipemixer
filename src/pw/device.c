@@ -220,6 +220,8 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
         spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_index);
     const struct spa_pod_prop *device =
         spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_device);
+    const struct spa_pod_prop *profiles =
+        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_profiles);
     const struct spa_pod_prop *direction =
         spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_direction);
     const struct spa_pod_prop *description =
@@ -243,6 +245,11 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
     const char *name_str = NULL;
     spa_pod_get_string(&name->value, &name_str);
     new_route->name = xstrdup(name_str);
+
+    struct spa_pod *iter;
+    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&profiles->value, iter) {
+        VEC_APPEND(&new_route->profiles, (int32_t *)iter);
+    }
 
     DEBUG("New route (Route) on dev %d: %s device %d index %d dir %d",
           dev->id, new_route->description, new_route->device,

@@ -158,6 +158,7 @@ const struct route *node_get_active_route(const struct node *node) {
     const enum spa_direction direction = media_class_to_direction(node->media_class);
     VEC_FOREACH(&dev->active_routes, i) {
         const struct route *route = VEC_AT(&dev->active_routes, i);
+
         if (route->device != node->card_profile_device || route->direction != direction) {
             continue;
         }
