@@ -28,11 +28,21 @@ add_project_arguments('-DPIPEMIXER_GIT_BRANCH="@0@"'.format(git_branch), languag
 pipewire_dep = dependency('libpipewire-0.3')
 ncursesw_dep = dependency('ncursesw')
 
+pollen_dep = dependency('pollen', version: '>=3.0.0', fallback: ['pollen', 'pollen_dep'])
+
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
 
 inih_dep = dependency('inih', required: get_option('system_libraries'))
 add_project_arguments('-DINI_HANDLER_LINENO=1', language: 'c')
+
+dependencies = [
+  pipewire_dep,
+  ncursesw_dep,
+  pollen_dep,
+  inih_dep,
+  m_dep,
+]
 
 pipemixer_sources = [
   'src/pipemixer.c',
@@ -61,7 +71,7 @@ endif
 
 executable('pipemixer', pipemixer_sources,
   include_directories: include_dirs,
-  dependencies: [ncursesw_dep, pipewire_dep, m_dep, inih_dep],
+  dependencies: dependencies,
   install: true)
 
 install_data(

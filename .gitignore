@@ -1,3 +1,4 @@
 *.log
 .cache/
 src/debug/
+.wraplock

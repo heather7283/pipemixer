@@ -2,10 +2,10 @@
 #define TUI_H
 
 #include <ncurses.h>
+#include <pollen.h>
 
 #include "pw/node.h"
 #include "collections/list.h"
-#include "lib/pollen/pollen.h"
 
 enum tui_tab {
     TUI_TAB_FIRST,
