@@ -1,6 +1,7 @@
 #include "pw/common.h"
 #include "pw/node.h"
 #include "pw/device.h"
+#include "eventloop.h"
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"
@@ -104,12 +105,25 @@ static const struct pw_core_events core_events = {
     .error = on_core_error,
 };
 
+static int pipewire_fd_handler(struct pollen_callback *callback,
+                               int fd, uint32_t events, void *data) {
+    int res = pw_loop_iterate(pw.main_loop_loop, 0);
+    if (res < 0 && res != -EINTR) {
+        return res;
+    } else {
+        return 0;
+    }
+}
+
 int pipewire_init(void) {
     pw_init(NULL, NULL);
 
     pw.main_loop = pw_main_loop_new(NULL /* properties */);
     pw.main_loop_loop = pw_main_loop_get_loop(pw.main_loop);
     pw.main_loop_loop_fd = pw_loop_get_fd(pw.main_loop_loop);
+
+    pollen_loop_add_fd(event_loop, pw.main_loop_loop_fd, EPOLLIN, false,
+                       pipewire_fd_handler, NULL);
 
     pw.context = pw_context_new(pw.main_loop_loop, NULL, 0);
     if (pw.context == NULL) {

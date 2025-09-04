@@ -41,13 +41,13 @@ pipemixer_sources = [
   'src/xmalloc.c',
   'src/utils.c',
   'src/config.c',
+  'src/eventloop.c',
   'src/collections/string.c',
   'src/collections/vec.c',
   'src/pw/common.c',
   'src/pw/device.c',
   'src/pw/node.c',
   'src/pw/roundtrip.c',
-  'src/pollen_impl.c',
 ]
 
 include_dirs = [

@@ -12,3 +12,5 @@
 #define POLLEN_IMPLEMENTATION
 #include "lib/pollen/pollen.h"
 
+struct pollen_loop *event_loop = NULL;
+

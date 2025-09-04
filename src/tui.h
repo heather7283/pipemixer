@@ -5,7 +5,6 @@
 
 #include "pw/node.h"
 #include "collections/list.h"
-#include "lib/pollen/pollen.h"
 
 enum tui_tab {
     TUI_TAB_FIRST,
@@ -94,9 +93,6 @@ extern struct tui tui;
 
 int tui_init(void);
 int tui_cleanup(void);
-
-int tui_handle_resize(struct pollen_callback *item, int signal, void *data);
-int tui_handle_keyboard(struct pollen_callback *item, int fd, uint32_t events, void *data);
 
 void tui_notify_node_new(const struct node *node);
 void tui_notify_node_change(const struct node *node);

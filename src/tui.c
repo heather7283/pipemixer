@@ -8,6 +8,7 @@
 #include "xmalloc.h"
 #include "utils.h"
 #include "config.h"
+#include "eventloop.h"
 #include "collections/string.h"
 
 #define TUI_ACTIVE_TAB (tui.tabs[tui.tab])
@@ -888,7 +889,7 @@ static void tui_set_pad_size(enum tui_set_pad_size_policy y_policy, int y,
     }
 }
 
-int tui_handle_resize(struct pollen_callback *callback, int signal, void *data) {
+static int tui_handle_sigwinch(struct pollen_callback *callback, int signal, void *data) {
     struct winsize winsize;
     if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
         ERROR("failed to get new window size: %s", strerror(errno));
@@ -919,7 +920,8 @@ int tui_handle_resize(struct pollen_callback *callback, int signal, void *data) 
     return 0;
 }
 
-int tui_handle_keyboard(struct pollen_callback *callback, int fd, uint32_t events, void *data) {
+static int tui_handle_stdin(struct pollen_callback *callback,
+                            int fd, uint32_t events, void *data) {
     wint_t ch;
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
         struct tui_bind *bind;
@@ -1091,8 +1093,11 @@ int tui_init(void) {
         LIST_INIT(&tui.tabs[tab].items);
     }
 
+    pollen_loop_add_fd(event_loop, 0 /* stdin */, EPOLLIN, false, tui_handle_stdin, NULL);
+    pollen_loop_add_signal(event_loop, SIGWINCH, tui_handle_sigwinch, NULL);
+
     /* manually trigger resize handler to pick up initial terminal size */
-    tui_handle_resize(NULL, 0xBAD, NULL);
+    tui_handle_sigwinch(NULL, 0xBAD, NULL);
 
     tui.tab = TUI_TAB_FIRST;
     tui_repaint(true);
