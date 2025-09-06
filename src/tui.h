@@ -77,7 +77,7 @@ enum tui_tab_item_change_mask {
 };
 
 struct tui_tab_item {
-    const struct node *node;
+    uint32_t node_id;
 
     int pos, height;
     bool focused;

@@ -8,6 +8,16 @@
 #include "xmalloc.h"
 #include "macros.h"
 
+struct device *device_lookup(uint32_t id) {
+    struct device *dev;
+    if (HASHMAP_GET(dev, &pw.devices, id, hash)) {
+        return dev;
+    } else {
+        WARN("device with id %u was not found", id);
+        return NULL;
+    }
+}
+
 void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device) {
     bool found = false;
@@ -68,7 +78,7 @@ static void route_free_contents(struct route *route) {
     }
 }
 
-void device_free(struct device *device) {
+void device_destroy(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
     VEC_FOREACH(&device->routes, i) {

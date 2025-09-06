@@ -27,22 +27,27 @@ static enum spa_direction media_class_to_direction(enum media_class class) {
 
 struct node *node_lookup(uint32_t id) {
     struct node *node;
-    HASHMAP_GET(node, &pw.nodes, id, hash);
-    return node;
+    if (HASHMAP_GET(node, &pw.nodes, id, hash)) {
+        return node;
+    } else {
+        WARN("node with id %u was not found", id);
+        return NULL;
+    }
 }
 
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
-    if (!node->has_device) {
+    if (node->device_id == 0) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else {
-        if (!node->device) {
+        struct device *dev = device_lookup(node->device_id);
+        if (dev == NULL) {
             WARN("tried to set props of node %d with associated device, "
                  "but no device was found", node->id);
             return;
         }
 
         enum spa_direction direction = media_class_to_direction(node->media_class);
-        device_set_props(node->device, props, direction, node->card_profile_device);
+        device_set_props(dev, props, direction, node->card_profile_device);
     }
 }
 
@@ -103,23 +108,29 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
 }
 
 void node_set_route(const struct node *node, uint32_t route_index) {
-    if (!node->has_device) {
+    if (node->device_id == 0) {
         WARN("Tried to set route on a node that does not have a device");
-    } else if (!node->device) {
-        ERROR("Tried to set route on a node but no device was found");
     } else {
-        device_set_route(node->device, node->card_profile_device, route_index);
+        struct device *dev = device_lookup(node->device_id);
+        if (dev == NULL) {
+            ERROR("Tried to set route on a node but no device was found");
+        } else {
+            device_set_route(dev, node->card_profile_device, route_index);
+        }
     }
 }
 
 size_t node_get_available_routes(const struct node *node, const struct route *const **proutes) {
     static VEC(const struct route *) routes = {0};
 
-    if (!node->has_device || node->device == NULL) {
+    if (node->device_id == 0) {
+        return 0;
+    }
+    const struct device *dev = device_lookup(node->device_id);
+    if (dev == NULL) {
         return 0;
     }
 
-    const struct device *dev = node->device;
     if (dev->active_profile == NULL) {
         ERROR("cannot get available routes for node %d with dev %d: no active profile on node",
               node->id, dev->id);
@@ -150,11 +161,14 @@ size_t node_get_available_routes(const struct node *node, const struct route *co
 }
 
 const struct route *node_get_active_route(const struct node *node) {
-    if (!node->has_device || node->device == NULL) {
+    if (node->device_id == 0) {
+        return NULL;
+    }
+    const struct device *dev = device_lookup(node->device_id);
+    if (dev == NULL) {
         return NULL;
     }
 
-    const struct device *dev = node->device;
     const enum spa_direction direction = media_class_to_direction(node->media_class);
     VEC_FOREACH(&dev->active_routes, i) {
         const struct route *route = VEC_AT(&dev->active_routes, i);
@@ -225,13 +239,7 @@ void on_node_info(void *data, const struct pw_node_info *info) {
             wstring_from_pchar(&node->node_name, v);
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
-            node->has_device = true;
-            uint32_t device_id;
-            assert(str_to_u32(v, &device_id));
-            /* FIXME: This relies on assumption that Node will be announced after its Device. */
-            if (!HASHMAP_GET(node->device, &pw.devices, device_id, hash)) {
-                ERROR("Got Node with device.id %d, but not device was found", device_id);
-            }
+            assert(str_to_u32(v, &node->device_id));
         } else if (STREQ(k, "card.profile.device")) {
             assert(str_to_i32(v, &node->card_profile_device));
         }
@@ -298,14 +306,11 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
 }
 
-void on_node_remove(struct node *node) {
+void node_destroy(struct node *node) {
     tui_notify_node_remove(node);
 
     HASHMAP_DELETE(&pw.nodes, node->id);
-    node_free(node);
-}
 
-void node_free(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
     wstring_free(&node->media_name);
     wstring_free(&node->node_name);

@@ -17,6 +17,14 @@ enum node_change_mask {
     NODE_CHANGE_EVERYTHING = ~0,
 };
 
+struct props {
+    bool mute;
+    uint32_t channel_count;
+    /* TODO: dynamic array? */
+    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
+    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
+};
+
 struct node {
     struct pw_node *pw_node;
     struct spa_hook listener;
@@ -27,8 +35,7 @@ struct node {
     struct wstring node_name;
     struct props props;
 
-    bool has_device;
-    struct device *device;
+    uint32_t device_id;
     int32_t card_profile_device;
 
     enum node_change_mask changed;
@@ -36,14 +43,13 @@ struct node {
     HASHMAP_ENTRY hash;
 };
 
-void node_free(struct node *node);
+struct node *node_lookup(uint32_t id);
 
-void on_node_remove(struct node *node);
+void node_destroy(struct node *node);
+
 void on_node_info(void *data, const struct pw_node_info *info);
 void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                    uint32_t next, const struct spa_pod *param);
-
-struct node *node_lookup(uint32_t id);
 
 void node_set_mute(const struct node *node, bool mute);
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel);

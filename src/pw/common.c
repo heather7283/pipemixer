@@ -80,13 +80,14 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
 static void on_registry_global_remove(void *data, uint32_t id) {
     DEBUG("registry global remove: id %d", id);
 
-    struct node *node;
-    if (HASHMAP_GET(node, &pw.nodes, id, hash)) {
-        on_node_remove(node);
+    struct node *node = node_lookup(id);
+    if (node != NULL) {
+        node_destroy(node);
+        return;
     }
-    struct device *device;
-    if (HASHMAP_GET(device, &pw.devices, id, hash)) {
-        device_free(device);
+    struct device *device = device_lookup(id);
+    if (device != NULL) {
+        device_destroy(device);
     }
 }
 
@@ -147,14 +148,12 @@ int pipewire_init(void) {
 void pipewire_cleanup(void) {
     struct node *node;
     HASHMAP_FOR_EACH(node, &pw.nodes, hash) {
-        HASHMAP_DELETE(&pw.nodes, node->id);
-        node_free(node);
+        node_destroy(node);
     }
 
     struct device *device;
     HASHMAP_FOR_EACH(device, &pw.devices, hash) {
-        HASHMAP_DELETE(&pw.devices, device->id);
-        device_free(device);
+        device_destroy(device);
     }
 
     if (pw.registry != NULL) {

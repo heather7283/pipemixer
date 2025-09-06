@@ -9,14 +9,6 @@
 /* for use is (node|device)_set_(volume|mute) functions, see node.h, device.h */
 #define ALL_CHANNELS ((uint32_t)-1)
 
-struct props {
-    bool mute;
-    uint32_t channel_count;
-    /* TODO: dynamic array? */
-    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
-    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
-};
-
 enum media_class {
     MEDIA_CLASS_START,
     STREAM_OUTPUT_AUDIO,
