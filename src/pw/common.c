@@ -4,21 +4,8 @@
 #include "eventloop.h"
 #include "macros.h"
 #include "log.h"
-#include "xmalloc.h"
 
 struct pw pw = {0};
-
-const struct pw_device_events device_events = {
-    .version = PW_VERSION_DEVICE_EVENTS,
-    .info = on_device_info,
-    .param = on_device_param,
-};
-
-const struct pw_node_events node_events = {
-    .version = PW_VERSION_NODE_EVENTS,
-    .info = on_node_info,
-    .param = on_node_param,
-};
 
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const char *type, uint32_t version,
@@ -50,11 +37,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
             return;
         }
 
-        struct node *new_node = xcalloc(1, sizeof(*new_node));
-        new_node->id = id;
-        new_node->media_class = media_class_value;
-        new_node->pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
-        pw_node_add_listener(new_node->pw_node, &new_node->listener, &node_events, new_node);
+        node_create(id, media_class_value);
     } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         if (media_class == NULL) {
@@ -67,13 +50,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
             return;
         }
 
-        struct device *new_device = xcalloc(1, sizeof(*new_device));
-        new_device->id = id;
-        new_device->pw_device = pw_registry_bind(pw.registry, id, type, PW_VERSION_DEVICE, 0);
-        pw_device_add_listener(new_device->pw_device, &new_device->listener,
-                               &device_events, new_device);
-
-        HASHMAP_INSERT(&pw.devices, new_device->id, &new_device->hash);
+        device_create(id);
     }
 }
 
@@ -146,15 +123,15 @@ int pipewire_init(void) {
 }
 
 void pipewire_cleanup(void) {
-    struct node *node;
-    HASHMAP_FOR_EACH(node, &pw.nodes, hash) {
-        node_destroy(node);
-    }
+    //struct node *node;
+    //HASHMAP_FOR_EACH(node, &pw.nodes, hash) {
+    //    node_destroy(node);
+    //}
 
-    struct device *device;
-    HASHMAP_FOR_EACH(device, &pw.devices, hash) {
-        device_destroy(device);
-    }
+    //struct device *device;
+    //HASHMAP_FOR_EACH(device, &pw.devices, hash) {
+    //    device_destroy(device);
+    //}
 
     if (pw.registry != NULL) {
         pw_proxy_destroy((struct pw_proxy *)pw.registry);

@@ -15,13 +15,11 @@
 
 #define ADD_BIND(keycode, function, data_type, data_value) \
     do { \
-        struct tui_bind *bind = xcalloc(1, sizeof(*bind)); \
-        bind->func = function; \
-        bind->data.data_type = data_value; \
-        struct tui_bind *old_bind; \
-        if (HASHMAP_INSERT_OR_REPLACE(&config.binds, keycode, &bind->hash, old_bind, hash)) { \
-            free(old_bind); \
-        } \
+        struct tui_bind bind = { \
+            .func = function, \
+            .data.data_type = data_value, \
+        }; \
+        MAP_INSERT(&config.binds, keycode, &bind); \
     } while (0)
 
 struct pipemixer_config config = {
@@ -56,8 +54,6 @@ struct pipemixer_config config = {
         .br = L"┘",
     },
     .routes_separator = ", ",
-
-    .binds = HASHMAP_INITIALISER,
 };
 
 static const char *get_default_config_path(void) {
@@ -267,7 +263,7 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             } else if (STREQ(k, "quit")) {
                 ADD_BIND(keycode, TUI_BIND_QUIT, nothing, NOTHING);
             } else if (STREQ(k, "unbind")) {
-                HASHMAP_DELETE(&config.binds, keycode);
+                MAP_REMOVE(&config.binds, keycode);
             } else {
                 CONFIG_LOG("unknown action: %s", k);
             }
@@ -355,9 +351,6 @@ out:
 }
 
 void config_cleanup(void) {
-    struct tui_bind *bind;
-    HASHMAP_FOR_EACH(bind, &config.binds, hash) {
-        free(bind);
-    }
+    //MAP_FREE(&config.binds);
 }
 

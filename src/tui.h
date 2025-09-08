@@ -137,8 +137,6 @@ union tui_bind_data {
 struct tui_bind {
     union tui_bind_data data;
     tui_bind_func_t func;
-
-    HASHMAP_ENTRY hash;
 };
 
 #endif /* #ifndef TUI_H */

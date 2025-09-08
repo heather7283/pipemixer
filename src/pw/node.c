@@ -6,11 +6,14 @@
 #include "pw/node.h"
 #include "pw/device.h"
 #include "pw/roundtrip.h"
+#include "collections/map.h"
 #include "tui.h"
 #include "log.h"
 #include "macros.h"
 #include "config.h"
 #include "utils.h"
+
+static MAP(struct node) nodes = {0};
 
 static enum spa_direction media_class_to_direction(enum media_class class) {
     switch (class) {
@@ -26,13 +29,11 @@ static enum spa_direction media_class_to_direction(enum media_class class) {
 }
 
 struct node *node_lookup(uint32_t id) {
-    struct node *node;
-    if (HASHMAP_GET(node, &pw.nodes, id, hash)) {
-        return node;
-    } else {
+    struct node *node = MAP_GET(&nodes, id);
+    if (node == NULL) {
         WARN("node with id %u was not found", id);
-        return NULL;
     }
+    return node;
 }
 
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
@@ -192,9 +193,8 @@ const struct route *node_get_active_route(const struct node *node) {
 static void on_node_roundtrip_done(void *data) {
     struct node *node = data;
 
-    if (!HASHMAP_EXISTS(&pw.nodes, node->id)) /* new node */ {
-        HASHMAP_INSERT(&pw.nodes, node->id, &node->hash);
-
+    if (node->new) {
+        node->new = false;
         tui_notify_node_new(node);
     } else {
         tui_notify_node_change(node);
@@ -306,14 +306,28 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
 }
 
+static const struct pw_node_events node_events = {
+    .version = PW_VERSION_NODE_EVENTS,
+    .info = on_node_info,
+    .param = on_node_param,
+};
+
+void node_create(uint32_t id, enum media_class media_class) {
+    struct node *node = MAP_EMPLACE_ZEROED(&nodes, id);
+    node->id = id;
+    node->media_class = media_class;
+    node->pw_node = pw_registry_bind(pw.registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0);
+    node->new = true;
+    pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
+}
+
 void node_destroy(struct node *node) {
     tui_notify_node_remove(node);
-
-    HASHMAP_DELETE(&pw.nodes, node->id);
 
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
     wstring_free(&node->media_name);
     wstring_free(&node->node_name);
-    free(node);
+
+    MAP_REMOVE(&nodes, node->id);
 }
 

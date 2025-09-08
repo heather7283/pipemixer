@@ -38,13 +38,13 @@ struct node {
     uint32_t device_id;
     int32_t card_profile_device;
 
+    bool new;
     enum node_change_mask changed;
-
-    HASHMAP_ENTRY hash;
 };
 
 struct node *node_lookup(uint32_t id);
 
+void node_create(uint32_t id, enum media_class media_class);
 void node_destroy(struct node *node);
 
 void on_node_info(void *data, const struct pw_node_info *info);

@@ -3,7 +3,8 @@
 
 #include <curses.h>
 
-#include "collections/hashmap.h"
+#include "collections/map.h"
+#include "tui.h"
 
 struct pipemixer_config {
     float volume_step;
@@ -22,7 +23,7 @@ struct pipemixer_config {
     } borders;
     char *routes_separator;
 
-    HASHMAP_HEAD(64) binds;
+    MAP(struct tui_bind) binds;
 };
 
 extern struct pipemixer_config config;

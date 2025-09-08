@@ -5,7 +5,6 @@
 
 #include <pipewire/pipewire.h>
 
-#include "collections/hashmap.h"
 #include "collections/vec.h"
 
 struct route {
@@ -55,12 +54,11 @@ struct device {
         VEC(struct profile) profiles;
         struct profile *active_profile;
     } staging;
-
-    HASHMAP_ENTRY hash;
 };
 
 struct device *device_lookup(uint32_t id);
 
+void device_create(uint32_t id);
 void device_destroy(struct device *device);
 
 void on_device_info(void *data, const struct pw_device_info *info);

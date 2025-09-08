@@ -923,8 +923,8 @@ static int tui_handle_stdin(struct pollen_callback *callback,
                             int fd, uint32_t events, void *data) {
     wint_t ch;
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
-        struct tui_bind *bind;
-        if (!HASHMAP_GET(bind, &config.binds, ch, hash)) {
+        struct tui_bind *bind = MAP_GET(&config.binds, ch);
+        if (bind == NULL) {
             DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
         } else if (bind->func == TUI_BIND_QUIT) {
             pollen_loop_quit(pollen_callback_get_loop(callback), 0);

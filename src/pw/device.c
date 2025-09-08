@@ -3,19 +3,20 @@
 
 #include "pw/device.h"
 #include "pw/roundtrip.h"
+#include "collections/map.h"
 #include "tui.h"
 #include "log.h"
 #include "xmalloc.h"
 #include "macros.h"
 
+static MAP(struct device) devices = {0};
+
 struct device *device_lookup(uint32_t id) {
-    struct device *dev;
-    if (HASHMAP_GET(dev, &pw.devices, id, hash)) {
-        return dev;
-    } else {
+    struct device *dev = MAP_GET(&devices, id);
+    if (dev == NULL) {
         WARN("device with id %u was not found", id);
-        return NULL;
     }
+    return dev;
 }
 
 void device_set_props(const struct device *dev, const struct spa_pod *props,
@@ -78,6 +79,20 @@ static void route_free_contents(struct route *route) {
     }
 }
 
+const struct pw_device_events device_events = {
+    .version = PW_VERSION_DEVICE_EVENTS,
+    .info = on_device_info,
+    .param = on_device_param,
+};
+
+void device_create(uint32_t id) {
+    struct device *dev = MAP_EMPLACE_ZEROED(&devices, id);
+    dev->id = id;
+    dev->pw_device = pw_registry_bind(pw.registry, id,
+                                      PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0);
+    pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
+}
+
 void device_destroy(struct device *device) {
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
@@ -128,7 +143,7 @@ void device_destroy(struct device *device) {
         free(device->staging.active_profile);
     }
 
-    free(device);
+    MAP_REMOVE(&devices, device->id);
 }
 
 void on_device_roundtrip_done(void *data) {
