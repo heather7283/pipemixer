@@ -161,7 +161,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
     const int volume_bar_start = volume_area_start + 12; /* minus two decorations at the end */
 
     const bool focused = item->focused;
-    const bool muted = node->props.mute;
+    const bool muted = node->mute;
 
     /* TODO: this "damage tracking" is getting really messy really fast...
      * Is it even needed? Modern terminal emulators are very fast,
@@ -220,13 +220,13 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             wattron(win, A_DIM);
         }
 
-        for (uint32_t i = 0; i < node->props.channel_count; i++) {
+        for (uint32_t i = 0; i < VEC_SIZE(&node->channels); i++) {
             const int pos = item->pos + i + 2;
 
-            const int vol_int = (int)roundf(node->props.channel_volumes[i] * 100);
+            const int vol_int = (int)roundf(VEC_AT(&node->channels, i)->volume * 100);
 
             mvwprintw(win, pos, volume_area_start, "%5s %-3d ",
-                      node->props.channel_map[i], vol_int);
+                      VEC_AT(&node->channels, i)->name, vol_int);
 
             /* draw volume bar */
             int pair = DEFAULT;
@@ -234,7 +234,7 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             const int thresh = vol_int * volume_bar_width / 150;
             for (int j = 0; j < volume_bar_width; j++) {
                 cchar_t cc;
-                if (j % step == 0 && !node->props.mute) {
+                if (j % step == 0 && !node->mute) {
                     pair += 1;
                 }
                 setcchar(&cc, (j < thresh) ? config.bar_full_char : config.bar_empty_char,
@@ -253,19 +253,19 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
             wattron(win, A_DIM);
         }
 
-        for (uint32_t i = 0; i < node->props.channel_count; i++) {
+        for (uint32_t i = 0; i < VEC_SIZE(&node->channels); i++) {
             const int pos = item->pos + i + 2;
 
             const wchar_t *wchar_left, *wchar_right;
             cchar_t cchar_left, cchar_right;
 
-            if (node->props.channel_count == 1) {
+            if (VEC_SIZE(&node->channels) == 1) {
                 wchar_left = config.volume_frame.ml;
                 wchar_right = config.volume_frame.mr;
             } else if (i == 0) {
                 wchar_left = config.volume_frame.tl;
                 wchar_right = config.volume_frame.tr;
-            } else if (i == node->props.channel_count - 1) {
+            } else if (i == VEC_SIZE(&node->channels) - 1) {
                 wchar_left = config.volume_frame.bl;
                 wchar_right = config.volume_frame.br;
             } else {
@@ -511,7 +511,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
     bool change = false;
     switch (direction) {
     case DOWN:
-        if (focused->unlocked_channels && focused->focused_channel < focused_node->props.channel_count - 1) {
+        if (focused->unlocked_channels && focused->focused_channel < VEC_SIZE(&focused_node->channels) - 1) {
             focused->focused_channel += 1;
             focused->change |= TUI_TAB_ITEM_CHANGE_CHANNEL_LOCK;
             change = true;
@@ -550,7 +550,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             if (next_item != NULL) {
                 struct node *const next_node = node_lookup(next_item->node_id);
                 if (next_item->unlocked_channels) {
-                    next_item->focused_channel = next_node->props.channel_count - 1;
+                    next_item->focused_channel = VEC_SIZE(&next_node->channels) - 1;
                 }
                 change = tui_tab_item_set_focused(tui.tab, next_item);
             }
@@ -639,7 +639,7 @@ void tui_bind_change_mute(union tui_bind_data data) {
         node_set_mute(node, false);
         break;
     case TOGGLE:
-        node_set_mute(node, !node->props.mute);
+        node_set_mute(node, !node->mute);
         break;
     }
 }
@@ -979,7 +979,7 @@ void tui_notify_node_new(const struct node *node) {
     }
     LIST_INSERT(&tui.tabs[tab].items, &new_item->link);
 
-    int new_item_height = node->props.channel_count + 3;
+    int new_item_height = VEC_SIZE(&node->channels) + 3;
     if (node->device_id != 0) {
         new_item_height += 1;
     }
@@ -1019,7 +1019,7 @@ void tui_notify_node_change(const struct node *node) {
         item->change |= TUI_TAB_ITEM_CHANGE_VOLUME;
     }
     if (node->changed & NODE_CHANGE_CHANNEL_COUNT) {
-        int new_item_height = node->props.channel_count + 3;
+        int new_item_height = VEC_SIZE(&node->channels) + 3;
         if (node->device_id != 0) {
             new_item_height += 1;
         }

@@ -17,14 +17,6 @@ enum node_change_mask {
     NODE_CHANGE_EVERYTHING = ~0,
 };
 
-struct props {
-    bool mute;
-    uint32_t channel_count;
-    /* TODO: dynamic array? */
-    float channel_volumes[SPA_AUDIO_MAX_CHANNELS];
-    const char *channel_map[SPA_AUDIO_MAX_CHANNELS];
-};
-
 struct node {
     struct pw_node *pw_node;
     struct spa_hook listener;
@@ -33,7 +25,12 @@ struct node {
     enum media_class media_class;
     struct wstring media_name;
     struct wstring node_name;
-    struct props props;
+
+    bool mute;
+    VEC(struct node_channel {
+        const char *name;
+        float volume;
+    }) channels;
 
     uint32_t device_id;
     int32_t card_profile_device;

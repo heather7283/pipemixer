@@ -70,10 +70,10 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));
 
-    float cubed_volumes[node->props.channel_count];
-    for (uint32_t i = 0; i < node->props.channel_count; i++) {
+    float cubed_volumes[VEC_SIZE(&node->channels)];
+    for (uint32_t i = 0; i < VEC_SIZE(&node->channels); i++) {
         float new_volume;
-        float old_volume = node->props.channel_volumes[i];
+        float old_volume = VEC_AT(&node->channels, i)->volume;
 
         if (channel == ALL_CHANNELS || i == channel) {
             if (absolute) {
@@ -191,7 +191,16 @@ const struct route *node_get_active_route(const struct node *node) {
 }
 
 static void on_node_roundtrip_done(void *data) {
-    struct node *node = data;
+    /* node might get removed before roundtrip finishes,
+     * so instead of passing node by ptr here pass its id
+     * and look it up in the hashmap when roundtrip finishes */
+    const uint32_t id = (uintptr_t)data;
+    struct node *node = MAP_GET(&nodes, id);
+    if (node == NULL) {
+        WARN("roundtrip finished for node %d that does not exist!", id);
+        WARN("was it removed after roundtrip started?");
+        return;
+    }
 
     if (node->new) {
         node->new = false;
@@ -256,9 +265,9 @@ void on_node_info(void *data, const struct pw_node_info *info) {
         }
     }
     if (needs_roundtrip) {
-        roundtrip_async(pw.core, on_node_roundtrip_done, node);
+        roundtrip_async(pw.core, on_node_roundtrip_done, (void *)(uintptr_t)node->id);
     } else {
-        on_node_roundtrip_done(node);
+        on_node_roundtrip_done((void *)(uintptr_t)node->id);
     }
 }
 
@@ -278,30 +287,38 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         return;
     }
 
-    struct props *props = &node->props;
+    const uint32_t old_channel_count = VEC_SIZE(&node->channels);
+    VEC_CLEAR(&node->channels);
 
-    struct spa_pod *iter;
-    int i = 0;
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&channels_prop->value, iter) {
-        props->channel_map[i++] = channel_name_from_enum(*(enum spa_audio_channel *)iter);
+    const struct spa_pod_array *volumes_arr = (const struct spa_pod_array *)&volumes_prop->value;
+    const struct spa_pod_array *channels_arr = (const struct spa_pod_array *)&channels_prop->value;
+    const uint32_t volumes_child_size = volumes_arr->body.child.size;
+    const uint32_t channels_child_size = channels_arr->body.child.size;
+    const uint32_t n_channels = (volumes_arr->pod.size - 8) / volumes_child_size;
+
+    /* cursed af */
+    for (uint32_t i = 0; i < n_channels; i++) {
+        const float *volume =
+            (void *)((uintptr_t)&volumes_arr->body + 8 + (volumes_child_size * i));
+        const enum spa_audio_channel *channel_enum =
+            (void *)((uintptr_t)&channels_arr->body + 8 + (channels_child_size * i));
+
+        const struct node_channel c = {
+            .volume = cbrtf(*volume),
+            .name = channel_name_from_enum(*channel_enum),
+        };
+        VEC_APPEND(&node->channels, &c);
     }
-    i = 0;
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&volumes_prop->value, iter) {
-        float vol_cubed = *(float *)iter;
-        float vol = cbrtf(vol_cubed);
-        props->channel_volumes[i++] = vol;
-    }
-    const uint32_t old_channel_count = node->props.channel_count;
-    props->channel_count = i;
+
     node->changed |= NODE_CHANGE_VOLUME;
 
-    const bool old_mute = props->mute;
-    spa_pod_get_bool(&mute_prop->value, &props->mute);
-    if (old_mute != props->mute) {
+    const bool old_mute = node->mute;
+    spa_pod_get_bool(&mute_prop->value, &node->mute);
+    if (old_mute != node->mute) {
         node->changed |= NODE_CHANGE_MUTE;
     }
 
-    if (old_channel_count != props->channel_count) {
+    if (old_channel_count != VEC_SIZE(&node->channels)) {
         node->changed |= NODE_CHANGE_CHANNEL_COUNT;
     }
 }
@@ -327,6 +344,7 @@ void node_destroy(struct node *node) {
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
     wstring_free(&node->media_name);
     wstring_free(&node->node_name);
+    VEC_FREE(&node->channels);
 
     MAP_REMOVE(&nodes, node->id);
 }
