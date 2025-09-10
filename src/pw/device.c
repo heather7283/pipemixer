@@ -3,8 +3,9 @@
 
 #include "pw/device.h"
 #include "pw/roundtrip.h"
+#include "pw/common.h"
+#include "pw/events.h"
 #include "collections/map.h"
-#include "tui.h"
 #include "log.h"
 #include "xmalloc.h"
 #include "macros.h"
@@ -192,7 +193,7 @@ void on_device_roundtrip_done(void *data) {
         dev->modified_params &= ~PROFILE;
     }
 
-    tui_notify_device_change(dev);
+    signal_emit_u64(&pw.emitter, PIPEWIRE_EVENT_DEVICE_CHANGED, dev->id);
 }
 
 void on_device_info(void *data, const struct pw_device_info *info) {

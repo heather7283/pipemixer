@@ -41,6 +41,7 @@ pipemixer_sources = [
   'src/xmalloc.c',
   'src/utils.c',
   'src/config.c',
+  'src/signals.c',
   'src/eventloop.c',
   'src/collections/string.c',
   'src/collections/vec.c',
@@ -49,6 +50,7 @@ pipemixer_sources = [
   'src/pw/device.c',
   'src/pw/node.c',
   'src/pw/roundtrip.c',
+  'src/pw/events.c',
 ]
 
 include_dirs = [

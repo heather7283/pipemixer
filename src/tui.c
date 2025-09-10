@@ -8,7 +8,9 @@
 #include "xmalloc.h"
 #include "utils.h"
 #include "config.h"
+#include "macros.h"
 #include "eventloop.h"
+#include "pw/events.h"
 #include "collections/string.h"
 
 #define TUI_ACTIVE_TAB (tui.tabs[tui.tab])
@@ -22,6 +24,8 @@ enum color_pair {
 };
 
 struct tui tui = {0};
+
+static MAP(struct tui_tab_item) tab_items = {0};
 
 static void tui_repaint(bool draw_unconditionally);
 
@@ -888,6 +892,166 @@ static void tui_set_pad_size(enum tui_set_pad_size_policy y_policy, int y,
     }
 }
 
+/* Change size (height) of item to (new_height),
+ * while also adjusting positions of other items in the same tab as needed.
+ * Does not repaint. The caller must repaint.
+ */
+static void tui_tab_item_resize(enum tui_tab tab, struct tui_tab_item *item, int new_height) {
+    const int diff = new_height - item->height;
+    if (diff == 0) {
+        return;
+    }
+
+    TRACE("tui_tab_item_resize: resizing item %p from %d to %d",
+          (void *)item, item->height, item->height + diff);
+    item->height += diff;
+    item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
+
+    struct tui_tab_item *next;
+    LIST_FOR_EACH_AFTER(next, &tui.tabs[tab].items, &item->link, link) {
+        TRACE("tui_tab_item_resize: shifting item %p from %d to %d",
+              (void *)next, next->pos, next->pos + diff);
+        next->pos += diff;
+        next->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
+    }
+
+    struct tui_tab_item *last;
+    LIST_GET_LAST(last, &tui.tabs[tab].items, link);
+    tui_set_pad_size(AT_LEAST, last->pos + last->height, AT_LEAST, tui.term_width, true);
+}
+
+void tui_on_node_added(const struct node *node) {
+    TRACE("tui_on_node_added: id %d", node->id);
+
+    const enum tui_tab tab = media_class_to_tui_tab(node->media_class);
+
+    struct tui_tab_item *new_item = MAP_EMPLACE_ZEROED(&tab_items, node->id);
+    new_item->tab = tab;
+    new_item->node_id = node->id;
+    new_item->pos = 0;
+    new_item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
+
+    if (tui.tabs[tab].focused == NULL || !tui.tabs[tab].user_changed_focus) {
+        tui_tab_item_set_focused(tab, new_item);
+    }
+    LIST_INSERT(&tui.tabs[tab].items, &new_item->link);
+
+    int new_item_height = VEC_SIZE(&node->channels) + 3;
+    if (node->device_id != 0) {
+        new_item_height += 1;
+    }
+    tui_tab_item_resize(tab, new_item, new_item_height);
+
+    if (tab == tui.tab) {
+        tui_repaint(false);
+    }
+}
+
+void tui_on_node_changed(const struct node *node) {
+    TRACE("tui_on_node_changed: id %d", node->id);
+
+    struct tui_tab_item *item = MAP_GET(&tab_items, node->id);
+    if (item == NULL) {
+        WARN("got NODE_CHANGED for node id %d but no tui_tab_item found", node->id);
+        return;
+    }
+
+    const enum tui_tab tab = item->tab;
+
+    if (node->changed & NODE_CHANGE_INFO) {
+        item->change |= TUI_TAB_ITEM_CHANGE_INFO;
+    }
+    if (node->changed & NODE_CHANGE_MUTE) {
+        item->change |= TUI_TAB_ITEM_CHANGE_MUTE;
+    }
+    if (node->changed & NODE_CHANGE_VOLUME) {
+        item->change |= TUI_TAB_ITEM_CHANGE_VOLUME;
+    }
+    if (node->changed & NODE_CHANGE_CHANNEL_COUNT) {
+        int new_item_height = VEC_SIZE(&node->channels) + 3;
+        if (node->device_id != 0) {
+            new_item_height += 1;
+        }
+        tui_tab_item_resize(tab, item, new_item_height);
+    }
+
+    if (tab == tui.tab) {
+        tui_repaint(false);
+    }
+}
+
+void tui_on_node_removed(uint32_t id) {
+    TRACE("tui_on_node_removed: id %d", id);
+
+    struct tui_tab_item *item = MAP_GET(&tab_items, id);
+    if (item == NULL) {
+        WARN("got NODE_REMOVE for node id %d but no tui_tab_item found", id);
+        return;
+    }
+
+    const enum tui_tab tab = item->tab;
+
+    tui_tab_item_resize(tab, item, 0);
+    LIST_REMOVE(&item->link);
+
+    if (!LIST_IS_EMPTY(&tui.tabs[tab].items) && item->focused) {
+        struct tui_tab_item *first;
+        LIST_GET_FIRST(first, &tui.tabs[tab].items, link);
+        first->focused = true;
+        tui.tabs[tab].focused = first;
+    }
+
+    MAP_REMOVE(&tab_items, id);
+
+    if (tab == tui.tab) {
+        tui_repaint(false);
+    }
+}
+
+void tui_on_device_changed(const struct device *dev) {
+    TRACE("tui_on_device_changed: id %d", dev->id);
+
+    struct tui_tab_item *tab_item;
+    spa_list_for_each(tab_item, &TUI_ACTIVE_TAB.items, link) {
+        const struct node *const node = node_lookup(tab_item->node_id);
+        if (node->device_id == dev->id) {
+            tab_item->change |= TUI_TAB_ITEM_CHANGE_PORT;
+            tui_repaint(false);
+            break;
+        }
+    }
+}
+
+static void tui_handle_pipewire_events(uint64_t event, const struct signal_data *data, void *_) {
+    switch ((enum pipewire_events)event) {
+    case PIPEWIRE_EVENT_NODE_ADDED: {
+        const struct node *node = node_lookup(data->as.u64);
+        if (node != NULL) {
+            tui_on_node_added(node);
+        }
+        break;
+    }
+    case PIPEWIRE_EVENT_NODE_CHANGED: {
+        const struct node *node = node_lookup(data->as.u64);
+        if (node != NULL) {
+            tui_on_node_changed(node);
+        }
+        break;
+    }
+    case PIPEWIRE_EVENT_NODE_REMOVED: {
+        tui_on_node_removed(data->as.u64);
+        break;
+    }
+    case PIPEWIRE_EVENT_DEVICE_CHANGED: {
+        const struct device *device = device_lookup(data->as.u64);
+        if (device != NULL) {
+            tui_on_device_changed(device);
+        }
+        break;
+    }
+    }
+}
+
 static int tui_handle_sigwinch(struct pollen_callback *callback, int signal, void *data) {
     struct winsize winsize;
     if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
@@ -936,151 +1100,6 @@ static int tui_handle_stdin(struct pollen_callback *callback,
     return 0;
 }
 
-/* Change size (height) of item to (new_height),
- * while also adjusting positions of other items in the same tab as needed.
- * Does not repaint. The caller must repaint.
- */
-static void tui_tab_item_resize(enum tui_tab tab, struct tui_tab_item *item, int new_height) {
-    const int diff = new_height - item->height;
-    if (diff == 0) {
-        return;
-    }
-
-    TRACE("tui_tab_item_resize: resizing item %p from %d to %d",
-          (void *)item, item->height, item->height + diff);
-    item->height += diff;
-    item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
-
-    struct tui_tab_item *next;
-    LIST_FOR_EACH_AFTER(next, &tui.tabs[tab].items, &item->link, link) {
-        TRACE("tui_tab_item_resize: shifting item %p from %d to %d",
-              (void *)next, next->pos, next->pos + diff);
-        next->pos += diff;
-        next->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
-    }
-
-    struct tui_tab_item *last;
-    LIST_GET_LAST(last, &tui.tabs[tab].items, link);
-    tui_set_pad_size(AT_LEAST, last->pos + last->height, AT_LEAST, tui.term_width, true);
-}
-
-void tui_notify_node_new(const struct node *node) {
-    TRACE("tui_notify_node_new: id %d", node->id);
-
-    enum tui_tab tab = media_class_to_tui_tab(node->media_class);
-
-    struct tui_tab_item *new_item = xcalloc(1, sizeof(*new_item));
-    new_item->node_id = node->id;
-    new_item->pos = 0;
-    new_item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
-
-    if (tui.tabs[tab].focused == NULL || !tui.tabs[tab].user_changed_focus) {
-        tui_tab_item_set_focused(tab, new_item);
-    }
-    LIST_INSERT(&tui.tabs[tab].items, &new_item->link);
-
-    int new_item_height = VEC_SIZE(&node->channels) + 3;
-    if (node->device_id != 0) {
-        new_item_height += 1;
-    }
-    tui_tab_item_resize(tab, new_item, new_item_height);
-
-    if (tab == tui.tab) {
-        tui_repaint(false);
-    }
-}
-
-void tui_notify_node_change(const struct node *node) {
-    TRACE("tui_notify_node_change: id %d", node->id);
-
-    enum tui_tab tab = media_class_to_tui_tab(node->media_class);
-
-    /* find tui_tab_item associated with this node (FIXME: slow? do I even care?) */
-    bool found = false;
-    struct tui_tab_item *item;
-    LIST_FOR_EACH(item, &tui.tabs[tab].items, link) {
-        if (item->node_id == node->id) {
-            found = true;
-            break;
-        }
-    }
-    if (!found) {
-        WARN("got notify_node_change for node id %d but no tui_tab_item found", node->id);
-        return;
-    }
-
-    if (node->changed & NODE_CHANGE_INFO) {
-        item->change |= TUI_TAB_ITEM_CHANGE_INFO;
-    }
-    if (node->changed & NODE_CHANGE_MUTE) {
-        item->change |= TUI_TAB_ITEM_CHANGE_MUTE;
-    }
-    if (node->changed & NODE_CHANGE_VOLUME) {
-        item->change |= TUI_TAB_ITEM_CHANGE_VOLUME;
-    }
-    if (node->changed & NODE_CHANGE_CHANNEL_COUNT) {
-        int new_item_height = VEC_SIZE(&node->channels) + 3;
-        if (node->device_id != 0) {
-            new_item_height += 1;
-        }
-        tui_tab_item_resize(tab, item, new_item_height);
-    }
-
-    if (tab == tui.tab) {
-        tui_repaint(false);
-    }
-}
-
-void tui_notify_node_remove(const struct node *node) {
-    TRACE("tui_notify_node_remove: id %d", node->id);
-
-    enum tui_tab tab = media_class_to_tui_tab(node->media_class);
-
-    /* find tui_tab_item associated with this node (FIXME: slow? do I even care?) */
-    bool found = false;
-    struct tui_tab_item *item;
-    LIST_FOR_EACH(item, &tui.tabs[tab].items, link) {
-        if (item->node_id == node->id) {
-            found = true;
-            break;
-        }
-    }
-    if (!found) {
-        WARN("got notify_node_change for node id %d but no tui_tab_item found", node->id);
-        return;
-    }
-
-    tui_tab_item_resize(tab, item, 0);
-    LIST_REMOVE(&item->link);
-
-    if (!LIST_IS_EMPTY(&tui.tabs[tab].items) && item->focused) {
-        struct tui_tab_item *first;
-        LIST_GET_FIRST(first, &tui.tabs[tab].items, link);
-        first->focused = true;
-        tui.tabs[tab].focused = first;
-    }
-
-    free(item);
-
-    if (tab == tui.tab) {
-        tui_repaint(false);
-    }
-}
-
-void tui_notify_device_change(const struct device *dev) {
-    TRACE("tui_notify_device_change: id %d", dev->id);
-
-    struct tui_tab_item *tab_item;
-    spa_list_for_each(tab_item, &TUI_ACTIVE_TAB.items, link) {
-        const struct node *const node = node_lookup(tab_item->node_id);
-        if (node->device_id == dev->id) {
-            tab_item->change |= TUI_TAB_ITEM_CHANGE_PORT;
-            tui_repaint(false);
-            break;
-        }
-    }
-}
-
 int tui_init(void) {
     initscr();
     refresh(); /* https://stackoverflow.com/a/22121866 */
@@ -1108,6 +1127,8 @@ int tui_init(void) {
     tui.tab = TUI_TAB_FIRST;
     tui_repaint(true);
 
+    pipewire_events_subscribe(&tui.listener, (uint64_t)-1, tui_handle_pipewire_events, NULL);
+
     return 0;
 }
 
@@ -1117,15 +1138,6 @@ int tui_cleanup(void) {
     }
     if (tui.pad_win != NULL) {
         delwin(tui.pad_win);
-    }
-    FOR_EACH_TAB(tab) {
-        if (tui.tabs[tab].items.next != NULL) {
-            struct tui_tab_item *tab_item;
-            LIST_FOR_EACH(tab_item, &tui.tabs[tab].items, link) {
-                LIST_REMOVE(&tab_item->link);
-                free(tab_item);
-            }
-        }
     }
 
     endwin();

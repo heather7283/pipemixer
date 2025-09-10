@@ -6,8 +6,8 @@
 #include "pw/node.h"
 #include "pw/device.h"
 #include "pw/roundtrip.h"
+#include "pw/events.h"
 #include "collections/map.h"
-#include "tui.h"
 #include "log.h"
 #include "macros.h"
 #include "config.h"
@@ -204,13 +204,10 @@ static void on_node_roundtrip_done(void *data) {
 
     if (node->new) {
         node->new = false;
-        tui_notify_node_new(node);
+        signal_emit_u64(&pw.emitter, PIPEWIRE_EVENT_NODE_ADDED, node->id);
     } else {
-        tui_notify_node_change(node);
+        signal_emit_u64(&pw.emitter, PIPEWIRE_EVENT_NODE_CHANGED, node->id);
     }
-
-    /* reset changes */
-    node->changed = NODE_CHANGE_NOTHING;
 }
 
 void on_node_info(void *data, const struct pw_node_info *info) {
@@ -229,6 +226,9 @@ void on_node_info(void *data, const struct pw_node_info *info) {
           info->change_mask & PW_NODE_CHANGE_MASK_PARAMS ? " C" : "",
           info->change_mask & PW_NODE_CHANGE_MASK_PROPS ? " props," : "",
           BYTE_BINARY_ARGS(info->change_mask));
+
+    /* reset changes */
+    node->changed = NODE_CHANGE_NOTHING;
 
     uint32_t i = 0;
     const struct spa_dict_item *item;
@@ -339,7 +339,7 @@ void node_create(uint32_t id, enum media_class media_class) {
 }
 
 void node_destroy(struct node *node) {
-    tui_notify_node_remove(node);
+    signal_emit_u64(&pw.emitter, PIPEWIRE_EVENT_NODE_REMOVED, node->id);
 
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
     wstring_free(&node->media_name);

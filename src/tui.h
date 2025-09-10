@@ -62,6 +62,8 @@ struct tui {
         int scroll_pos;
         bool user_changed_focus;
     } tabs[TUI_TAB_COUNT];
+
+    struct signal_listener listener;
 };
 
 enum tui_tab_item_change_mask {
@@ -86,6 +88,7 @@ struct tui_tab_item {
     bool unlocked_channels;
     uint32_t focused_channel;
 
+    enum tui_tab tab;
     LIST_ENTRY link;
 };
 
@@ -93,12 +96,6 @@ extern struct tui tui;
 
 int tui_init(void);
 int tui_cleanup(void);
-
-void tui_notify_node_new(const struct node *node);
-void tui_notify_node_change(const struct node *node);
-void tui_notify_node_remove(const struct node *node);
-
-void tui_notify_device_change(const struct device *device);
 
 /* binds */
 union tui_bind_data;

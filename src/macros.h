@@ -33,5 +33,9 @@
         (b) = tmp; \
     } while (0)
 
+#define _3(a, b) a##b
+#define _2(a, b) _3(a, b)
+#define _ _2(_dummy_param_, __COUNTER__)
+
 #endif /* #ifndef MACROS_H */
 

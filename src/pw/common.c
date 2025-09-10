@@ -119,6 +119,8 @@ int pipewire_init(void) {
     pw.registry = pw_core_get_registry(pw.core, PW_VERSION_REGISTRY, 0);
     pw_registry_add_listener(pw.registry, &pw.registry_listener, &registry_events, NULL);
 
+    signal_emitter_init(&pw.emitter);
+
     return 0;
 }
 
