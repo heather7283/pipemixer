@@ -32,7 +32,6 @@ cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
 
 inih_dep = dependency('inih', required: get_option('system_libraries'))
-add_project_arguments('-DINI_HANDLER_LINENO=1', language: 'c')
 
 pipemixer_sources = [
   'src/pipemixer.c',

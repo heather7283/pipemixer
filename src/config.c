@@ -112,9 +112,9 @@ static bool get_bool(const char *str, bool *res) {
     }
 }
 
-static int key_value_handler(void *data, const char *s, const char *k, const char *v, int l) {
+static int key_value_handler(void *data, const char *s, const char *k, const char *v) {
     #define CONFIG_LOG(fmt, ...) \
-        fprintf(stderr, "config:%d: (%s::%s) "fmt"\n", l, s, k, ##__VA_ARGS__)
+        fprintf(stderr, "config: (%s::%s) "fmt"\n", s, k, ##__VA_ARGS__)
 
     #define CONFIG_GET_WCHAR(dst) \
         if (!get_first_wchar(v, dst)) CONFIG_LOG("invalid or incomplete multibyte sequence")
