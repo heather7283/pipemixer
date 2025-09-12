@@ -27,11 +27,10 @@ add_project_arguments('-DPIPEMIXER_GIT_BRANCH="@0@"'.format(git_branch), languag
 
 pipewire_dep = dependency('libpipewire-0.3')
 ncursesw_dep = dependency('ncursesw')
+inih_dep = dependency('inih')
 
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
-
-inih_dep = dependency('inih', required: get_option('system_libraries'))
 
 pipemixer_sources = [
   'src/pipemixer.c',
@@ -55,11 +54,6 @@ pipemixer_sources = [
 include_dirs = [
   'src'
 ]
-
-if not inih_dep.found()
-  pipemixer_sources += ['lib/inih/ini.c']
-  include_dirs += ['lib/inih']
-endif
 
 executable('pipemixer', pipemixer_sources,
   include_directories: include_dirs,

@@ -1,3 +1,0 @@
-option('system_libraries',
-  description: 'Use system libraries instead of bundled ones',
-  type: 'feature')
