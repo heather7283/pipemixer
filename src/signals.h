@@ -56,6 +56,8 @@ struct signal_emitter {
 bool signal_emitter_init(struct signal_emitter *emitter);
 void signal_emitter_cleanup(struct signal_emitter *emitter);
 
+bool signal_listener_is_subscribed(const struct signal_listener *const listener);
+
 void signal_subscribe(struct signal_emitter *emitter, struct signal_listener *listener,
                       uint64_t id, uint64_t events,
                       signal_callback_func_t callback, void *callback_data);

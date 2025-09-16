@@ -64,6 +64,28 @@ void device_set_route(const struct device *dev, int32_t card_profile_device, int
     pw_device_set_param(dev->pw_device, SPA_PARAM_Route, 0, route);
 }
 
+void device_set_profile(const struct device *dev, int32_t index) {
+    uint8_t buffer[1024];
+    struct spa_pod_builder b;
+    spa_pod_builder_init(&b, buffer, sizeof(buffer));
+
+    struct spa_pod *profile =
+        spa_pod_builder_add_object(&b, SPA_TYPE_OBJECT_ParamProfile, SPA_PARAM_Profile,
+                                   SPA_PARAM_PROFILE_index, SPA_POD_Int(index),
+                                   SPA_PARAM_PROFILE_save, SPA_POD_Bool(true));
+
+    pw_device_set_param(dev->pw_device, SPA_PARAM_Profile, 0, profile);
+}
+
+const struct profile *device_get_active_profile(const struct device *dev) {
+    return dev->active_profile;
+}
+
+size_t device_get_available_profiles(const struct device *dev, const struct profile **pprofiles) {
+    *pprofiles = VEC_DATA(&dev->profiles);
+    return VEC_SIZE(&dev->profiles);
+}
+
 static void profile_free_contents(struct profile *profile) {
     if (profile != NULL) {
         free(profile->name);
@@ -89,13 +111,18 @@ const struct pw_device_events device_events = {
 void device_create(uint32_t id) {
     struct device *dev = MAP_EMPLACE_ZEROED(&devices, id);
     dev->id = id;
+    dev->new = true;
     dev->pw_device = pw_registry_bind(pw.registry, id,
                                       PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0);
     pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
 }
 
 void device_destroy(struct device *device) {
+    signal_emit_u64(&pw.device_emitter, device->id, DEVICE_EVENT_REMOVE, device->id);
+
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
+
+    free(device->description);
 
     VEC_FOREACH(&device->routes, i) {
         struct route *route = VEC_AT(&device->routes, i);
@@ -193,7 +220,12 @@ void on_device_roundtrip_done(void *data) {
         dev->modified_params &= ~PROFILE;
     }
 
-    signal_emit_u64(&pw.device_emitter, dev->id, DEVICE_EVENT_CHANGE, dev->id);
+    if (dev->new) {
+        dev->new = false;
+        signal_emit_u64(&pw.core_emitter, PIPEWIRE_EVENT_ID_CORE, PIPEWIRE_EVENT_DEVICE_ADDED, dev->id);
+    } else {
+        signal_emit_u64(&pw.device_emitter, dev->id, DEVICE_EVENT_CHANGE, dev->id);
+    }
 }
 
 void on_device_info(void *data, const struct pw_device_info *info) {
@@ -214,6 +246,10 @@ void on_device_info(void *data, const struct pw_device_info *info) {
         const char *v = item->value;
 
         TRACE("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
+
+        if (STREQ(k, PW_KEY_DEVICE_DESCRIPTION) && device->description == NULL) {
+            device->description = xstrdup(v);
+        }
     }
 
     if (info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) {

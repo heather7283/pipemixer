@@ -43,7 +43,8 @@ static const char *tui_tab_name(enum tui_tab_type tab) {
     case RECORDING: return "Recording";
     case OUTPUT_DEVICES: return "Output Devices";
     case INPUT_DEVICES: return "Input Devices";
-    default: return "INVALID";
+    case CARDS: return "Cards";
+    default: assert(0 && "Invalid tab type passed to tui_tab_name");
     }
 }
 
@@ -57,15 +58,11 @@ static void trigger_update(void) {
     }
 }
 
-static void tui_tab_item_draw(const struct tui_tab_item *const item,
-                              enum tui_tab_item_draw_mask mask) {
+static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
+                                   enum tui_tab_item_draw_mask mask) {
     #define DRAW(element) if (mask & TUI_TAB_ITEM_DRAW_##element)
 
-    if (item->tab_index != tui.tab_index) {
-        return;
-    }
-
-    const struct node *node = node_lookup(item->node_id);
+    const struct node *node = node_lookup(item->as.node.node_id);
 
     const int usable_width = tui.term_width - 2; /* account for box borders */
     const int two_thirds_usable_width = usable_width / 3 * 2;
@@ -179,7 +176,8 @@ static void tui_tab_item_draw(const struct tui_tab_item *const item,
             mvwadd_wch(win, pos, volume_bar_start + volume_bar_width, &cchar_right);
 
             const wchar_t *wchar_focus;
-            if (focused && (!item->unlocked_channels || item->focused_channel == i)) {
+            if (focused && (!item->as.node.unlocked_channels
+                            || item->as.node.focused_channel == i)) {
                 wchar_focus = config.volume_frame.f;
             } else {
                 wchar_focus = L" ";
@@ -291,6 +289,150 @@ static void tui_tab_item_draw(const struct tui_tab_item *const item,
     #undef DRAW
 }
 
+static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
+                                     enum tui_tab_item_draw_mask mask) {
+    #define DRAW(element) if (mask & TUI_TAB_ITEM_DRAW_##element)
+
+    const struct device *dev = device_lookup(item->as.device.device_id);
+
+    const int usable_width = tui.term_width - 2; /* account for box borders */
+
+    const bool focused = item->focused;
+
+    TRACE("tui_draw_device: id %d mask "BYTE_BINARY_FORMAT, dev->id, BYTE_BINARY_ARGS(mask));
+
+    WINDOW *const win = tui.pad_win;
+
+    DRAW(BLANKS) {
+        for (int i = 0; i < item->height; i++) {
+            wmove(win, item->pos + i, 0);
+            wclrtoeol(win);
+        }
+    }
+
+    if (focused) {
+        wattron(win, A_BOLD);
+    }
+
+    DRAW(DESCRIPTION) {
+        wchar_t line[usable_width];
+        swprintf(line, SIZEOF_ARRAY(line), L"%d. %s", dev->id, dev->description);
+        mvwaddnwstr(win, item->pos + 1, 1, line, SIZEOF_ARRAY(line));
+        wclrtoeol(win);
+    }
+
+    DRAW(PROFILES) {
+        /* draw profiles */
+        char buf[usable_width];
+        const int ports_line_pos = item->pos + item->height - 2;
+
+        int written = 0, chars;
+        chars = snprintf(buf, usable_width - written, "Profiles: ");
+        mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
+        written = (written + chars > usable_width) ? usable_width : (written + chars);
+
+        const struct profile *active_profile = device_get_active_profile(dev);
+        const struct profile *profiles;
+        const size_t nprofiles = device_get_available_profiles(dev, &profiles);
+
+        if (active_profile != NULL) {
+            /* draw active profile first */
+            chars = snprintf(buf, usable_width - written, "%s",
+                             active_profile->description);
+            mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
+            written = (written + chars > usable_width) ? usable_width : (written + chars);
+
+            wattron(win, A_DIM);
+            for (size_t i = 0; i < nprofiles; i++) {
+                const struct profile *const profile = &profiles[i];
+                if (active_profile != NULL && profile->index == active_profile->index) {
+                    continue;
+                }
+
+                chars = snprintf(buf, usable_width - written, "%s%s",
+                                 /* config.profiles_separator */ ", ", profile->description);
+                mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
+                written = (written + chars > usable_width) ? usable_width : (written + chars);
+            }
+        } else if (nprofiles > 0) {
+            wattron(win, A_DIM);
+            for (size_t i = 0; i < nprofiles; i++) {
+                const struct profile *const profile = &profiles[i];
+                if (i == 0) {
+                    chars = snprintf(buf, usable_width - written, "%s",
+                                     profile->description);
+                } else {
+                    chars = snprintf(buf, usable_width - written, "%s%s",
+                                     /* config.profiles_separator */ ", ", profile->description);
+                }
+                mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
+                written = (written + chars > usable_width) ? usable_width : (written + chars);
+            }
+        } else {
+            wattron(win, A_DIM);
+            chars = snprintf(buf, usable_width - written, "(none)");
+            mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
+            written = (written + chars > usable_width) ? usable_width : (written + chars);
+        }
+
+        if (written >= usable_width) {
+            cchar_t cc;
+            setcchar(&cc, L"…", 0, DEFAULT, NULL);
+            mvwadd_wch(win, ports_line_pos, usable_width, &cc);
+        } else {
+            mvwhline(win, ports_line_pos, written + 1, ' ', usable_width - written);
+        }
+
+        wattroff(win, A_DIM);
+    }
+
+    DRAW(BORDERS) {
+        wmove(win, item->pos, 0);
+        waddwstr(win, config.borders.tl);
+        for (int x = 1; x < tui.term_width - 1; x++) {
+            waddwstr(win, config.borders.ts);
+        }
+        waddwstr(win, config.borders.tr);
+
+        wmove(win, item->pos + item->height - 1, 0);
+        waddwstr(win, config.borders.bl);
+        for (int x = 1; x < tui.term_width - 1; x++) {
+            waddwstr(win, config.borders.bs);
+        }
+        waddwstr(win, config.borders.br);
+
+        for (int y = 1; y < item->height - 1; y++) {
+            wmove(win, item->pos + y, 0);
+            waddwstr(win, config.borders.ls);
+        }
+
+        for (int y = 1; y < item->height - 1; y++) {
+            wmove(win, item->pos + y, tui.term_width - 1);
+            waddwstr(win, config.borders.ls);
+        }
+    }
+
+    wattroff(win, A_BOLD);
+
+    #undef DRAW
+}
+
+static void tui_tab_item_draw(const struct tui_tab_item *const item,
+                              enum tui_tab_item_draw_mask mask) {
+    if (item->tab_index != tui.tab_index) {
+        return;
+    }
+
+    switch (item->type) {
+    case TUI_TAB_ITEM_TYPE_NODE:
+        tui_tab_item_draw_node(item, mask);
+        break;
+    case TUI_TAB_ITEM_TYPE_DEVICE:
+        tui_tab_item_draw_device(item, mask);
+        break;
+    }
+}
+
 /* this only updates scroll pos and does not actually draw anything */
 static void tui_tab_item_ensure_visible(const struct tui_tab_item *const item) {
     struct tui_tab *const tab = &tui.tabs[item->tab_index];
@@ -334,7 +476,7 @@ static void tui_tab_item_unfocus(struct tui_tab_item *const item, bool draw) {
     struct tui_tab *const tab = &tui.tabs[item->tab_index];
 
     if (tab->focused != item) {
-        WARN("tui_tab_item_unfocus called on unfocused item (%d)", item->node_id);
+        WARN("tui_tab_item_unfocus called on unfocused item");
         return;
     }
 
@@ -365,12 +507,13 @@ void tui_bind_change_focus(union tui_bind_data data) {
     if (f == NULL) {
         return;
     }
-    struct node *const fn = node_lookup(f->node_id);
 
     switch (direction) {
     case DOWN:
-        if (f->unlocked_channels && f->focused_channel < VEC_SIZE(&fn->channels) - 1) {
-            f->focused_channel += 1;
+        if (f->type == TUI_TAB_ITEM_TYPE_NODE
+            && f->as.node.unlocked_channels
+            && f->as.node.focused_channel < f->as.node.n_channels - 1) {
+            f->as.node.focused_channel += 1;
             tui_tab_item_draw(f, TUI_TAB_ITEM_DRAW_DECORATIONS);
         } else {
             struct tui_tab_item *next = NULL;
@@ -383,15 +526,17 @@ void tui_bind_change_focus(union tui_bind_data data) {
                 break;
             }
 
-            if (next->unlocked_channels) {
-                next->focused_channel = 0;
+            if (next->type == TUI_TAB_ITEM_TYPE_NODE && next->as.node.unlocked_channels) {
+                next->as.node.focused_channel = 0;
             }
             tui_tab_item_focus(next, true, true);
         }
         break;
     case UP:
-        if (f->unlocked_channels && f->focused_channel > 0) {
-            f->focused_channel -= 1;
+        if (f->type == TUI_TAB_ITEM_TYPE_NODE
+            && f->as.node.unlocked_channels
+            && f->as.node.focused_channel > 0) {
+            f->as.node.focused_channel -= 1;
             tui_tab_item_draw(f, TUI_TAB_ITEM_DRAW_DECORATIONS);
         } else {
             struct tui_tab_item *next = NULL;
@@ -404,9 +549,8 @@ void tui_bind_change_focus(union tui_bind_data data) {
                 break;
             }
 
-            const struct node *const next_node = node_lookup(next->node_id);
-            if (next->unlocked_channels) {
-                next->focused_channel = VEC_SIZE(&next_node->channels) - 1;
+            if (next->type == TUI_TAB_ITEM_TYPE_NODE && next->as.node.unlocked_channels) {
+                next->as.node.focused_channel = next->as.node.n_channels - 1;
             }
             tui_tab_item_focus(next, true, true);
         }
@@ -490,15 +634,15 @@ void tui_bind_change_volume(union tui_bind_data data) {
     const enum tui_direction direction = data.direction;
     const struct tui_tab_item *const focused = tui.tabs[tui.tab_index].focused;
 
-    if (focused == NULL || tui.menu_active) {
+    if (focused == NULL || focused->type != TUI_TAB_ITEM_TYPE_NODE || tui.menu_active) {
         return;
     }
 
     float delta = (direction == UP) ? config.volume_step : -config.volume_step;
 
-    const struct node *const node = node_lookup(focused->node_id);
-    if (focused->unlocked_channels) {
-        node_change_volume(node, false, delta, focused->focused_channel);
+    const struct node *const node = node_lookup(focused->as.node.node_id);
+    if (focused->as.node.unlocked_channels) {
+        node_change_volume(node, false, delta, focused->as.node.focused_channel);
     } else {
         node_change_volume(node, false, delta, ALL_CHANNELS);
     }
@@ -508,13 +652,13 @@ void tui_bind_set_volume(union tui_bind_data data) {
     const float vol = data.volume;
     const struct tui_tab_item *const focused = tui.tabs[tui.tab_index].focused;
 
-    if (focused == NULL || tui.menu_active) {
+    if (focused == NULL || focused->type != TUI_TAB_ITEM_TYPE_NODE || tui.menu_active) {
         return;
     }
 
-    const struct node *const node = node_lookup(focused->node_id);
-    if (focused->unlocked_channels) {
-        node_change_volume(node, true, vol, focused->focused_channel);
+    const struct node *const node = node_lookup(focused->as.node.node_id);
+    if (focused->as.node.unlocked_channels) {
+        node_change_volume(node, true, vol, focused->as.node.focused_channel);
     } else {
         node_change_volume(node, true, vol, ALL_CHANNELS);
     }
@@ -524,11 +668,11 @@ void tui_bind_change_mute(union tui_bind_data data) {
     const enum tui_change_mode mode = data.change_mode;
     const struct tui_tab_item *const focused = tui.tabs[tui.tab_index].focused;
 
-    if (focused == NULL || tui.menu_active) {
+    if (focused == NULL || focused->type != TUI_TAB_ITEM_TYPE_NODE || tui.menu_active) {
         return;
     }
 
-    const struct node *const node = node_lookup(focused->node_id);
+    const struct node *const node = node_lookup(focused->as.node.node_id);
     switch (mode) {
     case ENABLE:
         node_set_mute(node, true);
@@ -546,26 +690,26 @@ void tui_bind_change_channel_lock(union tui_bind_data data) {
     enum tui_change_mode mode = data.change_mode;
     struct tui_tab_item *const focused = tui.tabs[tui.tab_index].focused;
 
-    if (focused == NULL || tui.menu_active) {
+    if (focused == NULL || focused->type != TUI_TAB_ITEM_TYPE_NODE || tui.menu_active) {
         return;
     }
 
     bool change = false;
     switch (mode) {
     case ENABLE:
-        if (!focused->unlocked_channels) {
-            focused->unlocked_channels = true;
+        if (!focused->as.node.unlocked_channels) {
+            focused->as.node.unlocked_channels = true;
             change = true;
         }
         break;
     case DISABLE:
-        if (focused->unlocked_channels) {
-            focused->unlocked_channels = false;
+        if (focused->as.node.unlocked_channels) {
+            focused->as.node.unlocked_channels = false;
             change = true;
         }
         break;
     case TOGGLE:
-        focused->unlocked_channels = !focused->unlocked_channels;
+        focused->as.node.unlocked_channels = !focused->as.node.unlocked_channels;
         change = true;
         break;
     }
@@ -628,6 +772,61 @@ void tui_bind_set_tab_index(union tui_bind_data data) {
     tui_set_tab_and_redraw(index);
 }
 
+static void on_profile_selection_done(struct tui_menu *menu, struct tui_menu_item *pick) {
+    const uint32_t device_id = menu->data.uint;
+    const uint32_t profile_id = pick->data.uint;
+
+    TRACE("on_profile_selection_done: device_id %d route_id %d", device_id, profile_id);
+    struct device *device = device_lookup(device_id);
+    if (device == NULL) {
+        WARN("on_profile_selection_done: device with id %d does not exist", device_id);
+    }
+    device_set_profile(device, profile_id);
+
+    tui_menu_free(menu);
+    tui.menu_active = false;
+
+    redraw_current_tab();
+}
+
+void tui_bind_select_profile(union tui_bind_data data) {
+    struct tui_tab_item *const focused = tui.tabs[tui.tab_index].focused;
+
+    if (focused == NULL || focused->type != TUI_TAB_ITEM_TYPE_DEVICE || tui.menu_active) {
+        return;
+    }
+
+    const struct device *const device = device_lookup(focused->as.device.device_id);
+    const struct profile *active_profile = device_get_active_profile(device);
+    const struct profile *profiles;
+    const size_t nprofiles = device_get_available_profiles(device, &profiles);
+
+    if (nprofiles < 2) {
+        return;
+    }
+
+    tui.menu = tui_menu_create(nprofiles);
+    tui.menu->callback = on_profile_selection_done;
+    tui.menu->data.uint = device->id;
+
+    tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
+
+    xasprintf(&tui.menu->header, "Select profile for %s", device->description);
+
+    for (size_t i = 0; i < nprofiles; i++) {
+        const struct profile *const profile = &profiles[i];
+        struct tui_menu_item *const item = &tui.menu->items[i];
+        xasprintf(&item->str, "%d. %s (%s)", profile->index, profile->description, profile->name);
+        item->data.uint = profile->index;
+
+        if (active_profile != NULL && profile->index == active_profile->index) {
+            tui.menu->selected = i;
+        }
+    }
+
+    tui.menu_active = true;
+}
+
 static void on_route_selection_done(struct tui_menu *menu, struct tui_menu_item *pick) {
     const uint32_t node_id = menu->data.uint;
     const uint32_t route_id = pick->data.uint;
@@ -646,11 +845,13 @@ static void on_route_selection_done(struct tui_menu *menu, struct tui_menu_item 
 }
 
 void tui_bind_select_route(union tui_bind_data data) {
-    if (tui.tabs[tui.tab_index].focused == NULL || tui.menu_active) {
+    struct tui_tab_item *const focused = tui.tabs[tui.tab_index].focused;
+
+    if (focused == NULL || focused->type != TUI_TAB_ITEM_TYPE_NODE || tui.menu_active) {
         return;
     }
 
-    const struct node *const node = node_lookup(tui.tabs[tui.tab_index].focused->node_id);
+    const struct node *const node = node_lookup(focused->as.node.node_id);
     const struct route *active_route = node_get_active_route(node);
     const struct route *const *routes;
     const size_t nroutes = node_get_available_routes(node, &routes);
@@ -799,8 +1000,12 @@ static void tui_tab_item_resize(struct tui_tab_item *item, int new_height) {
     }
 }
 
+/* EVENTS FOR NODE ITEMS */
+
 static void on_node_remove(struct tui_tab_item *item) {
-    TRACE("tui_on_node_removed: id %d", item->node_id);
+    TRACE("tui_on_node_removed: id %d", item->type == TUI_TAB_ITEM_TYPE_NODE
+                                        ? item->as.node.node_id
+                                        : item->as.device.device_id);
 
     signal_unsubscribe(&item->node_listener);
     signal_unsubscribe(&item->device_listener);
@@ -847,27 +1052,12 @@ static void on_node_change(struct tui_tab_item *item,
     }
 }
 
-static void on_device_change(struct tui_tab_item *item,
-                             const struct device *dev) {
-    TRACE("tui_on_device_changed: id %d", dev->id);
-
-    tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_BORDERS);
-}
-
-static void on_device_events(uint64_t id, uint64_t events,
-                             const struct signal_data *data, void *userdata) {
+static void on_device_change_for_node(uint64_t id, uint64_t events,
+                                      const struct signal_data *data, void *userdata) {
     struct tui_tab_item *const item = userdata;
-
-    switch ((enum device_event_types)events) {
-    case DEVICE_EVENT_CHANGE: {
-        const struct device *const dev = device_lookup(id);
-        if (dev != NULL) {
-            on_device_change(item, dev);
-        }
-        break;
-    }
-    default:
-        break;
+    const struct device *const dev = device_lookup(id);
+    if (dev != NULL) {
+        tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_BORDERS);
     }
 }
 
@@ -900,24 +1090,97 @@ static void on_node_added(const struct node *node) {
 
     const int tab_index = config.tab_map_enum_to_index[media_class_to_tui_tab(node->media_class)];
 
-    struct tui_tab_item *new_item = xzalloc(sizeof(*new_item));
-    new_item->tab_index = tab_index;
-    new_item->node_id = node->id;
-    new_item->pos = 0;
+    struct tui_tab_item *new_item = xmalloc(sizeof(*new_item));
+    *new_item = (struct tui_tab_item){
+        .tab_index = tab_index,
+        .type = TUI_TAB_ITEM_TYPE_NODE,
+        .as.node = {
+            .node_id = node->id,
+            .n_channels = VEC_SIZE(&node->channels),
+        },
+    };
 
     node_events_subscribe(&new_item->node_listener,
                           node->id, NODE_EVENT_ANY,
                           on_node_events, new_item);
     if (node->device_id != 0) {
         device_events_subscribe(&new_item->device_listener,
-                                node->device_id, DEVICE_EVENT_ANY,
-                                on_device_events, new_item);
+                                node->device_id, DEVICE_EVENT_CHANGE,
+                                on_device_change_for_node, new_item);
     }
 
-    int new_item_height = VEC_SIZE(&node->channels) + 3;
+    int new_item_height = new_item->as.node.n_channels + 3;
     if (node->device_id != 0) {
         new_item_height += 1;
     }
+    LIST_INSERT(&tui.tabs[tab_index].items, &new_item->link);
+    tui_tab_item_resize(new_item, new_item_height);
+
+    if (tui.tabs[tab_index].focused == NULL || !tui.tabs[tab_index].user_changed_focus) {
+        tui_tab_item_focus(new_item, false, false);
+    }
+
+    redraw_current_tab();
+}
+
+/* EVENTS FOR DEVICE ITEMS */
+
+static void on_device_remove(struct tui_tab_item *item) {
+    TRACE("tui_on_device_removed: id %d", item->as.device.device_id);
+
+    signal_unsubscribe(&item->device_listener);
+
+    tui_tab_item_resize(item, 0);
+    tui_tab_item_unfocus(item, false);
+
+    LIST_REMOVE(&item->link);
+
+    if (item->tab_index == tui.tab_index) {
+        redraw_current_tab();
+    }
+
+    free(item);
+}
+
+static void on_device_events_for_device(uint64_t id, uint64_t events,
+                                        const struct signal_data *data, void *userdata) {
+    struct tui_tab_item *const item = userdata;
+
+    switch ((enum device_event_types)events) {
+    case DEVICE_EVENT_CHANGE: {
+        tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_DESCRIPTION);
+        break;
+    }
+    case DEVICE_EVENT_REMOVE: {
+        on_device_remove(item);
+        break;
+    }
+    default:
+        break;
+    }
+
+    trigger_update();
+}
+
+static void on_device_added(const struct device *dev) {
+    TRACE("tui_on_device_added: id %d", dev->id);
+
+    const int tab_index = config.tab_map_enum_to_index[CARDS];
+
+    struct tui_tab_item *new_item = xmalloc(sizeof(*new_item));
+    *new_item = (struct tui_tab_item){
+        .tab_index = tab_index,
+        .type = TUI_TAB_ITEM_TYPE_DEVICE,
+        .as.device = {
+            .device_id = dev->id,
+        },
+    };
+
+    device_events_subscribe(&new_item->device_listener,
+                            dev->id, DEVICE_EVENT_ANY,
+                            on_device_events_for_device, new_item);
+
+    const int new_item_height = 4;
     LIST_INSERT(&tui.tabs[tab_index].items, &new_item->link);
     tui_tab_item_resize(new_item, new_item_height);
 
@@ -939,10 +1202,10 @@ static void on_pipewire_object_added(uint64_t id, uint64_t event,
         break;
     }
     case PIPEWIRE_EVENT_DEVICE_ADDED: {
-        //const struct device *device = device_lookup(data->as.u64);
-        //if (device != NULL) {
-        //    tui_on_device_added(device);
-        //}
+        const struct device *device = device_lookup(data->as.u64);
+        if (device != NULL) {
+            on_device_added(device);
+        }
         break;
     }
     default:

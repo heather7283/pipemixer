@@ -12,10 +12,18 @@ enum tui_tab_type {
     RECORDING,
     INPUT_DEVICES,
     OUTPUT_DEVICES,
+    CARDS,
 
     TUI_TAB_COUNT,
 
-    TUI_TAB_INVALID
+    TUI_TAB_INVALID,
+};
+
+struct tui_tab {
+    LIST_HEAD items;
+    struct tui_tab_item *focused;
+    int scroll_pos;
+    bool user_changed_focus;
 };
 
 struct tui {
@@ -28,12 +36,7 @@ struct tui {
     struct tui_menu *menu;
 
     int tab_index;
-    struct tui_tab {
-        LIST_HEAD items;
-        struct tui_tab_item *focused;
-        int scroll_pos;
-        bool user_changed_focus;
-    } tabs[TUI_TAB_COUNT];
+    struct tui_tab tabs[TUI_TAB_COUNT];
 
     bool efd_triggered;
     struct pollen_event_source *efd_source;
@@ -49,21 +52,37 @@ enum tui_tab_item_draw_mask {
     TUI_TAB_ITEM_DRAW_DECORATIONS = 1 << 1,
     TUI_TAB_ITEM_DRAW_CHANNELS = 1 << 2,
     TUI_TAB_ITEM_DRAW_ROUTES = 1 << 3,
-    TUI_TAB_ITEM_DRAW_BORDERS = 1 << 4,
-    TUI_TAB_ITEM_DRAW_BLANKS = 1 << 5,
+    TUI_TAB_ITEM_DRAW_PROFILES = 1 << 4,
+    TUI_TAB_ITEM_DRAW_BORDERS = 1 << 5,
+    TUI_TAB_ITEM_DRAW_BLANKS = 1 << 6,
+};
+
+enum tui_tab_item_type {
+    TUI_TAB_ITEM_TYPE_NODE,
+    TUI_TAB_ITEM_TYPE_DEVICE,
 };
 
 struct tui_tab_item {
-    uint32_t node_id;
-
     int pos, height;
     bool focused;
 
-    bool unlocked_channels;
-    uint32_t focused_channel;
+    enum tui_tab_item_type type;
+    union {
+        struct {
+            uint32_t node_id;
+
+            uint32_t n_channels;
+            bool unlocked_channels;
+            uint32_t focused_channel;
+        } node;
+        struct {
+            uint32_t device_id;
+        } device;
+    } as;
 
     struct signal_listener device_listener;
     struct signal_listener node_listener;
+
     int tab_index;
     LIST_ENTRY link;
 };
@@ -97,6 +116,7 @@ void tui_bind_focus_first(union tui_bind_data data);
 void tui_bind_focus_last(union tui_bind_data data);
 
 void tui_bind_select_route(union tui_bind_data data);
+void tui_bind_select_profile(union tui_bind_data data);
 void tui_bind_confirm_selection(union tui_bind_data data);
 void tui_bind_cancel_selection(union tui_bind_data data);
 

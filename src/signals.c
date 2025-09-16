@@ -58,6 +58,10 @@ void signal_unsubscribe(struct signal_listener *listener) {
     }
 }
 
+bool signal_listener_is_subscribed(const struct signal_listener *const listener) {
+    return listener->link.next == &listener->link;
+}
+
 static void signal_emit_internal(const struct signal_emitter *emitter,
                                  uint64_t id, uint64_t event, struct signal_data *data) {
     struct signal_queued_event *ev = VEC_EMPLACE_BACK(&emitter->queued_events);

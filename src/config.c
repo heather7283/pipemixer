@@ -119,6 +119,7 @@ static enum tui_tab_type tui_tab_from_name(const char *name) {
     else if (STRCASEEQ(name, "recording")) return RECORDING;
     else if (STRCASEEQ(name, "input-devices")) return INPUT_DEVICES;
     else if (STRCASEEQ(name, "output-devices")) return OUTPUT_DEVICES;
+    else if (STRCASEEQ(name, "cards")) return CARDS;
     else return TUI_TAB_INVALID;
 }
 
@@ -319,6 +320,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 }
             } else if (STREQ(k, "select-route")) {
                 ADD_BIND(keycode, tui_bind_select_route, nothing, NOTHING);
+            } else if (STREQ(k, "select-profile")) {
+                ADD_BIND(keycode, tui_bind_select_profile, nothing, NOTHING);
             } else if (STREQ(k, "confirm-selection")) {
                 ADD_BIND(keycode, tui_bind_confirm_selection, nothing, NOTHING);
             } else if (STREQ(k, "cancel-selection")) {
@@ -350,7 +353,7 @@ static void parse_config(const char *config) {
 static void add_default_config(void) {
     static const char default_config[] =
         "[main]\n"
-        "tab-order=playback,recording,output-devices,input-devices\n"
+        "tab-order=playback,recording,output-devices,input-devices,cards\n"
         "[binds]\n"
         "focus-down=j\n"
         "focus-down=down\n"
@@ -370,9 +373,11 @@ static void add_default_config(void) {
         "tab-2=2\n"
         "tab-3=3\n"
         "tab-4=4\n"
+        "tab-5=5\n"
         "mute-toggle=m\n"
         "channel-lock-toggle=space\n"
         "select-route=p\n"
+        "select-profile=P\n"
         "confirm-selection=enter\n"
         "cancel-selection=escape\n"
         "quit=q\n";

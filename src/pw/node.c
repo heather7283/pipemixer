@@ -334,9 +334,10 @@ static const struct pw_node_events node_events = {
 void node_create(uint32_t id, enum media_class media_class) {
     struct node *node = MAP_EMPLACE_ZEROED(&nodes, id);
     node->id = id;
-    node->media_class = media_class;
-    node->pw_node = pw_registry_bind(pw.registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0);
     node->new = true;
+    node->media_class = media_class;
+    node->pw_node = pw_registry_bind(pw.registry, id,
+                                     PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0);
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
 }
 
