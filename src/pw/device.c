@@ -193,7 +193,7 @@ void on_device_roundtrip_done(void *data) {
         dev->modified_params &= ~PROFILE;
     }
 
-    signal_emit_u64(&pw.emitter, PIPEWIRE_EVENT_DEVICE_CHANGED, dev->id);
+    signal_emit_u64(&pw.device_emitter, dev->id, DEVICE_EVENT_CHANGE, dev->id);
 }
 
 void on_device_info(void *data, const struct pw_device_info *info) {
@@ -410,5 +410,11 @@ void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
         on_device_param_enum_profile(device, param);
         break;
     }
+}
+
+void device_events_subscribe(struct signal_listener *listener,
+                             uint64_t id, enum device_event_types events,
+                             signal_callback_func_t callback, void *callback_data) {
+    signal_subscribe(&pw.device_emitter, listener, id, events, callback, callback_data);
 }
 

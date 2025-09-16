@@ -25,8 +25,6 @@ enum color_pair {
 
 struct tui tui = {0};
 
-static MAP(struct tui_tab_item) tab_items = {0};
-
 static void tui_repaint(bool draw_unconditionally);
 
 static enum tui_tab media_class_to_tui_tab(enum media_class class) {
@@ -920,41 +918,32 @@ static void tui_tab_item_resize(enum tui_tab tab, struct tui_tab_item *item, int
     tui_set_pad_size(AT_LEAST, last->pos + last->height, AT_LEAST, tui.term_width, true);
 }
 
-void tui_on_node_added(const struct node *node) {
-    TRACE("tui_on_node_added: id %d", node->id);
+void tui_tab_item_on_node_remove(struct tui_tab_item *const item) {
+    TRACE("tui_on_node_removed: id %d", item->node_id);
 
-    const enum tui_tab tab = media_class_to_tui_tab(node->media_class);
+    /* no need to unsubscribe from node, it does not exist anymore */
+    signal_unsubscribe(&item->device_listener);
 
-    struct tui_tab_item *new_item = MAP_EMPLACE_ZEROED(&tab_items, node->id);
-    new_item->tab = tab;
-    new_item->node_id = node->id;
-    new_item->pos = 0;
-    new_item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
+    const enum tui_tab tab = item->tab;
 
-    if (tui.tabs[tab].focused == NULL || !tui.tabs[tab].user_changed_focus) {
-        tui_tab_item_set_focused(tab, new_item);
+    tui_tab_item_resize(tab, item, 0);
+    LIST_REMOVE(&item->link);
+
+    if (!LIST_IS_EMPTY(&tui.tabs[tab].items) && item->focused) {
+        struct tui_tab_item *first;
+        LIST_GET_FIRST(first, &tui.tabs[tab].items, link);
+        first->focused = true;
+        tui.tabs[tab].focused = first;
     }
-    LIST_INSERT(&tui.tabs[tab].items, &new_item->link);
-
-    int new_item_height = VEC_SIZE(&node->channels) + 3;
-    if (node->device_id != 0) {
-        new_item_height += 1;
-    }
-    tui_tab_item_resize(tab, new_item, new_item_height);
 
     if (tab == tui.tab) {
         tui_repaint(false);
     }
 }
 
-void tui_on_node_changed(const struct node *node) {
+void tui_tab_item_on_node_change(struct tui_tab_item *const item,
+                                 const struct node *const node) {
     TRACE("tui_on_node_changed: id %d", node->id);
-
-    struct tui_tab_item *item = MAP_GET(&tab_items, node->id);
-    if (item == NULL) {
-        WARN("got NODE_CHANGED for node id %d but no tui_tab_item found", node->id);
-        return;
-    }
 
     const enum tui_tab tab = item->tab;
 
@@ -980,50 +969,91 @@ void tui_on_node_changed(const struct node *node) {
     }
 }
 
-void tui_on_node_removed(uint32_t id) {
-    TRACE("tui_on_node_removed: id %d", id);
+static void tui_tab_item_on_device_change(struct tui_tab_item *const item,
+                                          const struct device *const dev) {
+    TRACE("tui_on_device_changed: id %d", dev->id);
 
-    struct tui_tab_item *item = MAP_GET(&tab_items, id);
-    if (item == NULL) {
-        WARN("got NODE_REMOVE for node id %d but no tui_tab_item found", id);
-        return;
+    item->change |= TUI_TAB_ITEM_CHANGE_PORT;
+    tui_repaint(false);
+}
+
+static void tui_tab_item_on_device_events(uint64_t id, uint64_t events,
+                                          const struct signal_data *data, void *userdata) {
+    struct tui_tab_item *const item = userdata;
+
+    switch ((enum device_event_types)events) {
+    case DEVICE_EVENT_CHANGE: {
+        const struct device *const dev = device_lookup(id);
+        if (dev != NULL) {
+            tui_tab_item_on_device_change(item, dev);
+        }
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+static void tui_tab_item_on_node_events(uint64_t id, uint64_t events,
+                                        const struct signal_data *data, void *userdata) {
+    struct tui_tab_item *const item = userdata;
+
+    switch ((enum node_event_types)events) {
+    case NODE_EVENT_CHANGE: {
+        const struct node *const node = node_lookup(id);
+        if (node != NULL) {
+            tui_tab_item_on_node_change(item, node);
+        }
+        break;
+    }
+    case NODE_EVENT_REMOVE: {
+        tui_tab_item_on_node_remove(item);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+void tui_on_node_added(const struct node *node) {
+    TRACE("tui_on_node_added: id %d", node->id);
+
+    const enum tui_tab tab = media_class_to_tui_tab(node->media_class);
+
+    struct tui_tab_item *new_item = xzalloc(sizeof(*new_item));
+    new_item->tab = tab;
+    new_item->node_id = node->id;
+    new_item->pos = 0;
+    new_item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
+
+    node_events_subscribe(&new_item->node_listener,
+                          node->id, NODE_EVENT_ANY,
+                          tui_tab_item_on_node_events, new_item);
+    if (node->device_id != 0) {
+        device_events_subscribe(&new_item->device_listener,
+                                node->device_id, DEVICE_EVENT_ANY,
+                                tui_tab_item_on_device_events, new_item);
     }
 
-    const enum tui_tab tab = item->tab;
-
-    tui_tab_item_resize(tab, item, 0);
-    LIST_REMOVE(&item->link);
-
-    if (!LIST_IS_EMPTY(&tui.tabs[tab].items) && item->focused) {
-        struct tui_tab_item *first;
-        LIST_GET_FIRST(first, &tui.tabs[tab].items, link);
-        first->focused = true;
-        tui.tabs[tab].focused = first;
+    if (tui.tabs[tab].focused == NULL || !tui.tabs[tab].user_changed_focus) {
+        tui_tab_item_set_focused(tab, new_item);
     }
+    LIST_INSERT(&tui.tabs[tab].items, &new_item->link);
 
-    MAP_REMOVE(&tab_items, id);
+    int new_item_height = VEC_SIZE(&node->channels) + 3;
+    if (node->device_id != 0) {
+        new_item_height += 1;
+    }
+    tui_tab_item_resize(tab, new_item, new_item_height);
 
     if (tab == tui.tab) {
         tui_repaint(false);
     }
 }
 
-void tui_on_device_changed(const struct device *dev) {
-    TRACE("tui_on_device_changed: id %d", dev->id);
-
-    struct tui_tab_item *tab_item;
-    spa_list_for_each(tab_item, &TUI_ACTIVE_TAB.items, link) {
-        const struct node *const node = node_lookup(tab_item->node_id);
-        if (node->device_id == dev->id) {
-            tab_item->change |= TUI_TAB_ITEM_CHANGE_PORT;
-            tui_repaint(false);
-            break;
-        }
-    }
-}
-
-static void tui_handle_pipewire_events(uint64_t event, const struct signal_data *data, void *_) {
-    switch ((enum pipewire_events)event) {
+static void tui_on_pipewire_object_added(uint64_t id, uint64_t event,
+                                         const struct signal_data *data, void *_) {
+    switch ((enum pipewire_event_types)event) {
     case PIPEWIRE_EVENT_NODE_ADDED: {
         const struct node *node = node_lookup(data->as.u64);
         if (node != NULL) {
@@ -1031,24 +1061,15 @@ static void tui_handle_pipewire_events(uint64_t event, const struct signal_data 
         }
         break;
     }
-    case PIPEWIRE_EVENT_NODE_CHANGED: {
-        const struct node *node = node_lookup(data->as.u64);
-        if (node != NULL) {
-            tui_on_node_changed(node);
-        }
+    case PIPEWIRE_EVENT_DEVICE_ADDED: {
+        //const struct device *device = device_lookup(data->as.u64);
+        //if (device != NULL) {
+        //    tui_on_device_added(device);
+        //}
         break;
     }
-    case PIPEWIRE_EVENT_NODE_REMOVED: {
-        tui_on_node_removed(data->as.u64);
+    default:
         break;
-    }
-    case PIPEWIRE_EVENT_DEVICE_CHANGED: {
-        const struct device *device = device_lookup(data->as.u64);
-        if (device != NULL) {
-            tui_on_device_changed(device);
-        }
-        break;
-    }
     }
 }
 
@@ -1127,7 +1148,9 @@ int tui_init(void) {
     tui.tab = TUI_TAB_FIRST;
     tui_repaint(true);
 
-    pipewire_events_subscribe(&tui.listener, (uint64_t)-1, tui_handle_pipewire_events, NULL);
+    pipewire_events_subscribe(&tui.pipewire_listener,
+                              PIPEWIRE_EVENT_ID_CORE, PIPEWIRE_EVENT_ANY,
+                              tui_on_pipewire_object_added, NULL);
 
     return 0;
 }

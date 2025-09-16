@@ -63,7 +63,7 @@ struct tui {
         bool user_changed_focus;
     } tabs[TUI_TAB_COUNT];
 
-    struct signal_listener listener;
+    struct signal_listener pipewire_listener;
 };
 
 enum tui_tab_item_change_mask {
@@ -88,6 +88,8 @@ struct tui_tab_item {
     bool unlocked_channels;
     uint32_t focused_channel;
 
+    struct signal_listener device_listener;
+    struct signal_listener node_listener;
     enum tui_tab tab;
     LIST_ENTRY link;
 };

@@ -6,6 +6,7 @@
 #include <pipewire/pipewire.h>
 
 #include "collections/vec.h"
+#include "signals.h"
 
 struct route {
     int32_t index;
@@ -68,6 +69,15 @@ void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
 void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device);
 void device_set_route(const struct device *dev, int32_t card_profile_device, int32_t index);
+
+enum device_event_types {
+    DEVICE_EVENT_CHANGE = 1 << 0,
+    DEVICE_EVENT_ANY = ~0,
+};
+
+void device_events_subscribe(struct signal_listener *listener,
+                             uint64_t id, enum device_event_types events,
+                             signal_callback_func_t callback, void *callback_data);
 
 #endif /* #ifndef SRC_PIPEWIRE_DEVICE_H */
 

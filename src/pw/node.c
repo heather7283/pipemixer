@@ -204,9 +204,9 @@ static void on_node_roundtrip_done(void *data) {
 
     if (node->new) {
         node->new = false;
-        signal_emit_u64(&pw.emitter, PIPEWIRE_EVENT_NODE_ADDED, node->id);
+        signal_emit_u64(&pw.core_emitter, PIPEWIRE_EVENT_ID_CORE, PIPEWIRE_EVENT_NODE_ADDED, node->id);
     } else {
-        signal_emit_u64(&pw.emitter, PIPEWIRE_EVENT_NODE_CHANGED, node->id);
+        signal_emit_u64(&pw.node_emitter, node->id, NODE_EVENT_CHANGE, node->id);
     }
 }
 
@@ -339,7 +339,7 @@ void node_create(uint32_t id, enum media_class media_class) {
 }
 
 void node_destroy(struct node *node) {
-    signal_emit_u64(&pw.emitter, PIPEWIRE_EVENT_NODE_REMOVED, node->id);
+    signal_emit_u64(&pw.core_emitter, node->id, NODE_EVENT_REMOVE, node->id);
 
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
     wstring_free(&node->media_name);
@@ -347,5 +347,11 @@ void node_destroy(struct node *node) {
     VEC_FREE(&node->channels);
 
     MAP_REMOVE(&nodes, node->id);
+}
+
+void node_events_subscribe(struct signal_listener *listener,
+                           uint64_t id, enum node_event_types events,
+                           signal_callback_func_t callback, void *callback_data) {
+    signal_subscribe(&pw.node_emitter, listener, id, events, callback, callback_data);
 }
 
