@@ -39,7 +39,8 @@ struct device {
     struct spa_hook listener;
 
     uint32_t id;
-
+    char *description;
+    bool new;
     enum device_modified_params modified_params;
 
     VEC(struct route) routes;
@@ -70,8 +71,14 @@ void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device);
 void device_set_route(const struct device *dev, int32_t card_profile_device, int32_t index);
 
+void device_set_profile(const struct device *dev, int32_t index);
+
+const struct profile *device_get_active_profile(const struct device *dev);
+size_t device_get_available_profiles(const struct device *dev, const struct profile **profiles);
+
 enum device_event_types {
     DEVICE_EVENT_CHANGE = 1 << 0,
+    DEVICE_EVENT_REMOVE = 1 << 1,
     DEVICE_EVENT_ANY = ~0,
 };
 

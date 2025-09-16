@@ -256,6 +256,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 }
             } else if (STREQ(k, "select-route")) {
                 ADD_BIND(keycode, tui_bind_select_route, nothing, NOTHING);
+            } else if (STREQ(k, "select-profile")) {
+                ADD_BIND(keycode, tui_bind_select_profile, nothing, NOTHING);
             } else if (STREQ(k, "confirm-selection")) {
                 ADD_BIND(keycode, tui_bind_confirm_selection, nothing, NOTHING);
             } else if (STREQ(k, "cancel-selection")) {
@@ -308,6 +310,7 @@ static void add_default_binds(void) {
         "mute-toggle=m\n"
         "channel-lock-toggle=space\n"
         "select-route=p\n"
+        "select-profile=P\n"
         "confirm-selection=enter\n"
         "cancel-selection=escape\n"
         "quit=q\n";

@@ -3,16 +3,18 @@
 
 #include <ncurses.h>
 
-#include "pw/node.h"
 #include "collections/list.h"
+#include "collections/string.h"
+#include "signals.h"
 
-enum tui_tab {
+enum tui_tab_type {
     TUI_TAB_FIRST,
     PLAYBACK = TUI_TAB_FIRST,
     RECORDING,
     INPUT_DEVICES,
     OUTPUT_DEVICES,
-    TUI_TAB_LAST = OUTPUT_DEVICES,
+    CARDS,
+    TUI_TAB_LAST = CARDS,
     TUI_TAB_COUNT,
 };
 
@@ -46,6 +48,15 @@ struct tui_menu {
     struct tui_menu_item items[];
 };
 
+struct tui_tab {
+    enum tui_tab_type type;
+    int scroll_pos;
+    bool user_changed_focus;
+
+    LIST_HEAD items;
+    struct tui_tab_item *focused;
+};
+
 struct tui {
     int term_height, term_width;
 
@@ -55,13 +66,8 @@ struct tui {
     bool menu_active;
     struct tui_menu *menu;
 
-    enum tui_tab tab;
-    struct {
-        LIST_HEAD items;
-        struct tui_tab_item *focused;
-        int scroll_pos;
-        bool user_changed_focus;
-    } tabs[TUI_TAB_COUNT];
+    enum tui_tab_type tab;
+    struct tui_tab tabs[TUI_TAB_COUNT];
 
     struct signal_listener pipewire_listener;
 };
@@ -78,19 +84,34 @@ enum tui_tab_item_change_mask {
     TUI_TAB_ITEM_CHANGE_EVERYTHING = ~0,
 };
 
-struct tui_tab_item {
-    uint32_t node_id;
+enum tui_tab_item_type {
+    TUI_TAB_ITEM_TYPE_NODE,
+    TUI_TAB_ITEM_TYPE_DEVICE,
+};
 
+struct tui_tab_item {
     int pos, height;
     bool focused;
+
+    enum tui_tab_item_type type;
+    union {
+        struct {
+            uint32_t node_id;
+            bool unlocked_channels;
+            uint32_t focused_channel;
+        } node;
+        struct {
+            uint32_t device_id;
+        } device;
+    } as;
+
     enum tui_tab_item_change_mask change;
 
-    bool unlocked_channels;
-    uint32_t focused_channel;
+    enum tui_tab_type tab;
 
     struct signal_listener device_listener;
     struct signal_listener node_listener;
-    enum tui_tab tab;
+
     LIST_ENTRY link;
 };
 
@@ -122,13 +143,14 @@ void tui_bind_focus_first(union tui_bind_data data);
 void tui_bind_focus_last(union tui_bind_data data);
 
 void tui_bind_select_route(union tui_bind_data data);
+void tui_bind_select_profile(union tui_bind_data data);
 void tui_bind_confirm_selection(union tui_bind_data data);
 void tui_bind_cancel_selection(union tui_bind_data data);
 
 union tui_bind_data {
     enum tui_direction direction;
     enum tui_change_mode change_mode;
-    enum tui_tab tab;
+    enum tui_tab_type tab;
     enum tui_nothing nothing;
     float volume;
 };
