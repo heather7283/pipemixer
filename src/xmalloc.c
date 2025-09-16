@@ -18,6 +18,14 @@ void *xmalloc(size_t size) {
     return alloc;
 }
 
+void *xzalloc(size_t size) {
+    void *alloc = malloc(size);
+    if (alloc == NULL) {
+        handle_alloc_failure();
+    }
+    return memset(alloc, '\0', size);
+}
+
 void *xcalloc(size_t n, size_t size) {
     void *alloc = calloc(n, size);
     if (alloc == NULL) {

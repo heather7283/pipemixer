@@ -6,6 +6,8 @@
 
 /* malloc, but aborts on alloc fail */
 void *xmalloc(size_t size);
+/* xmalloc but zero initialises memory */
+void *xzalloc(size_t size);
 /* calloc, but aborts on alloc fail */
 void *xcalloc(size_t n, size_t size);
 /* realloc, but aborts on alloc fail */
