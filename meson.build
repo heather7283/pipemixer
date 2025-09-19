@@ -1,5 +1,5 @@
 project('pipemixer', 'c',
-  version: '0.2.2',
+  version: '0.2.3',
   license: 'GPL-3.0-or-later',
   default_options: ['warning_level=3'])
 
