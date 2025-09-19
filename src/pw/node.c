@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <math.h>
 
 #include <spa/pod/builder.h>
 #include <spa/param/props.h>

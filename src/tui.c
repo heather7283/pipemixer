@@ -1,3 +1,4 @@
+#include <sys/ioctl.h>
 #include <assert.h>
 #include <math.h>
 #include <wchar.h>
