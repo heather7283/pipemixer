@@ -922,7 +922,7 @@ static void tui_tab_item_resize(enum tui_tab tab, struct tui_tab_item *item, int
 void tui_tab_item_on_node_remove(struct tui_tab_item *const item) {
     TRACE("tui_on_node_removed: id %d", item->node_id);
 
-    /* no need to unsubscribe from node, it does not exist anymore */
+    signal_unsubscribe(&item->node_listener);
     signal_unsubscribe(&item->device_listener);
 
     const enum tui_tab tab = item->tab;
@@ -936,6 +936,8 @@ void tui_tab_item_on_node_remove(struct tui_tab_item *const item) {
         first->focused = true;
         tui.tabs[tab].focused = first;
     }
+
+    free(item);
 
     if (tab == tui.tab) {
         tui_repaint(false);
