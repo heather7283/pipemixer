@@ -945,21 +945,21 @@ void tui_tab_item_on_node_remove(struct tui_tab_item *const item) {
 }
 
 void tui_tab_item_on_node_change(struct tui_tab_item *const item,
-                                 const struct node *const node) {
+                                 const struct node *const node, enum node_change_mask change) {
     TRACE("tui_on_node_changed: id %d", node->id);
 
     const enum tui_tab tab = item->tab;
 
-    if (node->changed & NODE_CHANGE_INFO) {
+    if (change & NODE_CHANGE_INFO) {
         item->change |= TUI_TAB_ITEM_CHANGE_INFO;
     }
-    if (node->changed & NODE_CHANGE_MUTE) {
+    if (change & NODE_CHANGE_MUTE) {
         item->change |= TUI_TAB_ITEM_CHANGE_MUTE;
     }
-    if (node->changed & NODE_CHANGE_VOLUME) {
+    if (change & NODE_CHANGE_VOLUME) {
         item->change |= TUI_TAB_ITEM_CHANGE_VOLUME;
     }
-    if (node->changed & NODE_CHANGE_CHANNEL_COUNT) {
+    if (change & NODE_CHANGE_CHANNEL_COUNT) {
         int new_item_height = VEC_SIZE(&node->channels) + 3;
         if (node->device_id != 0) {
             new_item_height += 1;
@@ -1003,9 +1003,10 @@ static void tui_tab_item_on_node_events(uint64_t id, uint64_t events,
 
     switch ((enum node_event_types)events) {
     case NODE_EVENT_CHANGE: {
+        const uint64_t change = data->as.u64;
         const struct node *const node = node_lookup(id);
         if (node != NULL) {
-            tui_tab_item_on_node_change(item, node);
+            tui_tab_item_on_node_change(item, node, change);
         }
         break;
     }

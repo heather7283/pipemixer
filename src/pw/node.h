@@ -56,8 +56,8 @@ const struct route *node_get_active_route(const struct node *node);
 size_t node_get_available_routes(const struct node *node, const struct route *const **proutes);
 
 enum node_event_types {
-    NODE_EVENT_CHANGE = 1 << 0,
-    NODE_EVENT_REMOVE = 1 << 1,
+    NODE_EVENT_CHANGE = 1 << 0, /* change mask as u64 */
+    NODE_EVENT_REMOVE = 1 << 1, /* node id as u64 */
     NODE_EVENT_ANY = ~0,
 };
 

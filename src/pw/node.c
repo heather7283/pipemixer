@@ -208,7 +208,7 @@ static void on_node_roundtrip_done(void *data) {
         signal_emit_u64(&pw.core_emitter, PIPEWIRE_EVENT_ID_CORE,
                         PIPEWIRE_EVENT_NODE_ADDED, node->id);
     } else {
-        signal_emit_u64(&pw.node_emitter, node->id, NODE_EVENT_CHANGE, node->id);
+        signal_emit_u64(&pw.node_emitter, node->id, NODE_EVENT_CHANGE, node->changed);
     }
 }
 
