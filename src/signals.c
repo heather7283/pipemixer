@@ -78,7 +78,10 @@ void signal_subscribe(struct signal_emitter *emitter, struct signal_listener *li
 }
 
 void signal_unsubscribe(struct signal_listener *listener) {
-    LIST_REMOVE(&listener->link);
+    if (listener->link.next != NULL) {
+        LIST_REMOVE(&listener->link);
+        listener->link = (struct list){0};
+    }
 }
 
 static void signal_emit_internal(const struct signal_emitter *emitter,
