@@ -7,13 +7,14 @@
 #include "collections/list.h"
 
 enum tui_tab {
-    TUI_TAB_FIRST,
-    PLAYBACK = TUI_TAB_FIRST,
+    PLAYBACK,
     RECORDING,
     INPUT_DEVICES,
     OUTPUT_DEVICES,
-    TUI_TAB_LAST = OUTPUT_DEVICES,
+
     TUI_TAB_COUNT,
+
+    TUI_TAB_INVALID
 };
 
 struct tui_menu;
@@ -55,7 +56,7 @@ struct tui {
     bool menu_active;
     struct tui_menu *menu;
 
-    enum tui_tab tab;
+    int tab_index;
     struct {
         LIST_HEAD items;
         struct tui_tab_item *focused;
@@ -90,7 +91,7 @@ struct tui_tab_item {
 
     struct signal_listener device_listener;
     struct signal_listener node_listener;
-    enum tui_tab tab;
+    int tab_index;
     LIST_ENTRY link;
 };
 

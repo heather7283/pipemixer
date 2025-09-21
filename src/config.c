@@ -112,6 +112,52 @@ static bool get_bool(const char *str, bool *res) {
     }
 }
 
+static enum tui_tab tui_tab_from_name(const char *name) {
+    if (STRCASEEQ(name, "playback")) return PLAYBACK;
+    else if (STRCASEEQ(name, "recording")) return RECORDING;
+    else if (STRCASEEQ(name, "input-devices")) return INPUT_DEVICES;
+    else if (STRCASEEQ(name, "output-devices")) return OUTPUT_DEVICES;
+    else return TUI_TAB_INVALID;
+}
+
+static bool get_tab_order(const char *_str) {
+    char *str = xstrdup(_str);
+    bool ret = true;
+    int map_index_to_enum[TUI_TAB_COUNT];
+    int map_enum_to_index[TUI_TAB_COUNT];
+    bool seen[TUI_TAB_COUNT];
+
+    memset(seen, false, sizeof(seen));
+
+    int index = 0;
+    for (char *tok = strtok(str, ","); tok != NULL; tok = strtok(NULL, ",")) {
+        const enum tui_tab tab = tui_tab_from_name(tok);
+        if (tab == TUI_TAB_INVALID) {
+            ret = false;
+            goto out;
+        }
+
+        seen[tab] = true;
+        map_index_to_enum[index] = tab;
+        map_enum_to_index[tab] = index;
+        index += 1;
+    }
+
+    for (int i = 0; i < TUI_TAB_COUNT; i++) {
+        if (!seen[i]) {
+            ret = false;
+            goto out;
+        }
+    }
+
+    memcpy(&config.tab_map_index_to_enum, map_index_to_enum, sizeof(config.tab_map_index_to_enum));
+    memcpy(&config.tab_map_enum_to_index, map_enum_to_index, sizeof(config.tab_map_enum_to_index));
+
+out:
+    free(str);
+    return ret;
+}
+
 static int key_value_handler(void *data, const char *s, const char *k, const char *v) {
     #define CONFIG_LOG(fmt, ...) \
         fprintf(stderr, "config: (%s::%s) "fmt"\n", s, k, ##__VA_ARGS__)
@@ -136,6 +182,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_GET_BOOL(&config.wraparound);
         } else if (STREQ(k, "display-ids")) {
             CONFIG_GET_BOOL(&config.display_ids);
+        } else if (STREQ(k, "tab-order")) {
+            if (!get_tab_order(v)) CONFIG_LOG("invalid tab order string: %s", v);
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
@@ -284,8 +332,10 @@ static void parse_config(const char *config) {
     ini_parse_string(config, key_value_handler, NULL);
 }
 
-static void add_default_binds(void) {
-    static const char default_binds[] =
+static void add_default_config(void) {
+    static const char default_config[] =
+        "[main]\n"
+        "tab-order=playback,recording,output-devices,input-devices\n"
         "[binds]\n"
         "focus-down=j\n"
         "focus-down=down\n"
@@ -303,8 +353,8 @@ static void add_default_binds(void) {
         "tab-prev=backtab\n"
         "tab-playback=1\n"
         "tab-recording=2\n"
-        "tab-input-devices=3\n"
-        "tab-output-devices=4\n"
+        "tab-output-devices=3\n"
+        "tab-input-devices=4\n"
         "mute-toggle=m\n"
         "channel-lock-toggle=space\n"
         "select-route=p\n"
@@ -312,14 +362,14 @@ static void add_default_binds(void) {
         "cancel-selection=escape\n"
         "quit=q\n";
 
-    parse_config(default_binds);
+    parse_config(default_config);
 }
 
 void load_config(const char *config_path) {
     int fd = -1;
     char *config_str = NULL;
 
-    add_default_binds();
+    add_default_config();
 
     if (config_path == NULL) {
         config_path = get_default_config_path();

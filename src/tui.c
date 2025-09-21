@@ -14,8 +14,8 @@
 #include "pw/events.h"
 #include "collections/string.h"
 
-#define TUI_ACTIVE_TAB (tui.tabs[tui.tab])
-#define FOR_EACH_TAB(var) for (enum tui_tab var = TUI_TAB_FIRST; var <= TUI_TAB_LAST; var++)
+#define TUI_ACTIVE_TAB (tui.tabs[tui.tab_index])
+#define FOR_EACH_TAB(var) for (int var = 0; var < TUI_TAB_COUNT; var++)
 
 enum color_pair {
     DEFAULT = 0,
@@ -397,14 +397,14 @@ static void tui_draw_node(const struct tui_tab_item *item, bool draw_uncondition
 static void tui_draw_status_bar(void) {
     wmove(tui.bar_win, 0, 0);
 
-    FOR_EACH_TAB(tab) {
-        if (tab != tui.tab) {
+    FOR_EACH_TAB(tab_index) {
+        if (tab_index != tui.tab_index) {
             wattron(tui.bar_win, A_DIM);
         } else {
             wattron(tui.bar_win, A_BOLD);
         }
-        waddstr(tui.bar_win, tui_tab_name(tab));
-        if (tab != tui.tab) {
+        waddstr(tui.bar_win, tui_tab_name(config.tab_map_index_to_enum[tab_index]));
+        if (tab_index != tui.tab_index) {
             wattroff(tui.bar_win, A_DIM);
         } else {
             wattroff(tui.bar_win, A_BOLD);
@@ -525,14 +525,14 @@ void tui_bind_change_focus(union tui_bind_data data) {
                 if (next->unlocked_channels) {
                     next->focused_channel = 0;
                 }
-                change = tui_tab_item_set_focused(tui.tab, next);
+                change = tui_tab_item_set_focused(tui.tab_index, next);
             } else if (config.wraparound) {
                 struct tui_tab_item *first;
                 LIST_GET_FIRST(first, &TUI_ACTIVE_TAB.items, link);
                 if (first->unlocked_channels) {
                     first->focused_channel = 0;
                 }
-                change = tui_tab_item_set_focused(tui.tab, first);
+                change = tui_tab_item_set_focused(tui.tab_index, first);
             }
         }
         break;
@@ -555,7 +555,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
                 if (next_item->unlocked_channels) {
                     next_item->focused_channel = VEC_SIZE(&next_node->channels) - 1;
                 }
-                change = tui_tab_item_set_focused(tui.tab, next_item);
+                change = tui_tab_item_set_focused(tui.tab_index, next_item);
             }
         }
         break;
@@ -575,7 +575,7 @@ void tui_bind_focus_last(union tui_bind_data data) {
 
     struct tui_tab_item *first;
     LIST_GET_LAST(first, &TUI_ACTIVE_TAB.items, link);
-    if (tui_tab_item_set_focused(tui.tab, first)) {
+    if (tui_tab_item_set_focused(tui.tab_index, first)) {
         tui_repaint(false);
     }
 }
@@ -589,7 +589,7 @@ void tui_bind_focus_first(union tui_bind_data data) {
 
     struct tui_tab_item *last;
     LIST_GET_FIRST(last, &TUI_ACTIVE_TAB.items, link);
-    if (tui_tab_item_set_focused(tui.tab, last)) {
+    if (tui_tab_item_set_focused(tui.tab_index, last)) {
         tui_repaint(false);
     }
 }
@@ -689,18 +689,25 @@ void tui_bind_change_tab(union tui_bind_data data) {
 
     switch (data.direction) {
     case UP:
-        if (tui.tab++ == TUI_TAB_LAST) {
-            tui.tab = TUI_TAB_FIRST;
+        if (tui.tab_index == TUI_TAB_COUNT - 1) {
+            tui.tab_index = 0;
+        } else {
+            tui.tab_index += 1;
         }
         break;
     case DOWN:
-        if (tui.tab-- == TUI_TAB_FIRST) {
-            tui.tab = TUI_TAB_LAST;
+        if (tui.tab_index == 0) {
+            tui.tab_index = TUI_TAB_COUNT - 1;
+        } else {
+            tui.tab_index -= 1;
         }
         break;
     default:
         assert(0 && "Invalid tab enum value passed to tui_bind_change_tab");
     }
+
+    TRACE("current tab is: index %d (enum %d)",
+          tui.tab_index, config.tab_map_index_to_enum[tui.tab_index]);
 
     tui_repaint(true);
 }
@@ -712,39 +719,14 @@ void tui_bind_set_tab(union tui_bind_data data) {
         return;
     }
 
-    bool tab_changed = false;
-    switch (tab) {
-    case PLAYBACK:
-        if (tui.tab != PLAYBACK) {
-            tui.tab = PLAYBACK;
-            tab_changed = true;
-        }
-        break;
-    case RECORDING:
-        if (tui.tab != RECORDING) {
-            tui.tab = RECORDING;
-            tab_changed = true;
-        }
-        break;
-    case INPUT_DEVICES:
-        if (tui.tab != INPUT_DEVICES) {
-            tui.tab = INPUT_DEVICES;
-            tab_changed = true;
-        }
-        break;
-    case OUTPUT_DEVICES:
-        if (tui.tab != OUTPUT_DEVICES) {
-            tui.tab = OUTPUT_DEVICES;
-            tab_changed = true;
-        }
-        break;
-    default:
-        assert(0 && "Invalid tab enum value passed to tui_bind_change_tab");
-    }
-
-    if (tab_changed) {
+    const int index = config.tab_map_enum_to_index[tab];
+    if (tui.tab_index != index) {
+        tui.tab_index = index;
         tui_repaint(true);
     }
+
+    TRACE("current tab is: index %d (enum %d)",
+          tui.tab_index, config.tab_map_index_to_enum[tui.tab_index]);
 }
 
 static void on_port_selection_done(struct tui_menu *menu, struct tui_menu_item *pick) {
@@ -925,7 +907,7 @@ void tui_tab_item_on_node_remove(struct tui_tab_item *const item) {
     signal_unsubscribe(&item->node_listener);
     signal_unsubscribe(&item->device_listener);
 
-    const enum tui_tab tab = item->tab;
+    const int tab = item->tab_index;
 
     tui_tab_item_resize(tab, item, 0);
     LIST_REMOVE(&item->link);
@@ -939,7 +921,7 @@ void tui_tab_item_on_node_remove(struct tui_tab_item *const item) {
 
     free(item);
 
-    if (tab == tui.tab) {
+    if (tab == tui.tab_index) {
         tui_repaint(false);
     }
 }
@@ -948,7 +930,7 @@ void tui_tab_item_on_node_change(struct tui_tab_item *const item,
                                  const struct node *const node, enum node_change_mask change) {
     TRACE("tui_on_node_changed: id %d", node->id);
 
-    const enum tui_tab tab = item->tab;
+    const int tab = item->tab_index;
 
     if (change & NODE_CHANGE_INFO) {
         item->change |= TUI_TAB_ITEM_CHANGE_INFO;
@@ -967,7 +949,7 @@ void tui_tab_item_on_node_change(struct tui_tab_item *const item,
         tui_tab_item_resize(tab, item, new_item_height);
     }
 
-    if (tab == tui.tab) {
+    if (tab == tui.tab_index) {
         tui_repaint(false);
     }
 }
@@ -1022,10 +1004,10 @@ static void tui_tab_item_on_node_events(uint64_t id, uint64_t events,
 void tui_on_node_added(const struct node *node) {
     TRACE("tui_on_node_added: id %d", node->id);
 
-    const enum tui_tab tab = media_class_to_tui_tab(node->media_class);
+    const int tab_index = config.tab_map_enum_to_index[media_class_to_tui_tab(node->media_class)];
 
     struct tui_tab_item *new_item = xzalloc(sizeof(*new_item));
-    new_item->tab = tab;
+    new_item->tab_index = tab_index;
     new_item->node_id = node->id;
     new_item->pos = 0;
     new_item->change = TUI_TAB_ITEM_CHANGE_EVERYTHING;
@@ -1039,18 +1021,18 @@ void tui_on_node_added(const struct node *node) {
                                 tui_tab_item_on_device_events, new_item);
     }
 
-    if (tui.tabs[tab].focused == NULL || !tui.tabs[tab].user_changed_focus) {
-        tui_tab_item_set_focused(tab, new_item);
+    if (tui.tabs[tab_index].focused == NULL || !tui.tabs[tab_index].user_changed_focus) {
+        tui_tab_item_set_focused(tab_index, new_item);
     }
-    LIST_INSERT(&tui.tabs[tab].items, &new_item->link);
+    LIST_INSERT(&tui.tabs[tab_index].items, &new_item->link);
 
     int new_item_height = VEC_SIZE(&node->channels) + 3;
     if (node->device_id != 0) {
         new_item_height += 1;
     }
-    tui_tab_item_resize(tab, new_item, new_item_height);
+    tui_tab_item_resize(tab_index, new_item, new_item_height);
 
-    if (tab == tui.tab) {
+    if (tab_index == tui.tab_index) {
         tui_repaint(false);
     }
 }
@@ -1091,7 +1073,7 @@ static int tui_handle_sigwinch(struct pollen_callback *callback, int signal, voi
 
     tui_set_pad_size(AT_LEAST, tui.term_height, EXACTLY, tui.term_width, false);
     if (TUI_ACTIVE_TAB.focused != NULL) {
-        tui_tab_item_ensure_visible(tui.tab, TUI_ACTIVE_TAB.focused);
+        tui_tab_item_ensure_visible(tui.tab_index, TUI_ACTIVE_TAB.focused);
     }
 
     if (tui.bar_win != NULL) {
@@ -1149,7 +1131,7 @@ int tui_init(void) {
     /* manually trigger resize handler to pick up initial terminal size */
     tui_handle_sigwinch(NULL, 0xBAD, NULL);
 
-    tui.tab = TUI_TAB_FIRST;
+    tui.tab_index = 0;
     tui_repaint(true);
 
     pipewire_events_subscribe(&tui.pipewire_listener,

@@ -23,6 +23,11 @@ struct pipemixer_config {
     } borders;
     char *routes_separator;
 
+    /* tab_map_index_to_enum[i] returns enum tui_tab, i is tab position in the ui */
+    enum tui_tab tab_map_index_to_enum[TUI_TAB_COUNT];
+    /* tab_map_enum_to_index[enum tui_tab] returns i, i is tab position in the ui */
+    int tab_map_enum_to_index[TUI_TAB_COUNT];
+
     MAP(struct tui_bind) binds;
 };
 
