@@ -1,15 +1,13 @@
-.TH pipemixer 1 "June 2025" "0.1.0" "User Commands"
+.TH pipemixer 1 "September 2025" "0.2.4" "User Commands"
 .SH NAME
-pipemixer \- ncurses volume control application for pipewire
+pipemixer \- audio mixer for pipewire
 
 .SH SYNOPSIS
 .B pipemixer
 [\fIOPTIONS\fR]
 
 .SH DESCRIPTION
-\fBpipemixer\fR is a terminal-based volume control application for the pipewire audio system.
-It provides a ncurses user interface for navigating and managing audio streams and devices.
-\fBpipemixer\fR currently supports changing node volume and mute status.
+pipemixer is a terminal-based audio mixer for the pipewire audio system.
 
 .SH OPTIONS
 .TP
@@ -29,12 +27,12 @@ Force colored log output.
 Display help message and exit.
 
 .SH CONTROLS
-By default, \fBpipemixer\fR uses the following keybinds:
+By default, pipemixer uses the following keybinds:
 .TP
-.B j, Down
+.B j, Down arrow
 Move down the node list.
 .TP
-.B k, Up
+.B k, Up arrow
 Move up the node list.
 .TP
 .B t, Tab
@@ -49,17 +47,17 @@ Switch to the 1st, 2nd, 3rd, or 4th tab.
 .B m
 Toggle mute for the selected node.
 .TP
-.B l, Right
+.B l, Right arrow
 Increase volume.
 .TP
-.B h, Left
+.B h, Left arrow
 Decrease volume.
 .TP
 .B Space
 Toggle channel lock for selected node (affects whether volume changes apply to all channels).
 .TP
 .B p
-Enter port selection mode on nodes that support it.
+Enter route selection mode on nodes that support it.
 .TP
 .B Enter
 Confirm selection.
@@ -71,7 +69,7 @@ Cancel selection.
 Quit the application.
 
 .SH BUGS
-Please report bugs to https://github.com/heather7283/pipemixer/issues.
+Please report bugs to https://github.com/heather7283/pipemixer/issues
 .PP
 When reporting bugs:
 .PD 0
@@ -89,5 +87,4 @@ pulsemixer: https://github.com/GeorgeFilipkin/pulsemixer
 pwvucontrol: https://github.com/saivert/pwvucontrol
 .PP
 .BR pipemixer.ini (5),
-.BR pipewire (1),
 .BR pw-cli (1)
