@@ -1136,7 +1136,7 @@ int tui_init(void) {
     /* manually trigger resize handler to pick up initial terminal size */
     tui_handle_sigwinch(NULL, 0xBAD, NULL);
 
-    tui.tab_index = 0;
+    tui.tab_index = config.tab_map_enum_to_index[config.default_tab];
     tui_repaint(true);
 
     pipewire_events_subscribe(&tui.pipewire_listener,

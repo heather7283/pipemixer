@@ -13,6 +13,8 @@ struct pipemixer_config {
     bool wraparound;
     bool display_ids;
 
+    enum tui_tab default_tab;
+
     wchar_t bar_full_char[2], bar_empty_char[2];
     struct {
         wchar_t tl[2], tr[2], bl[2], br[2], cl[2], cr[2], ml[2], mr[2], f[2];

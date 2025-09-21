@@ -30,6 +30,8 @@ struct pipemixer_config config = {
     .wraparound = false,
     .display_ids = false,
 
+    .default_tab = PLAYBACK,
+
     .bar_full_char = L"#",
     .bar_empty_char = L"-",
     .volume_frame = {
@@ -184,6 +186,13 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_GET_BOOL(&config.display_ids);
         } else if (STREQ(k, "tab-order")) {
             if (!get_tab_order(v)) CONFIG_LOG("invalid tab order string: %s", v);
+        } else if (STREQ(k, "default-tab")) {
+            enum tui_tab tab = tui_tab_from_name(v);
+            if (tab == TUI_TAB_INVALID) {
+                CONFIG_LOG("invalid tab name: %s", v);
+            } else {
+                config.default_tab = tab;
+            }
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
