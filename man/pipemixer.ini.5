@@ -77,6 +77,11 @@ Cycle forward/backward through tabs.
 Switch to specific tab.
 .RE
 .PP
+.B tab-N
+.RS 4
+Switch to Nth tab (1-based).
+.RE
+.PP
 .B mute-toggle, mute-enable, mute-disable
 .RS 4
 Set mute state for selected node.
@@ -145,33 +150,6 @@ Characters that make up frame around per-channel volume bars.
 .RS 4
 Characters for drawing volume bars.
 .RE
-
-.SH EXAMPLE
-.nf
-[main]
-volume-step=5
-
-[borders]
-left=|
-right=|
-top=-
-bottom=-
-top-left=+
-top-right=+
-bottom-left=+
-bottom-right=+
-center-right=|
-center-left=|
-
-[binds]
-volume-up=+
-volume-down=-
-volume-set-10=1
-volume-set-20=2
-volume-set-30=3
-volume-set-40=4
-volume-set-50=5
-.fi
 
 .SH SEE ALSO
 .BR pipemixer (1)

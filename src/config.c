@@ -300,7 +300,13 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 } else if (STREQ(k + strlen(prefix), "output-devices")) {
                     ADD_BIND(keycode, tui_bind_set_tab, tab, OUTPUT_DEVICES);
                 } else {
-                    CONFIG_LOG("unknown action: %s", k);
+                    uint32_t index;
+                    if (str_to_u32(k + strlen(prefix), &index)
+                        && index >= 1 && index <= TUI_TAB_COUNT) {
+                        ADD_BIND(keycode, tui_bind_set_tab_index, index, index - 1);
+                    } else {
+                        CONFIG_LOG("unknown action: %s", k);
+                    }
                 }
             } else if (STREQ(k, "select-route")) {
                 ADD_BIND(keycode, tui_bind_select_route, nothing, NOTHING);
@@ -351,10 +357,10 @@ static void add_default_config(void) {
         "tab-next=tab\n"
         "tab-prev=T\n"
         "tab-prev=backtab\n"
-        "tab-playback=1\n"
-        "tab-recording=2\n"
-        "tab-output-devices=3\n"
-        "tab-input-devices=4\n"
+        "tab-1=1\n"
+        "tab-2=2\n"
+        "tab-3=3\n"
+        "tab-4=4\n"
         "mute-toggle=m\n"
         "channel-lock-toggle=space\n"
         "select-route=p\n"

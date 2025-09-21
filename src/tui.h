@@ -111,6 +111,7 @@ void tui_bind_change_tab(union tui_bind_data data);
 
 void tui_bind_set_volume(union tui_bind_data data);
 void tui_bind_set_tab(union tui_bind_data data);
+void tui_bind_set_tab_index(union tui_bind_data data);
 
 enum tui_change_mode { ENABLE, DISABLE, TOGGLE };
 void tui_bind_change_mute(union tui_bind_data data);
@@ -132,6 +133,7 @@ union tui_bind_data {
     enum tui_tab tab;
     enum tui_nothing nothing;
     float volume;
+    int index;
 };
 
 struct tui_bind {

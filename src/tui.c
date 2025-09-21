@@ -706,20 +706,25 @@ void tui_bind_change_tab(union tui_bind_data data) {
         assert(0 && "Invalid tab enum value passed to tui_bind_change_tab");
     }
 
+    tui_repaint(true);
+
     TRACE("current tab is: index %d (enum %d)",
           tui.tab_index, config.tab_map_index_to_enum[tui.tab_index]);
-
-    tui_repaint(true);
 }
 
 void tui_bind_set_tab(union tui_bind_data data) {
-    enum tui_tab tab = data.tab;
+    tui_bind_set_tab_index((union tui_bind_data){
+        .index = config.tab_map_enum_to_index[data.tab]
+    });
+}
+
+void tui_bind_set_tab_index(union tui_bind_data data) {
+    const int index = data.index;
 
     if (tui.menu_active) {
         return;
     }
 
-    const int index = config.tab_map_enum_to_index[tab];
     if (tui.tab_index != index) {
         tui.tab_index = index;
         tui_repaint(true);
