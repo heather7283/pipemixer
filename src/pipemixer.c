@@ -156,7 +156,6 @@ cleanup:
     pollen_loop_cleanup(event_loop);
     pipewire_cleanup();
     tui_cleanup();
-    config_cleanup();
 
     if (log_stream != NULL) {
         fclose(log_stream);

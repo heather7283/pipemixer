@@ -415,7 +415,3 @@ out:
     }
 }
 
-void config_cleanup(void) {
-    //MAP_FREE(&config.binds);
-}
-

@@ -36,7 +36,6 @@ struct pipemixer_config {
 extern struct pipemixer_config config;
 
 void load_config(const char *config_path);
-void config_cleanup(void);
 
 #endif /* #ifndef CONFIG_H */
 

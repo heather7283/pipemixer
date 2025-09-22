@@ -129,16 +129,6 @@ int pipewire_init(void) {
 }
 
 void pipewire_cleanup(void) {
-    //struct node *node;
-    //HASHMAP_FOR_EACH(node, &pw.nodes, hash) {
-    //    node_destroy(node);
-    //}
-
-    //struct device *device;
-    //HASHMAP_FOR_EACH(device, &pw.devices, hash) {
-    //    device_destroy(device);
-    //}
-
     if (pw.registry != NULL) {
         pw_proxy_destroy((struct pw_proxy *)pw.registry);
     }
