@@ -18,21 +18,16 @@ pipemixer -h
 ```
 To debug:
 ```
-pipemixer -l debug -L 4 4>pipemixer.log
+pipemixer -l trace -L 4 4>pipemixer.log
 ```
 With valgrind:
 ```
-valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- pipemixer -l debug -L 4 4>pipemixer.log 5>valgrind.log
+valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- pipemixer -l trace -L 4 4>pipemixer.log 5>valgrind.log
 ```
 
 ## Config
-pipemixer reads its config from $XDG_CONFIG_HOME/pipemixer/pipemixer.ini.
+pipemixer reads its config from `$XDG_CONFIG_HOME/pipemixer/pipemixer.ini`.
 See [example config](pipemixer.ini) and pipemixer.ini(5) for details.
-
-## TODOs
-- [x] Make keybinds configurable
-- [ ] Make colors configurable? (Using colors in ncurses is torture so not sure)
-- [x] Write a man page for config
 
 ## References
 - https://docs.pipewire.org
@@ -46,3 +41,4 @@ See [example config](pipemixer.ini) and pipemixer.ini(5) for details.
 [pulsemixer]: https://github.com/GeorgeFilipkin/pulsemixer
 [pwvucontrol]: https://github.com/saivert/pwvucontrol
 [ncurses]: https://invisible-island.net/ncurses
+
