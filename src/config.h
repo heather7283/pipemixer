@@ -10,6 +10,11 @@ struct pipemixer_config {
     float volume_step;
     float volume_min, volume_max;
 
+    /* value of 60 means use 60% of available screen width */
+    int volume_bar_width_percentage;
+    /* upper limit of volume bar */
+    float volume_display_max;
+
     bool wraparound;
     bool display_ids;
 

@@ -3,8 +3,9 @@
 
 #include <ncurses.h>
 
-#include "pw/node.h"
 #include "collections/list.h"
+#include "signals.h"
+#include "menu.h"
 
 enum tui_tab {
     PLAYBACK,
@@ -15,36 +16,6 @@ enum tui_tab {
     TUI_TAB_COUNT,
 
     TUI_TAB_INVALID
-};
-
-struct tui_menu;
-struct tui_menu_item;
-
-typedef void (*tui_menu_callback_t)(struct tui_menu *menu, struct tui_menu_item *pick);
-
-struct tui_menu_item {
-    struct string str;
-
-    union {
-        void *ptr;
-        uintptr_t uint;
-    } data;
-};
-
-struct tui_menu {
-    WINDOW *win;
-    int x, y, w, h;
-    struct string header;
-    tui_menu_callback_t callback;
-
-    union {
-        void *ptr;
-        uintptr_t uint;
-    } data;
-
-    unsigned int n_items;
-    unsigned int selected;
-    struct tui_menu_item items[];
 };
 
 struct tui {

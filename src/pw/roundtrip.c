@@ -11,14 +11,13 @@ struct roundtrip_async_data {
     LIST_ENTRY link;
 };
 
-/* LIFO */
 static LIST_HEAD callbacks = LIST_INITIALISER(&callbacks);
 
 static void on_core_done(void *data, uint32_t id, int seq) {
     struct roundtrip_async_data *d;
     LIST_POP(d, LIST_LAST(&callbacks), link);
     if (d->seq != seq) {
-        ERROR("roundtrip LIFO error: expected seq %d got %d", d->seq, seq);
+        ERROR("roundtrip error: expected seq %d got %d", d->seq, seq);
     } else {
         TRACE("roundtrip finished with seq %d", seq);
 

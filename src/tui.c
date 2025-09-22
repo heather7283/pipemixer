@@ -12,6 +12,7 @@
 #include "macros.h"
 #include "eventloop.h"
 #include "pw/events.h"
+#include "pw/node.h"
 #include "collections/string.h"
 
 #define TUI_ACTIVE_TAB (tui.tabs[tui.tab_index])
@@ -50,101 +51,10 @@ static const char *tui_tab_name(enum tui_tab tab) {
 
 static void tui_menu_free(struct tui_menu *menu) {
     for (unsigned int i = 0; i < menu->n_items; i++) {
-        string_free(&menu->items[i].str);
+        free(menu->items[i].str);
     }
-    string_free(&menu->header);
+    free(menu->header);
     free(menu);
-}
-
-static void tui_menu_resize(struct tui_menu *menu, int term_width, int term_height) {
-    menu->x = 1;
-    menu->y = 2;
-    menu->w = term_width - 2;
-    menu->h = term_height - 4;
-    if (menu->win == NULL) {
-        menu->win = newwin(menu->h, menu->w, menu->y, menu->x);
-    } else {
-        wresize(menu->win, menu->h, menu->w);
-    }
-}
-
-static struct tui_menu *tui_menu_create(unsigned int n_items) {
-    struct tui_menu *menu = xcalloc(1, sizeof(*menu) + (sizeof(*menu->items) * n_items));
-    menu->n_items = n_items;
-
-    return menu;
-}
-
-static void tui_menu_change_focus(enum tui_direction direction) {
-    struct tui_menu *menu = tui.menu;
-
-    bool change = false;
-    switch (direction) {
-    case DOWN:
-        if (menu->selected < menu->n_items - 1) {
-            menu->selected += 1;
-            change = true;
-        } else if (config.wraparound) {
-            menu->selected = 0;
-            change = true;
-        }
-        break;
-    case UP:
-        if (menu->selected > 0) {
-            menu->selected -= 1;
-            change = true;
-        } else if (config.wraparound) {
-            menu->selected = menu->n_items - 1;
-            change = true;
-        }
-        break;
-    }
-
-    if (change) {
-        tui_repaint(false);
-    }
-}
-
-static void tui_menu_draw(const struct tui_menu *menu) {
-    TRACE("tui_draw_menu: %dx%d at %dx%d", menu->w, menu->h, menu->x, menu->y);
-    WINDOW *win = menu->win;
-
-    werase(win);
-
-    /* box */
-    wmove(win, 0, 0);
-    waddwstr(win, config.borders.tl);
-    for (int x = 1; x < menu->w - 1; x++) {
-        waddwstr(win, config.borders.ts);
-    }
-    waddwstr(win, config.borders.tr);
-
-    wmove(win, menu->h - 1, 0);
-    waddwstr(win, config.borders.bl);
-    for (int x = 1; x < menu->w - 1; x++) {
-        waddwstr(win, config.borders.bs);
-    }
-    waddwstr(win, config.borders.br);
-
-    for (int y = 1; y < menu->h - 1; y++) {
-        wmove(win, y, 0);
-        waddwstr(win, config.borders.ls);
-        wmove(win, y, menu->w - 1);
-        waddwstr(win, config.borders.rs);
-    }
-
-    mvwaddnstr(win, 0, 1, menu->header.data, menu->w - 2);
-    for (unsigned int i = 0; i < menu->n_items; i++) {
-        if (i == menu->selected) {
-            wattron(win, A_BOLD);
-        }
-
-        mvwaddnstr(win, 1 + i, 1, menu->items[i].str.data, menu->w - 2);
-
-        wattroff(win, A_BOLD);
-    }
-
-    wnoutrefresh(win);
 }
 
 static void tui_draw_node(const struct tui_tab_item *item, bool draw_unconditionally) {
@@ -455,11 +365,6 @@ static void tui_repaint(bool draw_unconditionally) {
 
     tui_draw_status_bar();
 
-    if (tui.menu_active) {
-        TRACE("tui_repaint: menu");
-        tui_menu_draw(tui.menu);
-    }
-
     doupdate();
 }
 
@@ -499,7 +404,10 @@ void tui_bind_change_focus(union tui_bind_data data) {
     enum tui_direction direction = data.direction;
 
     if (tui.menu_active) {
-        tui_menu_change_focus(direction);
+        if (tui_menu_change_focus(tui.menu, (direction == UP) ? -1 : 1)) {
+            tui_menu_draw(tui.menu);
+            doupdate();
+        };
         return;
     }
 
@@ -770,13 +678,11 @@ void tui_bind_select_route(union tui_bind_data data) {
 
     tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
 
-    string_printf(&tui.menu->header, "Select route for %ls", node->node_name.data);
-
+    xasprintf(&tui.menu->header, "Select route for %ls", node->node_name.data);
     for (size_t i = 0; i < nroutes; i++) {
         const struct route *route = routes[i];
         struct tui_menu_item *item = &tui.menu->items[i];
-        string_printf(&item->str, "%d. %s (%s)",
-                      route->index, route->description, route->name);
+        xasprintf(&item->str, "%d. %s (%s)", route->index, route->description, route->name);
         item->data.uint = route->index;
 
         if (active_route != NULL && route->index == active_route->index) {
@@ -785,7 +691,8 @@ void tui_bind_select_route(union tui_bind_data data) {
     }
 
     tui.menu_active = true;
-    tui_repaint(false);
+    tui_menu_draw(tui.menu);
+    doupdate();
 }
 
 void tui_bind_cancel_selection(union tui_bind_data data) {
@@ -1086,11 +993,12 @@ static int tui_handle_sigwinch(struct pollen_callback *callback, int signal, voi
     }
     tui.bar_win = newwin(1, tui.term_width, 0, 0);
 
+    tui_repaint(true);
     if (tui.menu_active) {
         tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
+        tui_menu_draw(tui.menu);
+        doupdate();
     }
-
-    tui_repaint(true);
 
     return 0;
 }
