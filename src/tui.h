@@ -35,9 +35,8 @@ struct tui {
         bool user_changed_focus;
     } tabs[TUI_TAB_COUNT];
 
-    int efd;
     bool efd_triggered;
-    struct pollen_callback *efd_callback;
+    struct pollen_event_source *efd_source;
 
     struct signal_listener pipewire_listener;
 };

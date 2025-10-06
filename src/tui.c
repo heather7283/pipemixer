@@ -49,7 +49,7 @@ static const char *tui_tab_name(enum tui_tab_type tab) {
 
 static void trigger_update(void) {
     if (!tui.efd_triggered) {
-        if (eventfd_write(tui.efd, 1) < 0) {
+        if (!pollen_efd_trigger(tui.efd_source)) {
             ERROR("failed to trigger ui update: %m");
         } else {
             tui.efd_triggered = true;
@@ -952,7 +952,7 @@ static void on_pipewire_object_added(uint64_t id, uint64_t event,
     trigger_update();
 }
 
-static int on_sigwinch(struct pollen_callback *_, int _, void *_) {
+static int on_sigwinch(struct pollen_event_source *_, int _, void *_) {
     struct winsize winsize;
     if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
         ERROR("failed to get new window size: %s", strerror(errno));
@@ -986,14 +986,14 @@ static int on_sigwinch(struct pollen_callback *_, int _, void *_) {
     return 0;
 }
 
-static int on_stdin_ready(struct pollen_callback *callback, int _, uint32_t _, void *_) {
+static int on_stdin_ready(struct pollen_event_source *_, int _, uint32_t _, void *_) {
     wint_t ch;
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
         struct tui_bind *bind = MAP_GET(&config.binds, ch);
         if (bind == NULL) {
             DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
         } else if (bind->func == TUI_BIND_QUIT) {
-            pollen_loop_quit(pollen_callback_get_loop(callback), 0);
+            pollen_loop_quit(event_loop, 0);
         } else {
             bind->func(bind->data);
             trigger_update();
@@ -1008,10 +1008,7 @@ static int on_stdin_ready(struct pollen_callback *callback, int _, uint32_t _, v
  * Instead just update after any event that might or might not cause a draw
  * and let ncurses figure out the rest, it's good at damage tracking
  */
-static int on_update_triggered(struct pollen_callback *_, int fd, uint32_t _, void *_) {
-    /* drain eventfd */
-    uint64_t dummy;
-    eventfd_read(fd, &dummy);
+static int on_update_triggered(struct pollen_event_source *_, uint64_t _, void *_) {
     tui.efd_triggered = false;
 
     pnoutrefresh(tui.pad_win,
@@ -1051,27 +1048,17 @@ int tui_init(void) {
     pollen_loop_add_fd(event_loop, 0 /* stdin */, EPOLLIN, false, on_stdin_ready, NULL);
     pollen_loop_add_signal(event_loop, SIGWINCH, on_sigwinch, NULL);
 
-    /* manually trigger resize handler to pick up initial terminal size */
-    on_sigwinch(NULL, 0xBAD, NULL);
-
-    tui.tab_index = config.tab_map_enum_to_index[config.default_tab];
-
-    tui.efd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-    if (tui.efd < 0) {
-        ERROR("failed to create eventfd: %m");
-        return false;
-    }
-    tui.efd_callback = pollen_loop_add_fd(event_loop, tui.efd, EPOLLIN, true,
-                                          on_update_triggered, NULL);
-    if (tui.efd_callback == NULL) {
-        ERROR("failed to create eventfd callback: %m");
-        return false;
-    }
+    tui.efd_source = pollen_loop_add_efd(event_loop, on_update_triggered, NULL);
     tui.efd_triggered = false;
 
     pipewire_events_subscribe(&tui.pipewire_listener,
                               PIPEWIRE_EVENT_ID_CORE, PIPEWIRE_EVENT_ANY,
                               on_pipewire_object_added, NULL);
+
+    tui.tab_index = config.tab_map_enum_to_index[config.default_tab];
+
+    /* send SIGWINCH to self to pick up initial terminal size */
+    raise(SIGWINCH);
 
     return 0;
 }

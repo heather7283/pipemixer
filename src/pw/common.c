@@ -85,7 +85,7 @@ static const struct pw_core_events core_events = {
     .error = on_core_error,
 };
 
-static int pipewire_fd_handler(struct pollen_callback *callback,
+static int pipewire_fd_handler(struct pollen_event_source *callback,
                                int fd, uint32_t events, void *data) {
     int res = pw_loop_iterate(pw.main_loop_loop, 0);
     if (res < 0 && res != -EINTR) {

@@ -1,20 +1,12 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
-#include <string.h>
-#include <errno.h>
 
 #include "signals.h"
 #include "eventloop.h"
 #include "macros.h"
-#include "log.h"
 
-static int signal_emitter_dispatch_events(struct pollen_callback *_,
-                                          int fd, uint32_t _, void *data) {
+static int signal_emitter_dispatch_events(struct pollen_event_source *_, uint64_t _, void *data) {
     struct signal_emitter *emitter = data;
-
-    /* drain the efd */
-    uint64_t dummy;
-    eventfd_read(fd, &dummy);
 
     VEC_FOREACH(&emitter->queued_events, i) {
         const struct signal_queued_event *ev = VEC_AT(&emitter->queued_events, i);
@@ -35,34 +27,16 @@ bool signal_emitter_init(struct signal_emitter *emitter) {
     LIST_INIT(&emitter->listeners);
     VEC_INIT(&emitter->queued_events);
 
-    emitter->efd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK);
-    if (emitter->efd < 0) {
-        ERROR("failed to create eventfd: %s", strerror(errno));
-        goto err;
-    }
-
-    emitter->efd_callback = pollen_loop_add_fd(event_loop, emitter->efd, EPOLLIN, true,
-                                               signal_emitter_dispatch_events, emitter);
-    if (emitter->efd_callback == NULL) {
-        goto err;
+    emitter->efd_source = pollen_loop_add_efd(event_loop, signal_emitter_dispatch_events, emitter);
+    if (emitter->efd_source == NULL) {
+        return false;
     }
 
     return true;
-
-err:
-    if (emitter->efd > 0) {
-        close(emitter->efd);
-        emitter->efd = -1;
-    }
-    if (emitter->efd_callback != NULL) {
-        pollen_loop_remove_callback(emitter->efd_callback);
-        emitter->efd_callback = NULL;
-    }
-    return false;
 }
 
 void signal_emitter_cleanup(struct signal_emitter *emitter) {
-    pollen_loop_remove_callback(emitter->efd_callback);
+    pollen_event_source_remove(emitter->efd_source);
     VEC_FREE(&emitter->queued_events);
 }
 
@@ -93,7 +67,7 @@ static void signal_emit_internal(const struct signal_emitter *emitter,
         .data = *data,
     };
 
-    eventfd_write(emitter->efd, 1);
+    pollen_efd_trigger(emitter->efd_source);
 }
 
 void signal_emit_ptr(const struct signal_emitter *emitter,

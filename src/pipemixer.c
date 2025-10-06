@@ -17,10 +17,10 @@ static void crash_handler(int sig) {
     raise(sig);
 }
 
-static int sigint_sigterm_handler(struct pollen_callback *callback, int signal, void *data) {
+static int sigint_sigterm_handler(struct pollen_event_source *_, int signal, void *_) {
     INFO("caught signal %d, stopping main loop", signal);
 
-    pollen_loop_quit(pollen_callback_get_loop(callback), 0);
+    pollen_loop_quit(event_loop, 0);
 
     return 0;
 }

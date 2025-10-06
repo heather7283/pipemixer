@@ -46,8 +46,7 @@ struct signal_queued_event {
 };
 
 struct signal_emitter {
-    int efd;
-    struct pollen_callback *efd_callback;
+    struct pollen_event_source *efd_source;
 
     VEC(struct signal_queued_event) queued_events;
 
