@@ -114,7 +114,7 @@ static bool get_bool(const char *str, bool *res) {
     }
 }
 
-static enum tui_tab tui_tab_from_name(const char *name) {
+static enum tui_tab_type tui_tab_from_name(const char *name) {
     if (STRCASEEQ(name, "playback")) return PLAYBACK;
     else if (STRCASEEQ(name, "recording")) return RECORDING;
     else if (STRCASEEQ(name, "input-devices")) return INPUT_DEVICES;
@@ -133,7 +133,7 @@ static bool get_tab_order(const char *_str) {
 
     int index = 0;
     for (char *tok = strtok(str, ","); tok != NULL; tok = strtok(NULL, ",")) {
-        const enum tui_tab tab = tui_tab_from_name(tok);
+        const enum tui_tab_type tab = tui_tab_from_name(tok);
         if (tab == TUI_TAB_INVALID) {
             ret = false;
             goto out;
@@ -187,7 +187,7 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
         } else if (STREQ(k, "tab-order")) {
             if (!get_tab_order(v)) CONFIG_LOG("invalid tab order string: %s", v);
         } else if (STREQ(k, "default-tab")) {
-            enum tui_tab tab = tui_tab_from_name(v);
+            enum tui_tab_type tab = tui_tab_from_name(v);
             if (tab == TUI_TAB_INVALID) {
                 CONFIG_LOG("invalid tab name: %s", v);
             } else {

@@ -18,7 +18,7 @@ struct pipemixer_config {
     bool wraparound;
     bool display_ids;
 
-    enum tui_tab default_tab;
+    enum tui_tab_type default_tab;
 
     wchar_t bar_full_char[2], bar_empty_char[2];
     struct {
@@ -31,7 +31,7 @@ struct pipemixer_config {
     char *routes_separator;
 
     /* tab_map_index_to_enum[i] returns enum tui_tab, i is tab position in the ui */
-    enum tui_tab tab_map_index_to_enum[TUI_TAB_COUNT];
+    enum tui_tab_type tab_map_index_to_enum[TUI_TAB_COUNT];
     /* tab_map_enum_to_index[enum tui_tab] returns i, i is tab position in the ui */
     int tab_map_enum_to_index[TUI_TAB_COUNT];
 

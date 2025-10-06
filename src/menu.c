@@ -22,6 +22,14 @@ struct tui_menu *tui_menu_create(unsigned int n_items) {
     return menu;
 }
 
+void tui_menu_free(struct tui_menu *menu) {
+    for (unsigned int i = 0; i < menu->n_items; i++) {
+        free(menu->items[i].str);
+    }
+    free(menu->header);
+    free(menu);
+}
+
 bool tui_menu_change_focus(struct tui_menu *const menu, int direction) {
     bool change = false;
     if (direction < 0) {

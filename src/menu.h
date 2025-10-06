@@ -35,6 +35,7 @@ struct tui_menu {
 
 struct tui_menu *tui_menu_create(unsigned int n_items);
 void tui_menu_resize(struct tui_menu *menu, int term_width, int term_height);
+void tui_menu_free(struct tui_menu *menu);
 
 void tui_menu_draw(const struct tui_menu *menu);
 

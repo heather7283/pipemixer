@@ -7,7 +7,7 @@
 #include "signals.h"
 #include "menu.h"
 
-enum tui_tab {
+enum tui_tab_type {
     PLAYBACK,
     RECORDING,
     INPUT_DEVICES,
@@ -28,26 +28,30 @@ struct tui {
     struct tui_menu *menu;
 
     int tab_index;
-    struct {
+    struct tui_tab {
         LIST_HEAD items;
         struct tui_tab_item *focused;
         int scroll_pos;
         bool user_changed_focus;
     } tabs[TUI_TAB_COUNT];
 
+    int efd;
+    bool efd_triggered;
+    struct pollen_callback *efd_callback;
+
     struct signal_listener pipewire_listener;
 };
 
-enum tui_tab_item_change_mask {
-    TUI_TAB_ITEM_CHANGE_NOTHING = 0,
-    TUI_TAB_ITEM_CHANGE_FOCUS = 1 << 0,
-    TUI_TAB_ITEM_CHANGE_CHANNEL_LOCK = 1 << 1,
-    TUI_TAB_ITEM_CHANGE_INFO = 1 << 2,
-    TUI_TAB_ITEM_CHANGE_MUTE = 1 << 3,
-    TUI_TAB_ITEM_CHANGE_VOLUME = 1 << 4,
-    TUI_TAB_ITEM_CHANGE_SIZE = 1 << 5,
-    TUI_TAB_ITEM_CHANGE_PORT = 1 << 6,
-    TUI_TAB_ITEM_CHANGE_EVERYTHING = ~0,
+enum tui_tab_item_draw_mask {
+    TUI_TAB_ITEM_DRAW_NOTHING = 0,
+    TUI_TAB_ITEM_DRAW_EVERYTHING = ~0,
+
+    TUI_TAB_ITEM_DRAW_DESCRIPTION = 1 << 0,
+    TUI_TAB_ITEM_DRAW_DECORATIONS = 1 << 1,
+    TUI_TAB_ITEM_DRAW_CHANNELS = 1 << 2,
+    TUI_TAB_ITEM_DRAW_ROUTES = 1 << 3,
+    TUI_TAB_ITEM_DRAW_BORDERS = 1 << 4,
+    TUI_TAB_ITEM_DRAW_BLANKS = 1 << 5,
 };
 
 struct tui_tab_item {
@@ -55,7 +59,6 @@ struct tui_tab_item {
 
     int pos, height;
     bool focused;
-    enum tui_tab_item_change_mask change;
 
     bool unlocked_channels;
     uint32_t focused_channel;
@@ -101,7 +104,7 @@ void tui_bind_cancel_selection(union tui_bind_data data);
 union tui_bind_data {
     enum tui_direction direction;
     enum tui_change_mode change_mode;
-    enum tui_tab tab;
+    enum tui_tab_type tab;
     enum tui_nothing nothing;
     float volume;
     int index;
