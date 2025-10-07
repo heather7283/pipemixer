@@ -175,7 +175,13 @@ void device_destroy(struct device *device) {
 }
 
 void on_device_roundtrip_done(void *data) {
-    struct device *dev = data;
+    const uint32_t id = (uintptr_t)data;
+    struct device *dev = MAP_GET(&devices, id);
+    if (dev == NULL) {
+        WARN("roundtrip finished for device %d that does not exist!", id);
+        WARN("was it removed after roundtrip started?");
+        return;
+    }
 
     if (dev->modified_params & ROUTE) {
         VEC_FOREACH(&dev->active_routes, i) {
@@ -271,7 +277,7 @@ void on_device_info(void *data, const struct pw_device_info *info) {
         }
     }
     if (device->modified_params) {
-        roundtrip_async(pw.core, on_device_roundtrip_done, device);
+        roundtrip_async(pw.core, on_device_roundtrip_done, (void *)(uintptr_t)device->id);
     }
 }
 
