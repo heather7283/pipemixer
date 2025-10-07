@@ -107,6 +107,11 @@ Set volume of selected node to N%.
 Enter route selection menu on nodes that support it.
 .RE
 .PP
+.B select-profile
+.RS 4
+Enter profile selection menu.
+.RE
+.PP
 .B confirm-selection, cancel-selection
 .RS 4
 Self-explanatory. Applies to menu selection mode.
@@ -126,9 +131,19 @@ Unbind a key from any action.
 Configure various UI elements.
 
 .PP
+.B bar-empty-char, bar-full-char
+.RS 4
+Characters for drawing volume bars.
+.RE
+.PP
 .B routes-separator
 .RS 4
 String that separates routes on nodes that have them.
+.RE
+.PP
+.B profiles-separator
+.RS 4
+String that separates profiles on devices.
 .RE
 .PP
 .B border-left, border-right, border-top, border-bottom,
@@ -149,11 +164,6 @@ Characters that make up border around each node.
 .B volume-frame-focus
 .RS 4
 Characters that make up frame around per-channel volume bars.
-.RE
-.PP
-.B bar-empty-char, bar-full-char
-.RS 4
-Characters for drawing volume bars.
 .RE
 
 .SH SEE ALSO

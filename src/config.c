@@ -56,6 +56,7 @@ struct pipemixer_config config = {
         .br = L"┘",
     },
     .routes_separator = ", ",
+    .profiles_separator = ", ",
 };
 
 static const char *get_default_config_path(void) {
@@ -198,8 +199,10 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             CONFIG_LOG("unknown key %s in section %s", k, s);
         }
     } else if (STREQ(s, "interface")) {
-        if (STREQ(k, "ports-separator")) {
+        if (STREQ(k, "routes-separator")) {
             config.routes_separator = xstrdup(v);
+        } else if (STREQ(k, "profiles-separator")) {
+            config.profiles_separator = xstrdup(v);
         } else if (STREQ(k, "border-left")) {
             CONFIG_GET_WCHAR(&config.borders.ls[0]);
         } else if (STREQ(k, "border-right")) {

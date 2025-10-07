@@ -29,6 +29,7 @@ struct pipemixer_config {
         wchar_t ls[2], rs[2], ts[2], bs[2], tl[2], tr[2], bl[2], br[2];
     } borders;
     char *routes_separator;
+    char *profiles_separator;
 
     /* tab_map_index_to_enum[i] returns enum tui_tab, i is tab position in the ui */
     enum tui_tab_type tab_map_index_to_enum[TUI_TAB_COUNT];

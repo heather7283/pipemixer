@@ -350,7 +350,7 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
                 }
 
                 chars = snprintf(buf, usable_width - written, "%s%s",
-                                 /* config.profiles_separator */ ", ", profile->description);
+                                 config.profiles_separator, profile->description);
                 mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                 written = (written + chars > usable_width) ? usable_width : (written + chars);
             }
@@ -363,7 +363,7 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
                                      profile->description);
                 } else {
                     chars = snprintf(buf, usable_width - written, "%s%s",
-                                     /* config.profiles_separator */ ", ", profile->description);
+                                     config.profiles_separator, profile->description);
                 }
                 mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
                 written = (written + chars > usable_width) ? usable_width : (written + chars);
@@ -571,6 +571,7 @@ static void redraw_current_tab(void) {
     if (wmove(tui.pad_win, bottom, 0) != OK) {
         WARN("wmove(tui.pad_win, %d, 0) failed!", bottom);
     } else {
+        TRACE("wclrtobot(tui.pad_win) bottom %d", bottom);
         wclrtobot(tui.pad_win);
     }
 
