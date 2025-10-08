@@ -97,18 +97,24 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     DRAW(DESCRIPTION) {
         wchar_t line[usable_width];
 
+        const char *name_str = "NULL";
+        if (node->node_description != NULL) {
+            name_str = node->node_description;
+        } else if (node->node_name != NULL) {
+            name_str = node->node_name;
+        }
+
         if (config.display_ids) {
-            swprintf(line, SIZEOF_ARRAY(line), L"(%d) %ls%s%ls%-*s",
-                     node->id,
-                     node->node_name.data,
-                     wstring_is_empty(&node->media_name) ? "" : ": ",
-                     wstring_is_empty(&node->media_name) ? L"" : node->media_name.data,
+            swprintf(line, SIZEOF_ARRAY(line), L"(%d) %s%s%s%-*s",
+                     node->id, name_str,
+                     (node->media_name == NULL) ? "" : ": ",
+                     (node->media_name == NULL) ? "" : node->media_name,
                      usable_width, "");
         } else {
-            swprintf(line, SIZEOF_ARRAY(line), L"%ls%s%ls%-*s",
-                     node->node_name.data,
-                     wstring_is_empty(&node->media_name) ? "" : ": ",
-                     wstring_is_empty(&node->media_name) ? L"" : node->media_name.data,
+            swprintf(line, SIZEOF_ARRAY(line), L"%s%s%s%-*s",
+                     name_str,
+                     (node->media_name == NULL) ? "" : ": ",
+                     (node->media_name == NULL) ? "" : node->media_name,
                      usable_width, "");
         }
         wcstrimcols(line, usable_width);
@@ -867,7 +873,7 @@ void tui_bind_select_route(union tui_bind_data data) {
 
     tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
 
-    xasprintf(&tui.menu->header, "Select route for %ls", node->node_name.data);
+    xasprintf(&tui.menu->header, "Select route for %s", node->node_name);
     for (size_t i = 0; i < nroutes; i++) {
         const struct route *route = routes[i];
         struct tui_menu_item *item = &tui.menu->items[i];

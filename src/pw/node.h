@@ -6,7 +6,6 @@
 
 #include "pw/common.h"
 #include "pw/device.h"
-#include "collections/string.h"
 
 enum node_change_mask {
     NODE_CHANGE_NOTHING = 0,
@@ -23,8 +22,9 @@ struct node {
 
     uint32_t id;
     enum media_class media_class;
-    struct wstring media_name;
-    struct wstring node_name;
+    char *media_name;
+    char *node_name;
+    char *node_description;
 
     bool mute;
     VEC(struct node_channel {

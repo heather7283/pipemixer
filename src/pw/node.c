@@ -10,6 +10,7 @@
 #include "pw/events.h"
 #include "collections/map.h"
 #include "log.h"
+#include "xmalloc.h"
 #include "macros.h"
 #include "config.h"
 #include "utils.h"
@@ -241,18 +242,21 @@ void on_node_info(void *data, const struct pw_node_info *info) {
         TRACE("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
 
         if (STREQ(k, PW_KEY_MEDIA_NAME)) {
-            wstring_from_pchar(&node->media_name, v);
+            free(node->media_name);
+            node->media_name = xstrdup(v);
             node->changed = NODE_CHANGE_INFO;
-        } else if (STREQ(k, PW_KEY_NODE_NAME) && wstring_is_empty(&node->node_name)) {
-            wstring_from_pchar(&node->node_name, v);
+        } else if (STREQ(k, PW_KEY_NODE_NAME)) {
+            free(node->node_name);
+            node->node_name = xstrdup(v);
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_NODE_DESCRIPTION)) {
-            wstring_from_pchar(&node->node_name, v);
+            free(node->node_description);
+            node->node_description = xstrdup(v);
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
-            assert(str_to_u32(v, &node->device_id));
+            str_to_u32(v, &node->device_id);
         } else if (STREQ(k, "card.profile.device")) {
-            assert(str_to_i32(v, &node->card_profile_device));
+            str_to_i32(v, &node->card_profile_device);
         }
     }
 
@@ -345,8 +349,9 @@ void node_destroy(struct node *node) {
     signal_emit_u64(&pw.node_emitter, node->id, NODE_EVENT_REMOVE, node->id);
 
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
-    wstring_free(&node->media_name);
-    wstring_free(&node->node_name);
+    free(node->media_name);
+    free(node->node_name);
+    free(node->node_description);
     VEC_FREE(&node->channels);
 
     MAP_REMOVE(&nodes, node->id);
