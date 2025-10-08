@@ -14,7 +14,6 @@
 #include "eventloop.h"
 #include "pw/events.h"
 #include "pw/node.h"
-#include "collections/string.h"
 
 #define FOR_EACH_TAB(var) for (int var = 0; var < TUI_TAB_COUNT; var++)
 
