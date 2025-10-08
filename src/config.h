@@ -4,6 +4,7 @@
 #include <curses.h>
 
 #include "collections/map.h"
+#include "filter.h"
 #include "tui.h"
 
 struct pipemixer_config {
@@ -37,6 +38,8 @@ struct pipemixer_config {
     int tab_map_enum_to_index[TUI_TAB_COUNT];
 
     MAP(struct tui_bind) binds;
+
+    VEC(struct node_filter) node_filters;
 };
 
 extern struct pipemixer_config config;

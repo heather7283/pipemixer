@@ -337,6 +337,20 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 CONFIG_LOG("unknown action: %s", k);
             }
         }
+    } else if (STREQ(s, "node-filters")) {
+        if (STREQ(k, "node-name")) {
+            VEC_APPEND(&config.node_filters, (&(struct node_filter){
+                .type = NODE_FILTER_NODE_NAME,
+                .pattern = xstrdup(v),
+            }));
+        } else if (STREQ(k, "node-description")) {
+            VEC_APPEND(&config.node_filters, (&(struct node_filter){
+                .type = NODE_FILTER_NODE_DESCRIPTION,
+                .pattern = xstrdup(v),
+            }));
+        } else {
+            CONFIG_LOG("invalid filter type: %s", k);
+        }
     } else {
         CONFIG_LOG("unknown section %s", s);
     }
