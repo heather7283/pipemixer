@@ -11,10 +11,10 @@
 #include "utils.h"
 #include "config.h"
 #include "macros.h"
+#include "filter.h"
 #include "eventloop.h"
 #include "pw/events.h"
 #include "pw/node.h"
-#include "collections/string.h"
 
 #define FOR_EACH_TAB(var) for (int var = 0; var < TUI_TAB_COUNT; var++)
 
@@ -1094,6 +1094,10 @@ static void on_node_events(uint64_t id, uint64_t events,
 
 static void on_node_added(const struct node *node) {
     TRACE("tui_on_node_added: id %d", node->id);
+
+    if (node_is_filtered(node, VEC_DATA(&config.node_filters), VEC_SIZE(&config.node_filters))) {
+        return;
+    }
 
     const int tab_index = config.tab_map_enum_to_index[media_class_to_tui_tab(node->media_class)];
 
