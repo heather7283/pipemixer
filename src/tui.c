@@ -63,6 +63,10 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     #define DRAW(element) if (mask & TUI_TAB_ITEM_DRAW_##element)
 
     const struct node *node = node_lookup(item->as.node.node_id);
+    if (node == NULL) {
+        WARN("tried to draw node %d but it does not exist", item->as.node.node_id);
+        return;
+    }
 
     const int usable_width = tui.term_width - 2; /* account for box borders */
     const int two_thirds_usable_width = usable_width / 3 * 2;
@@ -300,6 +304,11 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
     #define DRAW(element) if (mask & TUI_TAB_ITEM_DRAW_##element)
 
     const struct device *dev = device_lookup(item->as.device.device_id);
+    if (dev == NULL) {
+        WARN("tried to draw device %d but it does not exist", item->as.device.device_id);
+        return;
+    }
+
 
     const int usable_width = tui.term_width - 2; /* account for box borders */
 
