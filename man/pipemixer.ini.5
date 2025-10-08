@@ -127,6 +127,22 @@ Exit application.
 Unbind a key from any action.
 .RE
 
+.SH SECTION: node-filters
+Configure which nodes will be filtered out and not displayed.
+Format is property=pattern, where pattern is an \fBfnmatch\fR(3) pattern.
+Node will be filtered if it matches any of the specified rules.
+.PP
+Example: node-name = PulseAudio Volume Control
+.PP
+This will filter out all pavucontrol peak detect nodes that normally would
+appear on the "Recording" tab in pipemixer.
+.PP
+Currently supported properties are:
+.IP \(bu 4
+\fBnode-name\fR (corresponds to \fBnode.name\fR in pipewire)
+.IP \(bu 4
+\fBnode-description\fR (corresponds to \fBnode.description\fR in pipewire)
+
 .SH SECTION: interface
 Configure various UI elements.
 
