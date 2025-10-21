@@ -1,5 +1,4 @@
-#ifndef SRC_COLLECTIONS_VEC_H
-#define SRC_COLLECTIONS_VEC_H
+#pragma once
 
 #include <stddef.h>
 #include <stdbool.h>
@@ -210,6 +209,4 @@ void vec_exchange_generic(struct vec_generic *v1, struct vec_generic *v2);
 
 #define VEC_FOREACH_REVERSE(pvec, iter) \
     for (size_t iter = (pvec)->size; iter-- > 0; )
-
-#endif /* #ifndef SRC_COLLECTIONS_VEC_H */
 

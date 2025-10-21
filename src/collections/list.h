@@ -1,5 +1,4 @@
-#ifndef SRC_COLLECTIONS_LIST_H
-#define SRC_COLLECTIONS_LIST_H
+#pragma once
 
 #include "macros.h"
 
@@ -127,6 +126,4 @@ struct list {
             LIST_INIT(head1); \
         } \
     } while (0)
-
-#endif /* #ifndef SRC_COLLECTIONS_LIST_H */
 

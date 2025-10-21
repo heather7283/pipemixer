@@ -1,5 +1,4 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#pragma once
 
 #include <curses.h>
 
@@ -42,6 +41,4 @@ struct pipemixer_config {
 extern struct pipemixer_config config;
 
 void load_config(const char *config_path);
-
-#endif /* #ifndef CONFIG_H */
 

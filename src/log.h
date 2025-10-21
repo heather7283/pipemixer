@@ -1,5 +1,4 @@
-#ifndef LOG_H
-#define LOG_H
+#pragma once
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -60,6 +59,4 @@ PRINTF(2, 3) void log_print(enum log_loglevel level, char *msg, ...);
     } while (0)
 
 #undef PRINTF
-
-#endif /* ifndef LOG_H */
 

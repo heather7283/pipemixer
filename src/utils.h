@@ -1,5 +1,4 @@
-#ifndef UTILS_H
-#define UTILS_H
+#pragma once
 
 #include <stdbool.h>
 #include <wchar.h>
@@ -20,6 +19,4 @@ bool str_to_i32(const char *str, int32_t *res);
 size_t wcstrimcols(wchar_t *str, size_t col);
 
 char *read_string_from_fd(int fd, size_t *len);
-
-#endif /* #ifndef UTILS_H */
 

@@ -1,5 +1,4 @@
-#ifndef XMALLOC_H
-#define XMALLOC_H
+#pragma once
 
 #include <stddef.h>
 #include <stdlib.h>
@@ -19,6 +18,4 @@ void *xreallocarray(void *ptr, size_t nmemb, size_t size);
 char *xstrdup(const char *s);
 /* printf to mallocd string */
 int xasprintf(char **restrict strp, const char *restrict fmt, ...);
-
-#endif /* #ifndef XMALLOC_H */
 

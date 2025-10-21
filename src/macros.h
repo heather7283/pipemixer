@@ -1,5 +1,4 @@
-#ifndef MACROS_H
-#define MACROS_H
+#pragma once
 
 #define STREQ(a, b) (strcmp((a), (b)) == 0)
 #define STRCASEEQ(a, b) (strcasecmp((a), (b)) == 0)
@@ -36,6 +35,4 @@
 #define _3(a, b) a##b
 #define _2(a, b) _3(a, b)
 #define _ _2(_dummy_param_, __COUNTER__)
-
-#endif /* #ifndef MACROS_H */
 

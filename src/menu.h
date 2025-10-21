@@ -1,5 +1,4 @@
-#ifndef SRC_MENU_H
-#define SRC_MENU_H
+#pragma once
 
 #include <ncurses.h>
 
@@ -40,6 +39,4 @@ void tui_menu_free(struct tui_menu *menu);
 void tui_menu_draw(const struct tui_menu *menu);
 
 bool tui_menu_change_focus(struct tui_menu *menu, int direction);
-
-#endif /* #ifndef SRC_MENU_H */
 

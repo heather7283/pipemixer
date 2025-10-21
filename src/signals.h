@@ -1,5 +1,4 @@
-#ifndef SRC_SIGNALS_H
-#define SRC_SIGNALS_H
+#pragma once
 
 #include <stdint.h>
 
@@ -75,6 +74,4 @@ void signal_emit_f64(const struct signal_emitter *emitter,
                      uint64_t id, uint64_t event, double f64);
 void signal_emit_bool(const struct signal_emitter *emitter,
                       uint64_t id, uint64_t event, bool boolean);
-
-#endif /* #ifndef SRC_SIGNALS_H */
 

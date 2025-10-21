@@ -1,5 +1,4 @@
-#ifndef SRC_COLLECTIONS_MAP_H
-#define SRC_COLLECTIONS_MAP_H
+#pragma once
 
 #include <stddef.h>
 #include <stdint.h>
@@ -84,6 +83,4 @@ void map_iter_next(const struct map_generic *map, struct map_iter_state *state, 
             map_iter_init((struct map_generic *)(pmap), (void **)(pvar)); \
          map_iter_is_valid((struct map_generic *)(pmap), &iter_state); \
          map_iter_next((struct map_generic *)(pmap), &iter_state, (void **)(pvar)))
-
-#endif /* #ifndef SRC_COLLECTIONS_MAP_H */
 
