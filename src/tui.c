@@ -5,6 +5,7 @@
 #include <wchar.h>
 
 #include "tui.h"
+#include "color.h"
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"
@@ -22,6 +23,12 @@ enum color_pair {
     GREEN = 1,
     YELLOW = 2,
     RED = 3,
+
+    COLOR_PAIR_COUNT,
+};
+
+static int colors[COLOR_PAIR_COUNT] = {
+    [DEFAULT] = 0,
 };
 
 struct tui tui = {0};
@@ -146,8 +153,9 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
                 if (j % step == 0 && !node->mute) {
                     pair += 1;
                 }
-                setcchar(&cc, (j < thresh) ? config.bar_full_char : config.bar_empty_char,
-                         0, pair, NULL);
+                setcchar(&cc,
+                         (j < thresh) ? config.bar_full_char : config.bar_empty_char,
+                         0, 0, &colors[pair]);
                 mvwadd_wch(win, pos, volume_bar_start + j, &cc);
             }
         }
@@ -1313,11 +1321,12 @@ int tui_init(void) {
     curs_set(0);
     ESCDELAY = 50 /* ms */;
 
-    start_color();
-    use_default_colors();
-    init_pair(GREEN, COLOR_GREEN, -1);
-    init_pair(YELLOW, COLOR_YELLOW, -1);
-    init_pair(RED, COLOR_RED, -1);
+    tui_init_colors();
+    colors[GREEN] = tui_define_color(&(struct tui_color){
+        .r = 0xA7, .g = 0xC0, .b = 0x80
+    }, NULL);
+    colors[YELLOW] = tui_define_color(&(struct tui_color){ .b = 255 }, NULL);
+    colors[RED] = tui_define_color(&(struct tui_color){ .r = 255 }, NULL);
 
     FOR_EACH_TAB(tab) {
         LIST_INIT(&tui.tabs[tab].items);
