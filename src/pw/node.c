@@ -15,7 +15,7 @@
 #include "config.h"
 #include "utils.h"
 
-static MAP(struct node) nodes = {0};
+static MAP(struct node *) nodes = {0};
 
 static enum spa_direction media_class_to_direction(enum media_class class) {
     switch (class) {
@@ -31,11 +31,12 @@ static enum spa_direction media_class_to_direction(enum media_class class) {
 }
 
 struct node *node_lookup(uint32_t id) {
-    struct node *node = MAP_GET(&nodes, id);
+    struct node **node = MAP_GET(&nodes, id);
     if (node == NULL) {
         WARN("node with id %u was not found", id);
+        return NULL;
     }
-    return node;
+    return *node;
 }
 
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
@@ -196,10 +197,9 @@ static void on_node_roundtrip_done(void *data) {
     /* node might get removed before roundtrip finishes,
      * so instead of passing node by ptr here pass its id
      * and look it up in the hashmap when roundtrip finishes */
-    const uint32_t id = (uintptr_t)data;
-    struct node *node = MAP_GET(&nodes, id);
+    struct node *node = node_lookup((uintptr_t)data);
     if (node == NULL) {
-        WARN("roundtrip finished for node %d that does not exist!", id);
+        WARN("roundtrip finished for node that does not exist!");
         WARN("was it removed after roundtrip started?");
         return;
     }
@@ -278,7 +278,7 @@ void on_node_info(void *data, const struct pw_node_info *info) {
 }
 
 void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
-                          uint32_t next, const struct spa_pod *param) {
+                   uint32_t next, const struct spa_pod *param) {
     struct node *node = data;
 
     DEBUG("node %d param: id %d seq %d index %d next %d", node->id, id, seq, index, next);
@@ -336,13 +336,18 @@ static const struct pw_node_events node_events = {
 };
 
 void node_create(uint32_t id, enum media_class media_class) {
-    struct node *node = MAP_EMPLACE_ZEROED(&nodes, id);
-    node->id = id;
-    node->new = true;
-    node->media_class = media_class;
-    node->pw_node = pw_registry_bind(pw.registry, id,
-                                     PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0);
+    struct node *node = xmalloc(sizeof(*node));
+
+    *node = (struct node){
+        .id = id,
+        .new = true,
+        .media_class = media_class,
+        .pw_node = pw_registry_bind(pw.registry, id,
+                                    PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0),
+    };
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
+
+    MAP_INSERT(&nodes, id, &node);
 }
 
 void node_destroy(struct node *node) {
@@ -355,6 +360,8 @@ void node_destroy(struct node *node) {
     VEC_FREE(&node->channels);
 
     MAP_REMOVE(&nodes, node->id);
+
+    free(node);
 }
 
 void node_events_subscribe(struct signal_listener *listener,

@@ -10,14 +10,15 @@
 #include "xmalloc.h"
 #include "macros.h"
 
-static MAP(struct device) devices = {0};
+static MAP(struct device *) devices = {0};
 
 struct device *device_lookup(uint32_t id) {
-    struct device *dev = MAP_GET(&devices, id);
+    struct device **dev = MAP_GET(&devices, id);
     if (dev == NULL) {
         WARN("device with id %u was not found", id);
+        return NULL;
     }
-    return dev;
+    return *dev;
 }
 
 void device_set_props(const struct device *dev, const struct spa_pod *props,
@@ -109,12 +110,17 @@ const struct pw_device_events device_events = {
 };
 
 void device_create(uint32_t id) {
-    struct device *dev = MAP_EMPLACE_ZEROED(&devices, id);
-    dev->id = id;
-    dev->new = true;
-    dev->pw_device = pw_registry_bind(pw.registry, id,
-                                      PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0);
+    struct device *dev = xmalloc(sizeof(*dev));
+
+    *dev = (struct device){
+        .id = id,
+        .new = true,
+        .pw_device = pw_registry_bind(pw.registry, id,
+                                      PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0),
+    };
     pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
+
+    MAP_INSERT(&devices, id, &dev);
 }
 
 void device_destroy(struct device *device) {
@@ -172,13 +178,14 @@ void device_destroy(struct device *device) {
     }
 
     MAP_REMOVE(&devices, device->id);
+
+    free(device);
 }
 
 void on_device_roundtrip_done(void *data) {
-    const uint32_t id = (uintptr_t)data;
-    struct device *dev = MAP_GET(&devices, id);
+    struct device *dev = device_lookup((uintptr_t)data);
     if (dev == NULL) {
-        WARN("roundtrip finished for device %d that does not exist!", id);
+        WARN("roundtrip finished for device that does not exist!");
         WARN("was it removed after roundtrip started?");
         return;
     }
