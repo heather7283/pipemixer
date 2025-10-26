@@ -193,11 +193,11 @@ const struct route *node_get_active_route(const struct node *node) {
     return NULL;
 }
 
-static void on_node_peak(float peaks[], int npeaks, void *data) {
-    /* we're in a foreign thread here! */
+static void on_node_peak(float peaks[], unsigned int npeaks, void *data) {
+    /* we're in a foreign thread here! TODO: do I need a mutex? */
     struct node *const node = data;
 
-    for (int i = 0; i < npeaks; i++) {
+    for (unsigned int i = 0; i < MIN(VEC_SIZE(&node->channels), npeaks); i++) {
         VEC_AT(&node->channels, i)->peak = peaks[i];
     }
 }

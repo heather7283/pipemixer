@@ -5,7 +5,7 @@
 
 #include <stdbool.h>
 
-typedef void (*stream_peak_callback_t)(float peaks[], int npeaks, void *data);
+typedef void (*stream_peak_callback_t)(float peaks[], unsigned int npeaks, void *data);
 
 struct stream {
     struct pw_stream *pw_stream;
