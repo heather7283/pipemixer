@@ -31,9 +31,7 @@ struct pw {
     struct pw_registry *registry;
     struct spa_hook registry_listener;
 
-    struct signal_emitter core_emitter;
-    struct signal_emitter node_emitter;
-    struct signal_emitter device_emitter;
+    struct signal_emitter *emitter;
 };
 
 extern struct pw pw;

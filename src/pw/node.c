@@ -206,10 +206,9 @@ static void on_node_roundtrip_done(void *data) {
 
     if (node->new) {
         node->new = false;
-        signal_emit_u64(&pw.core_emitter, PIPEWIRE_EVENT_ID_CORE,
-                        PIPEWIRE_EVENT_NODE_ADDED, node->id);
+        signal_emit_u64(pw.emitter, PIPEWIRE_EVENT_NODE_ADDED, node->id);
     } else {
-        signal_emit_u64(&pw.node_emitter, node->id, NODE_EVENT_CHANGE, node->changed);
+        signal_emit_u64(node->emitter, NODE_EVENT_CHANGE, node->changed);
     }
 }
 
@@ -342,16 +341,17 @@ void node_create(uint32_t id, enum media_class media_class) {
         .id = id,
         .new = true,
         .media_class = media_class,
-        .pw_node = pw_registry_bind(pw.registry, id,
-                                    PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0),
+        .pw_node = pw_registry_bind(pw.registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0),
+        .emitter = signal_emitter_create(),
     };
+
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
 
     MAP_INSERT(&nodes, id, &node);
 }
 
 void node_destroy(struct node *node) {
-    signal_emit_u64(&pw.node_emitter, node->id, NODE_EVENT_REMOVE, node->id);
+    signal_emit_u64(node->emitter, NODE_EVENT_REMOVE, node->id);
 
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
     free(node->media_name);
@@ -364,9 +364,9 @@ void node_destroy(struct node *node) {
     free(node);
 }
 
-void node_events_subscribe(struct signal_listener *listener,
-                           uint64_t id, enum node_event_types events,
-                           signal_callback_func_t callback, void *callback_data) {
-    signal_subscribe(&pw.node_emitter, listener, id, events, callback, callback_data);
+void node_events_subscribe(struct node *node,
+                           struct signal_listener *listener, enum node_events events,
+                           signal_callback_t callback, void *callback_data) {
+    signal_listener_subscribe(listener, node->emitter, events, callback, callback_data);
 }
 

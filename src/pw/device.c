@@ -117,6 +117,7 @@ void device_create(uint32_t id) {
         .new = true,
         .pw_device = pw_registry_bind(pw.registry, id,
                                       PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0),
+        .emitter = signal_emitter_create(),
     };
     pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
 
@@ -124,7 +125,7 @@ void device_create(uint32_t id) {
 }
 
 void device_destroy(struct device *device) {
-    signal_emit_u64(&pw.device_emitter, device->id, DEVICE_EVENT_REMOVE, device->id);
+    signal_emit_u64(device->emitter, DEVICE_EVENT_REMOVE, device->id);
 
     pw_proxy_destroy((struct pw_proxy *)device->pw_device);
 
@@ -235,9 +236,9 @@ void on_device_roundtrip_done(void *data) {
 
     if (dev->new) {
         dev->new = false;
-        signal_emit_u64(&pw.core_emitter, PIPEWIRE_EVENT_ID_CORE, PIPEWIRE_EVENT_DEVICE_ADDED, dev->id);
+        signal_emit_u64(pw.emitter, PIPEWIRE_EVENT_DEVICE_ADDED, dev->id);
     } else {
-        signal_emit_u64(&pw.device_emitter, dev->id, DEVICE_EVENT_CHANGE, dev->id);
+        signal_emit_u64(dev->emitter, DEVICE_EVENT_CHANGE, dev->id);
     }
 }
 
@@ -461,9 +462,9 @@ void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     }
 }
 
-void device_events_subscribe(struct signal_listener *listener,
-                             uint64_t id, enum device_event_types events,
-                             signal_callback_func_t callback, void *callback_data) {
-    signal_subscribe(&pw.device_emitter, listener, id, events, callback, callback_data);
+void device_events_subscribe(struct device *device,
+                             struct signal_listener *listener, enum device_events events,
+                             signal_callback_t callback, void *callback_data) {
+    signal_listener_subscribe(listener, device->emitter, events, callback, callback_data);
 }
 

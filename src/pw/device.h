@@ -56,6 +56,8 @@ struct device {
         VEC(struct profile) profiles;
         struct profile *active_profile;
     } staging;
+
+    struct signal_emitter *emitter;
 };
 
 struct device *device_lookup(uint32_t id);
@@ -76,15 +78,15 @@ void device_set_profile(const struct device *dev, int32_t index);
 const struct profile *device_get_active_profile(const struct device *dev);
 size_t device_get_available_profiles(const struct device *dev, const struct profile **profiles);
 
-enum device_event_types {
+enum device_events {
     DEVICE_EVENT_CHANGE = 1 << 0,
     DEVICE_EVENT_REMOVE = 1 << 1,
     DEVICE_EVENT_ANY = ~0,
 };
 
-void device_events_subscribe(struct signal_listener *listener,
-                             uint64_t id, enum device_event_types events,
-                             signal_callback_func_t callback, void *callback_data);
+void device_events_subscribe(struct device *device,
+                             struct signal_listener *listener, enum device_events events,
+                             signal_callback_t callback, void *callback_data);
 
 #endif /* #ifndef SRC_PIPEWIRE_DEVICE_H */
 

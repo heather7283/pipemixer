@@ -7,8 +7,6 @@
 
 struct pw pw = {0};
 
-struct signal_emitter core_emitter = {0};
-
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const char *type, uint32_t version,
                                const struct spa_dict *props) {
@@ -121,9 +119,7 @@ int pipewire_init(void) {
     pw.registry = pw_core_get_registry(pw.core, PW_VERSION_REGISTRY, 0);
     pw_registry_add_listener(pw.registry, &pw.registry_listener, &registry_events, NULL);
 
-    signal_emitter_init(&pw.core_emitter);
-    signal_emitter_init(&pw.node_emitter);
-    signal_emitter_init(&pw.device_emitter);
+    pw.emitter = signal_emitter_create();
 
     return 0;
 }

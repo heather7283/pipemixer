@@ -37,6 +37,8 @@ struct node {
 
     bool new;
     enum node_change_mask changed;
+
+    struct signal_emitter *emitter;
 };
 
 struct node *node_lookup(uint32_t id);
@@ -55,15 +57,15 @@ void node_set_route(const struct node *node, uint32_t route_index);
 const struct route *node_get_active_route(const struct node *node);
 size_t node_get_available_routes(const struct node *node, const struct route *const **proutes);
 
-enum node_event_types {
+enum node_events {
     NODE_EVENT_CHANGE = 1 << 0, /* change mask as u64 */
     NODE_EVENT_REMOVE = 1 << 1, /* node id as u64 */
     NODE_EVENT_ANY = ~0,
 };
 
-void node_events_subscribe(struct signal_listener *listener,
-                           uint64_t id, enum node_event_types events,
-                           signal_callback_func_t callback, void *callback_data);
+void node_events_subscribe(struct node *node,
+                           struct signal_listener *listener, enum node_events events,
+                           signal_callback_t callback, void *callback_data);
 
 #endif /* #ifndef SRC_PIPEWIRE_NODE_H */
 

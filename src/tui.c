@@ -1022,8 +1022,8 @@ static void on_node_remove(struct tui_tab_item *item) {
                                         ? item->as.node.node_id
                                         : item->as.device.device_id);
 
-    signal_unsubscribe(&item->node_listener);
-    signal_unsubscribe(&item->device_listener);
+    signal_listener_unsubscribe(&item->node_listener);
+    signal_listener_unsubscribe(&item->device_listener);
 
     tui_tab_item_resize(item, 0);
     tui_tab_item_unfocus(item, false);
@@ -1067,23 +1067,20 @@ static void on_node_change(struct tui_tab_item *item,
     }
 }
 
-static void on_device_change_for_node(uint64_t id, uint64_t events,
+static void on_device_change_for_node(uint64_t events,
                                       const struct signal_data *data, void *userdata) {
     struct tui_tab_item *const item = userdata;
-    const struct device *const dev = device_lookup(id);
-    if (dev != NULL) {
-        tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_BORDERS);
-    }
+    tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_ROUTES);
 }
 
-static void on_node_events(uint64_t id, uint64_t events,
+static void on_node_events(uint64_t events,
                            const struct signal_data *data, void *userdata) {
     struct tui_tab_item *const item = userdata;
 
-    switch ((enum node_event_types)events) {
+    switch ((enum node_events)events) {
     case NODE_EVENT_CHANGE: {
         const uint64_t change = data->as.u64;
-        const struct node *const node = node_lookup(id);
+        const struct node *const node = node_lookup(item->as.node.node_id);
         if (node != NULL) {
             on_node_change(item, node, change);
         }
@@ -1100,7 +1097,7 @@ static void on_node_events(uint64_t id, uint64_t events,
     trigger_update();
 }
 
-static void on_node_added(const struct node *node) {
+static void on_node_added(struct node *node) {
     TRACE("tui_on_node_added: id %d", node->id);
 
     const int tab_index = config.tab_map_enum_to_index[media_class_to_tui_tab(node->media_class)];
@@ -1115,12 +1112,13 @@ static void on_node_added(const struct node *node) {
         },
     };
 
-    node_events_subscribe(&new_item->node_listener,
-                          node->id, NODE_EVENT_ANY,
+    node_events_subscribe(node, &new_item->node_listener,
+                          (enum node_events)-1,
                           on_node_events, new_item);
     if (node->device_id != 0) {
-        device_events_subscribe(&new_item->device_listener,
-                                node->device_id, DEVICE_EVENT_CHANGE,
+        struct device *device = device_lookup(node->device_id);
+        device_events_subscribe(device, &new_item->device_listener,
+                                DEVICE_EVENT_CHANGE,
                                 on_device_change_for_node, new_item);
     }
 
@@ -1143,7 +1141,7 @@ static void on_node_added(const struct node *node) {
 static void on_device_remove(struct tui_tab_item *item) {
     TRACE("tui_on_device_removed: id %d", item->as.device.device_id);
 
-    signal_unsubscribe(&item->device_listener);
+    signal_listener_unsubscribe(&item->device_listener);
 
     tui_tab_item_resize(item, 0);
     tui_tab_item_unfocus(item, false);
@@ -1157,11 +1155,11 @@ static void on_device_remove(struct tui_tab_item *item) {
     free(item);
 }
 
-static void on_device_events_for_device(uint64_t id, uint64_t events,
+static void on_device_events_for_device(uint64_t events,
                                         const struct signal_data *data, void *userdata) {
     struct tui_tab_item *const item = userdata;
 
-    switch ((enum device_event_types)events) {
+    switch ((enum device_events)events) {
     case DEVICE_EVENT_CHANGE: {
         tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_DESCRIPTION);
         break;
@@ -1177,7 +1175,7 @@ static void on_device_events_for_device(uint64_t id, uint64_t events,
     trigger_update();
 }
 
-static void on_device_added(const struct device *dev) {
+static void on_device_added(struct device *dev) {
     TRACE("tui_on_device_added: id %d", dev->id);
 
     const int tab_index = config.tab_map_enum_to_index[CARDS];
@@ -1191,8 +1189,8 @@ static void on_device_added(const struct device *dev) {
         },
     };
 
-    device_events_subscribe(&new_item->device_listener,
-                            dev->id, DEVICE_EVENT_ANY,
+    device_events_subscribe(dev, &new_item->device_listener,
+                            (enum device_events)-1,
                             on_device_events_for_device, new_item);
 
     const int new_item_height = 4;
@@ -1206,18 +1204,17 @@ static void on_device_added(const struct device *dev) {
     redraw_current_tab();
 }
 
-static void on_pipewire_object_added(uint64_t id, uint64_t event,
-                                     const struct signal_data *data, void *_) {
-    switch ((enum pipewire_event_types)event) {
+static void on_pipewire_object_added(uint64_t event, const struct signal_data *data, void *_) {
+    switch ((enum pipewire_events)event) {
     case PIPEWIRE_EVENT_NODE_ADDED: {
-        const struct node *node = node_lookup(data->as.u64);
+        struct node *node = node_lookup(data->as.u64);
         if (node != NULL) {
             on_node_added(node);
         }
         break;
     }
     case PIPEWIRE_EVENT_DEVICE_ADDED: {
-        const struct device *device = device_lookup(data->as.u64);
+        struct device *device = device_lookup(data->as.u64);
         if (device != NULL) {
             on_device_added(device);
         }
@@ -1329,8 +1326,7 @@ int tui_init(void) {
     tui.efd_source = pollen_loop_add_efd(event_loop, on_update_triggered, NULL);
     tui.efd_triggered = false;
 
-    pipewire_events_subscribe(&tui.pipewire_listener,
-                              PIPEWIRE_EVENT_ID_CORE, PIPEWIRE_EVENT_ANY,
+    pipewire_events_subscribe(&tui.pipewire_listener, (uint64_t)-1,
                               on_pipewire_object_added, NULL);
 
     tui.tab_index = config.tab_map_enum_to_index[config.default_tab];
