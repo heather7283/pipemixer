@@ -3,7 +3,9 @@
 #include <ncurses.h>
 
 #include "collections/list.h"
+#include "collections/vec.h"
 #include "signals.h"
+#include "peaks.h"
 #include "menu.h"
 
 enum tui_tab_type {
@@ -40,6 +42,8 @@ struct tui {
     bool efd_triggered;
     struct pollen_event_source *efd_source;
 
+    struct pollen_event_source *timer_source;
+
     struct signal_listener pipewire_listener;
 };
 
@@ -53,7 +57,8 @@ enum tui_tab_item_draw_mask {
     TUI_TAB_ITEM_DRAW_ROUTES = 1 << 3,
     TUI_TAB_ITEM_DRAW_PROFILES = 1 << 4,
     TUI_TAB_ITEM_DRAW_BORDERS = 1 << 5,
-    TUI_TAB_ITEM_DRAW_BLANKS = 1 << 6,
+    TUI_TAB_ITEM_DRAW_PEAKS = 1 << 6,
+    TUI_TAB_ITEM_DRAW_BLANKS = 1 << 7,
 };
 
 enum tui_tab_item_type {
@@ -67,14 +72,17 @@ struct tui_tab_item {
 
     enum tui_tab_item_type type;
     union {
-        struct {
+        struct tui_tab_item_node_data {
             uint32_t node_id;
 
-            uint32_t n_channels;
+            VEC(struct tui_tab_item_node_channel {
+                struct peak_visualiser visualiser;
+            }) channels;
+
             bool unlocked_channels;
-            uint32_t focused_channel;
+            unsigned focused_channel;
         } node;
-        struct {
+        struct tui_tab_item_device_data {
             uint32_t device_id;
         } device;
     } as;

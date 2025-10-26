@@ -19,6 +19,12 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
     }
 
     if (STREQ(type, PW_TYPE_INTERFACE_Node)) {
+        const char *application_name = spa_dict_lookup(props, PW_KEY_APP_NAME);
+        if (application_name != NULL && STREQ(application_name, "pipemixer")) {
+            DEBUG("node %d is created by us, skip", id);
+            return;
+        }
+
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         enum media_class media_class_value;
         if (media_class == NULL) {

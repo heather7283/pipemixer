@@ -1,11 +1,11 @@
-#ifndef SRC_PIPEWIRE_NODE_H
-#define SRC_PIPEWIRE_NODE_H
+#pragma once
 
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/raw-types.h>
 
 #include "pw/common.h"
 #include "pw/device.h"
+#include "pw/stream.h"
 
 enum node_change_mask {
     NODE_CHANGE_NOTHING = 0,
@@ -16,21 +16,27 @@ enum node_change_mask {
     NODE_CHANGE_EVERYTHING = ~0,
 };
 
+struct node_channel {
+    const char *name;
+    float volume;
+
+    float peak;
+};
+
 struct node {
     struct pw_node *pw_node;
     struct spa_hook listener;
 
     uint32_t id;
+    uint64_t serial;
+
     enum media_class media_class;
     char *media_name;
     char *node_name;
     char *node_description;
 
     bool mute;
-    VEC(struct node_channel {
-        const char *name;
-        float volume;
-    }) channels;
+    VEC(struct node_channel) channels;
 
     uint32_t device_id;
     int32_t card_profile_device;
@@ -39,6 +45,8 @@ struct node {
     enum node_change_mask changed;
 
     struct signal_emitter *emitter;
+
+    struct stream listening_stream;
 };
 
 struct node *node_lookup(uint32_t id);
@@ -66,6 +74,4 @@ enum node_events {
 void node_events_subscribe(struct node *node,
                            struct signal_listener *listener, enum node_events events,
                            signal_callback_t callback, void *callback_data);
-
-#endif /* #ifndef SRC_PIPEWIRE_NODE_H */
 

@@ -193,6 +193,21 @@ const struct route *node_get_active_route(const struct node *node) {
     return NULL;
 }
 
+static void on_node_peak(float peaks[], unsigned int npeaks, void *data) {
+    /* we're in a foreign thread here! TODO: do I need a mutex? */
+    struct node *const node = data;
+
+    for (unsigned int i = 0; i < MIN(VEC_SIZE(&node->channels), npeaks); i++) {
+        VEC_AT(&node->channels, i)->peak = peaks[i];
+    }
+}
+
+static void on_node_initial_roundtrip_done(struct node *node) {
+    stream_create(&node->listening_stream, node->serial, on_node_peak, node);
+
+        signal_emit_u64(pw.emitter, PIPEWIRE_EVENT_NODE_ADDED, node->id);
+}
+
 static void on_node_roundtrip_done(void *data) {
     /* node might get removed before roundtrip finishes,
      * so instead of passing node by ptr here pass its id
@@ -206,7 +221,7 @@ static void on_node_roundtrip_done(void *data) {
 
     if (node->new) {
         node->new = false;
-        signal_emit_u64(pw.emitter, PIPEWIRE_EVENT_NODE_ADDED, node->id);
+        on_node_initial_roundtrip_done(node);
     } else {
         signal_emit_u64(node->emitter, NODE_EVENT_CHANGE, node->changed);
     }
@@ -254,6 +269,8 @@ void on_node_info(void *data, const struct pw_node_info *info) {
             node->changed = NODE_CHANGE_INFO;
         } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
             str_to_u32(v, &node->device_id);
+        } else if (STREQ(k, PW_KEY_OBJECT_SERIAL)) {
+            spa_atou64(v, &node->serial, 10);
         } else if (STREQ(k, "card.profile.device")) {
             str_to_i32(v, &node->card_profile_device);
         }
@@ -352,6 +369,8 @@ void node_create(uint32_t id, enum media_class media_class) {
 
 void node_destroy(struct node *node) {
     signal_emit_u64(node->emitter, NODE_EVENT_REMOVE, node->id);
+
+    stream_destroy(&node->listening_stream);
 
     pw_proxy_destroy((struct pw_proxy *)node->pw_node);
     free(node->media_name);

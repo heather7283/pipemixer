@@ -35,6 +35,7 @@ m_dep = cc.find_library('m')
 pipemixer_sources = [
   'src/pipemixer.c',
   'src/tui.c',
+  'src/peaks.c',
   'src/menu.c',
   'src/log.c',
   'src/xmalloc.c',
@@ -47,6 +48,7 @@ pipemixer_sources = [
   'src/pw/common.c',
   'src/pw/device.c',
   'src/pw/node.c',
+  'src/pw/stream.c',
   'src/pw/roundtrip.c',
   'src/pw/events.c',
 ]
