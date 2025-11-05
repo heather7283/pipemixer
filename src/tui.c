@@ -77,6 +77,8 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     const int info_area_start = 1; /* right after box border */
     const int volume_area_start = info_area_start + info_area_width + 1;
     const int volume_bar_start = volume_area_start + 12; /* minus two decorations at the end */
+    const int peak_area_start = 1;
+    const int peak_area_width = usable_width - volume_area_width - 1;
 
     const bool focused = item->focused;
     const bool muted = node->mute;
@@ -153,6 +155,30 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
         }
 
         wattroff(win, A_DIM);
+    }
+
+    DRAW(PEAKS) {
+        static const wchar_t chars[] = {L' ', L'▏', L'▎', L'▍', L'▌', L'▋', L'▊', L'▉', L'█'};
+        wchar_t bar[peak_area_width];
+
+        for (uint32_t i = 0; i < VEC_SIZE(&item->as.node.channels); i++) {
+            struct peak_visualiser *const v = &VEC_AT(&item->as.node.channels, i)->visualiser;
+            const float peak = peak_visualiser_update(v, VEC_AT(&node->channels, i)->peak);
+
+            const int total_levels = (int)roundf(peak * peak_area_width * 8);
+            for (int i = 0; i < peak_area_width; i++) {
+                const int level = total_levels - i * 8;
+                if (level >= 8) {
+                    bar[i] = chars[8];
+                } else if (level > 0) {
+                    bar[i] = chars[level];
+                } else {
+                    bar[i] = chars[0];
+                }
+            }
+
+            mvwaddnwstr(win, item->pos + i + 2, 1 + peak_area_start, bar, peak_area_width);
+        }
     }
 
     DRAW(DECORATIONS) {
@@ -526,7 +552,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
     case DOWN:
         if (f->type == TUI_TAB_ITEM_TYPE_NODE
             && f->as.node.unlocked_channels
-            && f->as.node.focused_channel < f->as.node.n_channels - 1) {
+            && f->as.node.focused_channel < VEC_SIZE(&f->as.node.channels) - 1) {
             f->as.node.focused_channel += 1;
             tui_tab_item_draw(f, TUI_TAB_ITEM_DRAW_DECORATIONS);
         } else {
@@ -564,7 +590,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             }
 
             if (next->type == TUI_TAB_ITEM_TYPE_NODE && next->as.node.unlocked_channels) {
-                next->as.node.focused_channel = next->as.node.n_channels - 1;
+                next->as.node.focused_channel = VEC_SIZE(&next->as.node.channels) - 1;
             }
             tui_tab_item_focus(next, true, true);
         }
@@ -1034,6 +1060,7 @@ static void on_node_remove(struct tui_tab_item *item) {
         redraw_current_tab();
     }
 
+    VEC_FREE(&item->as.node.channels);
     free(item);
 }
 
@@ -1042,7 +1069,14 @@ static void on_node_change(struct tui_tab_item *item,
     TRACE("tui_on_node_changed: id %d", node->id);
 
     if (change & NODE_CHANGE_CHANNEL_COUNT) {
-        int new_item_height = VEC_SIZE(&node->channels) + 3;
+        VEC_CLEAR(&item->as.node.channels);
+        VEC_RESERVE(&item->as.node.channels, VEC_SIZE(&node->channels));
+        VEC_FOREACH(&node->channels, i) {
+            struct tui_tab_item_node_channel *c = VEC_EMPLACE_BACK(&item->as.node.channels);
+            peak_visualiser_init(&c->visualiser, -60, 0, 0.5);
+        }
+
+        int new_item_height = VEC_SIZE(&item->as.node.channels) + 3;
         if (node->device_id != 0) {
             new_item_height += 1;
         }
@@ -1108,13 +1142,19 @@ static void on_node_added(struct node *node) {
         .type = TUI_TAB_ITEM_TYPE_NODE,
         .as.node = {
             .node_id = node->id,
-            .n_channels = VEC_SIZE(&node->channels),
         },
     };
+
+    VEC_RESERVE(&new_item->as.node.channels, VEC_SIZE(&node->channels));
+    VEC_FOREACH(&node->channels, i) {
+        struct tui_tab_item_node_channel *c = VEC_EMPLACE_BACK(&new_item->as.node.channels);
+        peak_visualiser_init(&c->visualiser, -60, 0, 0.5);
+    }
 
     node_events_subscribe(node, &new_item->node_listener,
                           (enum node_events)-1,
                           on_node_events, new_item);
+
     if (node->device_id != 0) {
         struct device *device = device_lookup(node->device_id);
         device_events_subscribe(device, &new_item->device_listener,
@@ -1122,7 +1162,7 @@ static void on_node_added(struct node *node) {
                                 on_device_change_for_node, new_item);
     }
 
-    int new_item_height = new_item->as.node.n_channels + 3;
+    int new_item_height = VEC_SIZE(&new_item->as.node.channels) + 3;
     if (node->device_id != 0) {
         new_item_height += 1;
     }
@@ -1302,6 +1342,19 @@ static int on_update_triggered(struct pollen_event_source *_, uint64_t _, void *
     return 0;
 }
 
+static int on_timer(struct pollen_event_source *_, void *_) {
+    const struct tui_tab *tab = &tui.tabs[tui.tab_index];
+
+    struct tui_tab_item *item;
+    LIST_FOR_EACH(item, &tab->items, link) {
+        tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_PEAKS);
+    }
+
+    trigger_update();
+
+    return 0;
+}
+
 int tui_init(void) {
     initscr();
     refresh(); /* https://stackoverflow.com/a/22121866 */
@@ -1322,6 +1375,9 @@ int tui_init(void) {
 
     pollen_loop_add_fd(event_loop, 0 /* stdin */, EPOLLIN, false, on_stdin_ready, NULL);
     pollen_loop_add_signal(event_loop, SIGWINCH, on_sigwinch, NULL);
+
+    tui.timer_source = pollen_loop_add_timer(event_loop, CLOCK_MONOTONIC, on_timer, NULL);
+    pollen_timer_arm_ms(tui.timer_source, false, 32, 32);
 
     tui.efd_source = pollen_loop_add_efd(event_loop, on_update_triggered, NULL);
     tui.efd_triggered = false;
