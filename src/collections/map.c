@@ -231,6 +231,7 @@ struct map_iter_state map_iter_init(const struct map_generic *map, void **piterv
         if (map->buckets[state.bucket] != NULL) {
             break;
         }
+        state.bucket += 1;
     }
 
     if (state.bucket < map->n_buckets) {
