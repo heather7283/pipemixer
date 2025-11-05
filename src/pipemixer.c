@@ -46,8 +46,14 @@ void print_help_and_exit(FILE *stream, int exit_status) {
 
 void print_version_and_exit(FILE *stream, int exit_status) {
     const char version_string[] =
-        "pipemixer version "PIPEMIXER_VERSION" "
-        "(git tag "PIPEMIXER_GIT_TAG", branch "PIPEMIXER_GIT_BRANCH")\n"
+        "pipemixer version " PIPEMIXER_VERSION
+    #ifdef PIPEMIXER_GIT_TAG
+        ", git tag " PIPEMIXER_GIT_TAG
+    #endif
+    #ifdef PIPEMIXER_GIT_BRANCH
+        ", git branch " PIPEMIXER_GIT_BRANCH
+    #endif
+        "\n"
     ;
 
     fputs(version_string, stream);
