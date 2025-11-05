@@ -31,6 +31,17 @@ struct pw {
     struct pw_registry *registry;
     struct spa_hook registry_listener;
 
+    struct default_metadata {
+        uint32_t id;
+        struct pw_metadata *pw_metadata;
+        struct spa_hook listener;
+
+        char *configured_audio_sink;
+        char *audio_sink;
+        char *configured_audio_source;
+        char *audio_source;
+    } default_metadata;
+
     struct signal_emitter *emitter;
 };
 

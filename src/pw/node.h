@@ -6,6 +6,7 @@
 
 #include "pw/common.h"
 #include "pw/device.h"
+#include "collections/map.h"
 
 enum node_change_mask {
     NODE_CHANGE_NOTHING = 0,
@@ -32,6 +33,7 @@ struct node {
         float volume;
     }) channels;
 
+    bool is_default;
     uint32_t device_id;
     int32_t card_profile_device;
 
@@ -40,6 +42,8 @@ struct node {
 
     struct signal_emitter *emitter;
 };
+
+extern MAP(struct node *) nodes;
 
 struct node *node_lookup(uint32_t id);
 
@@ -60,6 +64,7 @@ size_t node_get_available_routes(const struct node *node, const struct route *co
 enum node_events {
     NODE_EVENT_CHANGE = 1 << 0, /* change mask as u64 */
     NODE_EVENT_REMOVE = 1 << 1, /* node id as u64 */
+    NODE_EVENT_DEFAULT = 1 << 2, /* default state as bool */
     NODE_EVENT_ANY = ~0,
 };
 

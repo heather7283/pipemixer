@@ -49,6 +49,7 @@ pipemixer_sources = [
   'src/pw/node.c',
   'src/pw/roundtrip.c',
   'src/pw/events.c',
+  'src/pw/default.c',
 ]
 
 include_dirs = [

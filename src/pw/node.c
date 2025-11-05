@@ -8,6 +8,7 @@
 #include "pw/device.h"
 #include "pw/roundtrip.h"
 #include "pw/events.h"
+#include "pw/default.h"
 #include "collections/map.h"
 #include "log.h"
 #include "xmalloc.h"
@@ -15,7 +16,12 @@
 #include "config.h"
 #include "utils.h"
 
-static MAP(struct node *) nodes = {0};
+/*
+ * C is a great language and 2 anonymous struct that are completely identical to
+ * each other are apparently incompatible types.
+ * Use this hack to make the compiler shut up.
+ */
+__typeof__(nodes) nodes = {0};
 
 static enum spa_direction media_class_to_direction(enum media_class class) {
     switch (class) {
@@ -207,6 +213,11 @@ static void on_node_roundtrip_done(void *data) {
     if (node->new) {
         node->new = false;
         signal_emit_u64(pw.emitter, PIPEWIRE_EVENT_NODE_ADDED, node->id);
+        node->is_default = default_metadata_check_default(&pw.default_metadata,
+                                                          node->node_name, node->media_class);
+        if (node->is_default) {
+            INFO("node %d is now default", node->id);
+        }
     } else {
         signal_emit_u64(node->emitter, NODE_EVENT_CHANGE, node->changed);
     }

@@ -1,8 +1,12 @@
+#include <pipewire/extensions/metadata.h>
+
 #include "pw/common.h"
 #include "pw/node.h"
 #include "pw/device.h"
+#include "pw/default.h"
 #include "eventloop.h"
 #include "macros.h"
+#include "utils.h"
 #include "log.h"
 
 struct pw pw = {0};
@@ -51,6 +55,21 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         device_create(id);
+    } else if (STREQ(type, PW_TYPE_INTERFACE_Metadata)) {
+        const char *metadata_name = spa_dict_lookup(props, PW_KEY_METADATA_NAME);
+        if (!streq(metadata_name, "default")) {
+            return;
+        }
+
+        struct default_metadata *md = &pw.default_metadata;
+
+        INFO("get default metadata, id %d", id);
+        if (md->id != 0) {
+            WARN("got default metadata object again??? wtf");
+            return;
+        }
+
+        default_metadata_init(md, id);
     }
 }
 
@@ -137,6 +156,7 @@ void pipewire_cleanup(void) {
     if (pw.main_loop != NULL) {
         pw_main_loop_destroy(pw.main_loop);
     }
+    default_metadata_cleanup(&pw.default_metadata);
     pw_deinit();
 }
 
