@@ -180,6 +180,8 @@ void device_destroy(struct device *device) {
 
     MAP_REMOVE(&devices, device->id);
 
+    signal_emitter_release(device->emitter);
+
     free(device);
 }
 

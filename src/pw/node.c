@@ -361,6 +361,8 @@ void node_destroy(struct node *node) {
 
     MAP_REMOVE(&nodes, node->id);
 
+    signal_emitter_release(node->emitter);
+
     free(node);
 }
 
