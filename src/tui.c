@@ -108,6 +108,9 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             name_str = node->node_name;
         }
 
+        if (node->is_default) {
+            lineptr += swprintf(lineptr, usable_width - (lineptr - line), L"[*] ");
+        }
         if (config.display_ids) {
             lineptr += swprintf(lineptr, usable_width - (lineptr - line), L"%d. ", node->id);
         }
@@ -1087,6 +1090,10 @@ static void on_node_events(uint64_t events,
         if (node != NULL) {
             on_node_change(item, node, change);
         }
+        break;
+    }
+    case NODE_EVENT_DEFAULT: {
+        tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_DESCRIPTION);
         break;
     }
     case NODE_EVENT_REMOVE: {
