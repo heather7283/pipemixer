@@ -793,6 +793,17 @@ void tui_bind_set_tab_index(union tui_bind_data data) {
     tui_set_tab_and_redraw(index);
 }
 
+void tui_bind_set_default(union tui_bind_data data) {
+    struct tui_tab_item *const focused = tui.tabs[tui.tab_index].focused;
+
+    if (focused == NULL || focused->type != TUI_TAB_ITEM_TYPE_NODE || tui.menu_active) {
+        return;
+    }
+
+    const struct node *const node = node_lookup(focused->as.node.node_id);
+    node_set_default(node);
+}
+
 static void on_profile_selection_done(struct tui_menu *menu, struct tui_menu_item *pick) {
     const uint32_t device_id = menu->data.uint;
     const uint32_t profile_id = pick->data.uint;

@@ -114,6 +114,7 @@ enum tui_nothing { NOTHING };
 void tui_bind_focus_first(union tui_bind_data data);
 void tui_bind_focus_last(union tui_bind_data data);
 
+void tui_bind_set_default(union tui_bind_data data);
 void tui_bind_select_route(union tui_bind_data data);
 void tui_bind_select_profile(union tui_bind_data data);
 void tui_bind_confirm_selection(union tui_bind_data data);

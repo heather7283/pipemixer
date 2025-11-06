@@ -321,6 +321,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                         CONFIG_LOG("unknown action: %s", k);
                     }
                 }
+            } else if (STREQ(k, "set-default")) {
+                ADD_BIND(keycode, tui_bind_set_default, nothing, NOTHING);
             } else if (STREQ(k, "select-route")) {
                 ADD_BIND(keycode, tui_bind_select_route, nothing, NOTHING);
             } else if (STREQ(k, "select-profile")) {
@@ -381,6 +383,7 @@ static void add_default_config(void) {
         "channel-lock-toggle=space\n"
         "select-route=p\n"
         "select-profile=P\n"
+        "set-default=D\n"
         "confirm-selection=enter\n"
         "cancel-selection=escape\n"
         "quit=q\n";
