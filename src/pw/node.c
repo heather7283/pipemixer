@@ -130,6 +130,17 @@ void node_set_route(const struct node *node, uint32_t route_index) {
     }
 }
 
+void node_set_default(const struct node *node) {
+    switch (node->media_class) {
+    case AUDIO_SINK:
+    case AUDIO_SOURCE:
+        default_metadata_set_default(&pw.default_metadata, node->node_name, node->media_class);
+        break;
+    default:
+        WARN("node_set_default called on a node that's neither a sink nor a source");
+    }
+}
+
 size_t node_get_available_routes(const struct node *node, const struct route *const **proutes) {
     static VEC(const struct route *) routes = {0};
 

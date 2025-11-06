@@ -140,3 +140,27 @@ bool default_metadata_check_default(struct default_metadata *md,
     }
 }
 
+void default_metadata_set_default(struct default_metadata *md,
+                                  const char *name, enum media_class media_class) {
+    /* TODO: properly escape name? */
+    char *metadata = NULL;
+    xasprintf(&metadata, "{ \"name\": \"%s\" }", name);
+
+    const char *key;
+    switch (media_class) {
+    case AUDIO_SOURCE:
+        key = "default.configured.audio.source";
+        break;
+    case AUDIO_SINK:
+        key = "default.configured.audio.sink";
+        break;
+    default:
+        /* should not be reached */
+        break;
+    }
+
+    pw_metadata_set_property(md->pw_metadata, 0, key, "Spa:String:JSON", metadata);
+
+    free(metadata);
+}
+

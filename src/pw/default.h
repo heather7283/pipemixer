@@ -11,3 +11,6 @@ void default_metadata_cleanup(struct default_metadata *md);
 bool default_metadata_check_default(struct default_metadata *md,
                                     const char *name, enum media_class media_class);
 
+void default_metadata_set_default(struct default_metadata *md,
+                                  const char *name, enum media_class media_class);
+

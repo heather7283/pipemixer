@@ -57,6 +57,7 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 void node_set_mute(const struct node *node, bool mute);
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel);
 void node_set_route(const struct node *node, uint32_t route_index);
+void node_set_default(const struct node *node);
 
 const struct route *node_get_active_route(const struct node *node);
 size_t node_get_available_routes(const struct node *node, const struct route *const **proutes);
