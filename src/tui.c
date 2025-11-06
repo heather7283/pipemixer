@@ -99,6 +99,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
 
     DRAW(DESCRIPTION) {
         wchar_t line[usable_width];
+        wchar_t *lineptr = line;
 
         const char *name_str = "NULL";
         if (node->node_description != NULL) {
@@ -108,18 +109,14 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
         }
 
         if (config.display_ids) {
-            swprintf(line, SIZEOF_ARRAY(line), L"(%d) %s%s%s%-*s",
-                     node->id, name_str,
-                     (node->media_name == NULL) ? "" : ": ",
-                     (node->media_name == NULL) ? "" : node->media_name,
-                     usable_width, "");
-        } else {
-            swprintf(line, SIZEOF_ARRAY(line), L"%s%s%s%-*s",
-                     name_str,
-                     (node->media_name == NULL) ? "" : ": ",
-                     (node->media_name == NULL) ? "" : node->media_name,
-                     usable_width, "");
+            lineptr += swprintf(lineptr, usable_width - (lineptr - line), L"%d. ", node->id);
         }
+        swprintf(lineptr, usable_width - (lineptr - line), L"%s%s%s%-*s",
+                 name_str,
+                 (node->media_name == NULL) ? "" : ": ",
+                 (node->media_name == NULL) ? "" : node->media_name,
+                 usable_width, "");
+
         wcstrimcols(line, usable_width);
         mvwaddnwstr(win, item->pos + 1, info_area_start, line, usable_width);
     }
@@ -330,7 +327,13 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
 
     DRAW(DESCRIPTION) {
         wchar_t line[usable_width];
-        swprintf(line, SIZEOF_ARRAY(line), L"%d. %s", dev->id, dev->description);
+        wchar_t *lineptr = line;
+
+        if (config.display_ids) {
+            lineptr += swprintf(lineptr, usable_width - (lineptr - line), L"%d. ", dev->id);
+        }
+        swprintf(lineptr, usable_width - (lineptr - line), L"%s", dev->description);
+
         mvwaddnwstr(win, item->pos + 1, 1, line, SIZEOF_ARRAY(line));
         wclrtoeol(win);
     }
