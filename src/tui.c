@@ -933,6 +933,14 @@ void tui_bind_confirm_selection(union tui_bind_data data) {
     menu->callback(menu, &menu->items[menu->selected]);
 }
 
+void tui_bind_quit_or_cancel_selection(union tui_bind_data data) {
+    if (tui.menu_active) {
+        tui_bind_cancel_selection(data);
+    } else {
+        tui_bind_quit(data);
+    }
+}
+
 void tui_bind_quit(union tui_bind_data data) {
     pollen_loop_quit(event_loop, 0);
 }

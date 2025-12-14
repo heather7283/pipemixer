@@ -109,15 +109,16 @@ void tui_bind_change_mute(union tui_bind_data data);
 void tui_bind_change_channel_lock(union tui_bind_data data);
 
 enum tui_nothing { NOTHING };
-void tui_bind_quit(union tui_bind_data data);
 void tui_bind_focus_first(union tui_bind_data data);
 void tui_bind_focus_last(union tui_bind_data data);
+void tui_bind_confirm_selection(union tui_bind_data data);
+void tui_bind_cancel_selection(union tui_bind_data data);
+void tui_bind_quit_or_cancel_selection(union tui_bind_data data);
+void tui_bind_quit(union tui_bind_data data);
 
 void tui_bind_set_default(union tui_bind_data data);
 void tui_bind_select_route(union tui_bind_data data);
 void tui_bind_select_profile(union tui_bind_data data);
-void tui_bind_confirm_selection(union tui_bind_data data);
-void tui_bind_cancel_selection(union tui_bind_data data);
 
 union tui_bind_data {
     enum tui_direction direction;

@@ -331,6 +331,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 ADD_BIND(keycode, tui_bind_confirm_selection, nothing, NOTHING);
             } else if (STREQ(k, "cancel-selection")) {
                 ADD_BIND(keycode, tui_bind_cancel_selection, nothing, NOTHING);
+            } else if (STREQ(k, "quit-or-cancel-selection")) {
+                ADD_BIND(keycode, tui_bind_quit_or_cancel_selection, nothing, NOTHING);
             } else if (STREQ(k, "quit")) {
                 ADD_BIND(keycode, tui_bind_quit, nothing, NOTHING);
             } else if (STREQ(k, "unbind")) {
@@ -385,8 +387,9 @@ static void add_default_config(void) {
         "select-profile=P\n"
         "set-default=D\n"
         "confirm-selection=enter\n"
-        "cancel-selection=escape\n"
-        "quit=q\n";
+        "quit-or-cancel-selection=escape\n"
+        "quit=q\n"
+    ;
 
     parse_config(default_config);
 }
