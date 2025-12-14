@@ -332,7 +332,7 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             } else if (STREQ(k, "cancel-selection")) {
                 ADD_BIND(keycode, tui_bind_cancel_selection, nothing, NOTHING);
             } else if (STREQ(k, "quit")) {
-                ADD_BIND(keycode, TUI_BIND_QUIT, nothing, NOTHING);
+                ADD_BIND(keycode, tui_bind_quit, nothing, NOTHING);
             } else if (STREQ(k, "unbind")) {
                 MAP_REMOVE(&config.binds, keycode);
             } else {

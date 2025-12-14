@@ -109,8 +109,7 @@ void tui_bind_change_mute(union tui_bind_data data);
 void tui_bind_change_channel_lock(union tui_bind_data data);
 
 enum tui_nothing { NOTHING };
-/* TODO: find a more sane way to do this lol */
-#define TUI_BIND_QUIT ((tui_bind_func_t)0xDEAD)
+void tui_bind_quit(union tui_bind_data data);
 void tui_bind_focus_first(union tui_bind_data data);
 void tui_bind_focus_last(union tui_bind_data data);
 

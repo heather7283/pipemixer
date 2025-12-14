@@ -933,6 +933,10 @@ void tui_bind_confirm_selection(union tui_bind_data data) {
     menu->callback(menu, &menu->items[menu->selected]);
 }
 
+void tui_bind_quit(union tui_bind_data data) {
+    pollen_loop_quit(event_loop, 0);
+}
+
 static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x, bool keep_contents) {
     TRACE("tui_resize_pad: y %d x %d", y, x);
 
@@ -1288,8 +1292,6 @@ static int on_stdin_ready(struct pollen_event_source *_, int _, uint32_t _, void
         struct tui_bind *bind = MAP_GET(&config.binds, ch);
         if (bind == NULL) {
             DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
-        } else if (bind->func == TUI_BIND_QUIT) {
-            pollen_loop_quit(event_loop, 0);
         } else {
             bind->func(bind->data);
             trigger_update();
