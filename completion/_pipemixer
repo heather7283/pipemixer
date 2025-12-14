@@ -1,0 +1,15 @@
+#compdef pipemixer
+
+local -a arguments
+
+arguments=(
+        '(-c --config)'{-c,--config=}'[path to configuration file]: :_files'
+        '(-l --loglevel)'{-l,--loglevel=}'[set loglevel]: :((TRACE DEBUG INFO WARN ERROR QUIET))'
+        '(-L --log-fd)'{-L,--log-fd=}'[write log to this fd]:file descriptor:_file_descriptors'
+        '(-C --color)'{-C,--color}'[force logging with colors]'
+        '(- :)'{-h,--help}'[print this help message and exit]'
+        '(- :)'{-V,--version}'[print version information]'
+)
+
+_arguments "${arguments[@]}"
+
