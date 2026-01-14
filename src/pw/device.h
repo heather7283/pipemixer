@@ -1,5 +1,4 @@
-#ifndef SRC_PIPEWIRE_DEVICE_H
-#define SRC_PIPEWIRE_DEVICE_H
+#pragma once
 
 #include <assert.h>
 
@@ -87,6 +86,4 @@ enum device_events {
 void device_events_subscribe(struct device *device,
                              struct signal_listener *listener, enum device_events events,
                              signal_callback_t callback, void *callback_data);
-
-#endif /* #ifndef SRC_PIPEWIRE_DEVICE_H */
 

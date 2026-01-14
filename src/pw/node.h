@@ -1,5 +1,4 @@
-#ifndef SRC_PIPEWIRE_NODE_H
-#define SRC_PIPEWIRE_NODE_H
+#pragma once
 
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/raw-types.h>
@@ -72,6 +71,4 @@ enum node_events {
 void node_events_subscribe(struct node *node,
                            struct signal_listener *listener, enum node_events events,
                            signal_callback_t callback, void *callback_data);
-
-#endif /* #ifndef SRC_PIPEWIRE_NODE_H */
 

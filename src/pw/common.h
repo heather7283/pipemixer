@@ -1,5 +1,4 @@
-#ifndef SRC_PIPEWIRE_COMMON_H
-#define SRC_PIPEWIRE_COMMON_H
+#pragma once
 
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/raw-types.h>
@@ -49,6 +48,4 @@ extern struct pw pw;
 
 int pipewire_init(void);
 void pipewire_cleanup(void);
-
-#endif /* #ifndef SRC_PIPEWIRE_COMMON_H */
 
