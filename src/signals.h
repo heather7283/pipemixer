@@ -35,7 +35,7 @@ struct signal_listener {
     signal_callback_t callback;
     void *callback_data;
 
-    LIST_ENTRY link;
+    struct list link;
 };
 
 struct signal_emitter;

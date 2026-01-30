@@ -13,7 +13,7 @@ struct queued_event {
 };
 
 struct signal_emitter {
-    LIST_HEAD listeners;
+    struct list listeners;
 
     VEC(struct queued_event) queued_events;
 
@@ -29,8 +29,8 @@ static void signal_emitter_dispatch_events(struct signal_emitter *emitter) {
     VEC_FOREACH(&emitter->queued_events, i) {
         const struct queued_event *event = &emitter->queued_events.data[i];
 
-        const struct signal_listener *listener;
-        LIST_FOR_EACH(listener, &emitter->listeners, link) {
+        LIST_FOREACH(elem, &emitter->listeners) {
+            struct signal_listener *listener = CONTAINER_OF(elem, struct signal_listener, link);
             if (event->event & listener->events) {
                 listener->callback(event->event, &event->data, listener->callback_data);
             }
@@ -42,7 +42,7 @@ static void signal_emitter_dispatch_events(struct signal_emitter *emitter) {
 struct signal_emitter *signal_emitter_create(void) {
     struct signal_emitter *e = xzalloc(sizeof(*e));
 
-    LIST_INIT(&e->listeners);
+    list_init(&e->listeners);
 
     return e;
 }
@@ -68,12 +68,12 @@ void signal_listener_subscribe(struct signal_listener *listener,
         .callback = callback,
         .callback_data = callback_data
     };
-    LIST_INSERT(&emitter->listeners, &listener->link);
+    list_insert_before(&emitter->listeners, &listener->link);
 }
 
 void signal_listener_unsubscribe(struct signal_listener *listener) {
     if (listener->link.next != NULL) {
-        LIST_REMOVE(&listener->link);
+        list_remove(&listener->link);
         listener->link = (struct list){0};
     }
 }

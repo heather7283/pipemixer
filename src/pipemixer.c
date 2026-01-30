@@ -9,6 +9,7 @@
 #include "config.h"
 #include "utils.h"
 #include "eventloop.h"
+#include "macros.h"
 #include "pw/common.h"
 
 static void crash_handler(int sig) {

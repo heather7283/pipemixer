@@ -5,6 +5,7 @@
 #include "pw/default.h"
 #include "pw/node.h"
 #include "xmalloc.h"
+#include "macros.h"
 #include "utils.h"
 #include "log.h"
 

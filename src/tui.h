@@ -19,7 +19,7 @@ enum tui_tab_type {
 };
 
 struct tui_tab {
-    LIST_HEAD items;
+    struct list items;
     struct tui_tab_item *focused;
     int scroll_pos;
     bool user_changed_focus;
@@ -86,7 +86,7 @@ struct tui_tab_item {
     struct signal_listener node_listener;
 
     int tab_index;
-    LIST_ENTRY link;
+    struct list link;
 };
 
 extern struct tui tui;

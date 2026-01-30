@@ -20,8 +20,8 @@
 
 #define TYPEOF(x) __typeof__(x)
 
-#define CONTAINER_OF(member_ptr, container_ptr, member_name) \
-    ((TYPEOF(container_ptr))((char *)(member_ptr) - offsetof(TYPEOF(*container_ptr), member_name)))
+#define CONTAINER_OF(member_ptr, container_type, member_name) \
+    ((container_type *)((char *)(member_ptr) - offsetof(container_type, member_name)))
 
 #define SIZEOF_ARRAY(arr) (sizeof(arr) / sizeof((arr)[0]))
 

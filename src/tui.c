@@ -512,10 +512,10 @@ static void tui_tab_item_unfocus(struct tui_tab_item *const item, bool draw) {
     }
 
     struct tui_tab_item *next = NULL;
-    if (LIST_NEXT(&item->link) != &tab->items) {
-        LIST_GET(next, LIST_NEXT(&item->link), link);
-    } else if (LIST_PREV(&item->link) != &tab->items) {
-        LIST_GET(next, LIST_PREV(&item->link), link);
+    if (item->link.next != &tab->items) {
+        next = CONTAINER_OF(item->link.next, struct tui_tab_item, link);
+    } else if (item->link.prev != &tab->items) {
+        next = CONTAINER_OF(item->link.prev, struct tui_tab_item, link);
     }
 
     if (next != NULL) {
@@ -549,10 +549,12 @@ void tui_bind_change_focus(union tui_bind_data data) {
         } else {
             struct tui_tab_item *next = NULL;
 
-            if (!LIST_IS_LAST(&tab->items, &f->link)) {
-                LIST_GET(next, LIST_NEXT(&f->link), link);
+            if (&f->link != tab->items.prev) {
+                // f is not the last element
+                next = CONTAINER_OF(f->link.next, struct tui_tab_item, link);
             } else if (config.wraparound) {
-                LIST_GET_FIRST(next, &tab->items, link);
+                // f is last, wrap around to the beginning
+                next = CONTAINER_OF(tab->items.next, struct tui_tab_item, link);
             } else {
                 break;
             }
@@ -572,10 +574,12 @@ void tui_bind_change_focus(union tui_bind_data data) {
         } else {
             struct tui_tab_item *next = NULL;
 
-            if (!LIST_IS_FIRST(&tab->items, &f->link)) {
-                LIST_GET(next, LIST_PREV(&f->link), link);
+            if (&f->link != tab->items.next) {
+                // f is not the first element
+                next = CONTAINER_OF(f->link.prev, struct tui_tab_item, link);
             } else if (config.wraparound) {
-                LIST_GET_LAST(next, &tab->items, link);
+                // f is first, wrap around to the end
+                next = CONTAINER_OF(tab->items.prev, struct tui_tab_item, link);
             } else {
                 break;
             }
@@ -593,8 +597,8 @@ static void redraw_current_tab(void) {
     const struct tui_tab *tab = &tui.tabs[tui.tab_index];
 
     int bottom = 0;
-    struct tui_tab_item *item;
-    LIST_FOR_EACH(item, &tab->items, link) {
+    LIST_FOREACH(elem, &tab->items) {
+        struct tui_tab_item *item = CONTAINER_OF(elem, struct tui_tab_item, link);
         tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_EVERYTHING);
         bottom += item->height;
     }
@@ -641,24 +645,22 @@ static void redraw_status_bar(void) {
 void tui_bind_focus_last(union tui_bind_data data) {
     struct tui_tab *const tab = &tui.tabs[tui.tab_index];
 
-    if (LIST_IS_EMPTY(&tab->items)) {
+    if (list_is_empty(&tab->items)) {
         return;
     }
 
-    struct tui_tab_item *last;
-    LIST_GET_LAST(last, &tab->items, link);
+    struct tui_tab_item *last = CONTAINER_OF(tab->items.prev, struct tui_tab_item, link);
     tui_tab_item_focus(last, true, true);
 }
 
 void tui_bind_focus_first(union tui_bind_data data) {
     struct tui_tab *const tab = &tui.tabs[tui.tab_index];
 
-    if (LIST_IS_EMPTY(&tab->items)) {
+    if (list_is_empty(&tab->items)) {
         return;
     }
 
-    struct tui_tab_item *first;
-    LIST_GET_FIRST(first, &tab->items, link);
+    struct tui_tab_item *first = CONTAINER_OF(tab->items.next, struct tui_tab_item, link);
     tui_tab_item_focus(first, true, true);
 }
 
@@ -1039,16 +1041,17 @@ static void tui_tab_item_resize(struct tui_tab_item *item, int new_height) {
 
     const struct tui_tab *const tab = &tui.tabs[item->tab_index];
 
-    struct tui_tab_item *last;
-    LIST_GET_LAST(last, &tab->items, link);
+    struct tui_tab_item *last = CONTAINER_OF(tab->items.prev, struct tui_tab_item, link);
     tui_set_pad_size(AT_LEAST, last->pos + last->height + diff, AT_LEAST, tui.term_width, true);
 
     TRACE("tui_tab_item_resize: resizing item %p from %d to %d",
           (void *)item, item->height, item->height + diff);
     item->height += diff;
 
-    struct tui_tab_item *next;
-    LIST_FOR_EACH_AFTER(next, &tab->items, &item->link, link) {
+    // iterate starting from the first element that should be moved
+    // TODO: make this a macro?
+    for (struct list *elem = item->link.next; elem != &tab->items; elem = elem->next) {
+        struct tui_tab_item *next = CONTAINER_OF(elem, struct tui_tab_item, link);
         TRACE("tui_tab_item_resize: shifting item %p from %d to %d",
               (void *)next, next->pos, next->pos + diff);
         next->pos += diff;
@@ -1068,7 +1071,7 @@ static void on_node_remove(struct tui_tab_item *item) {
     tui_tab_item_resize(item, 0);
     tui_tab_item_unfocus(item, false);
 
-    LIST_REMOVE(&item->link);
+    list_remove(&item->link);
 
     if (item->tab_index == tui.tab_index) {
         redraw_current_tab();
@@ -1170,7 +1173,7 @@ static void on_node_added(struct node *node) {
     if (node->device_id != 0) {
         new_item_height += 1;
     }
-    LIST_INSERT(&tui.tabs[tab_index].items, &new_item->link);
+    list_insert_after(&tui.tabs[tab_index].items, &new_item->link);
     tui_tab_item_resize(new_item, new_item_height);
 
     if (tui.tabs[tab_index].focused == NULL || !tui.tabs[tab_index].user_changed_focus) {
@@ -1190,7 +1193,7 @@ static void on_device_remove(struct tui_tab_item *item) {
     tui_tab_item_resize(item, 0);
     tui_tab_item_unfocus(item, false);
 
-    LIST_REMOVE(&item->link);
+    list_remove(&item->link);
 
     if (item->tab_index == tui.tab_index) {
         redraw_current_tab();
@@ -1238,7 +1241,7 @@ static void on_device_added(struct device *dev) {
                             on_device_events_for_device, new_item);
 
     const int new_item_height = 4;
-    LIST_INSERT(&tui.tabs[tab_index].items, &new_item->link);
+    list_insert_after(&tui.tabs[tab_index].items, &new_item->link);
     tui_tab_item_resize(new_item, new_item_height);
 
     if (tui.tabs[tab_index].focused == NULL || !tui.tabs[tab_index].user_changed_focus) {
@@ -1375,7 +1378,7 @@ int tui_init(void) {
     init_pair(RED, COLOR_RED, -1);
 
     FOR_EACH_TAB(tab) {
-        LIST_INIT(&tui.tabs[tab].items);
+        list_init(&tui.tabs[tab].items);
     }
 
     pollen_loop_add_fd(event_loop, 0 /* stdin */, EPOLLIN, false, on_stdin_ready, NULL);
