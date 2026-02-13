@@ -6,7 +6,6 @@
 
 #include "pw/node.h"
 #include "pw/device.h"
-#include "pw/roundtrip.h"
 #include "pw/events.h"
 #include "pw/default.h"
 #include "collections/map.h"
@@ -210,16 +209,8 @@ const struct route *node_get_active_route(const struct node *node) {
     return NULL;
 }
 
-static void on_node_roundtrip_done(void *data) {
-    /* node might get removed before roundtrip finishes,
-     * so instead of passing node by ptr here pass its id
-     * and look it up in the hashmap when roundtrip finishes */
-    struct node *node = node_lookup((uintptr_t)data);
-    if (node == NULL) {
-        WARN("roundtrip finished for node that does not exist!");
-        WARN("was it removed after roundtrip started?");
-        return;
-    }
+static void on_node_roundtrip_done(void *data, int _) {
+    struct node *node = data;
 
     if (node->new) {
         node->new = false;
@@ -292,9 +283,9 @@ void on_node_info(void *data, const struct pw_node_info *info) {
         }
     }
     if (needs_roundtrip) {
-        roundtrip_async(pw.core, on_node_roundtrip_done, (void *)(uintptr_t)node->id);
+        pw_proxy_sync(node->pw_proxy, 228);
     } else {
-        on_node_roundtrip_done((void *)(uintptr_t)node->id);
+        on_node_roundtrip_done(node, 228);
     }
 }
 
@@ -356,6 +347,11 @@ static const struct pw_node_events node_events = {
     .param = on_node_param,
 };
 
+static const struct pw_proxy_events proxy_events = {
+    .version = PW_VERSION_PROXY_EVENTS,
+    .done = on_node_roundtrip_done,
+};
+
 void node_create(uint32_t id, enum media_class media_class) {
     struct node *node = xmalloc(sizeof(*node));
 
@@ -368,6 +364,7 @@ void node_create(uint32_t id, enum media_class media_class) {
     };
 
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
+    pw_proxy_add_listener(node->pw_proxy, &node->proxy_listener, &proxy_events, node);
 
     MAP_INSERT(&nodes, id, &node);
 }

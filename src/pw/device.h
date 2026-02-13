@@ -34,8 +34,12 @@ enum device_modified_params {
 };
 
 struct device {
-    struct pw_device *pw_device;
+    union {
+        struct pw_device *pw_device;
+        struct pw_proxy *pw_proxy;
+    };
     struct spa_hook listener;
+    struct spa_hook proxy_listener;
 
     uint32_t id;
     char *description;

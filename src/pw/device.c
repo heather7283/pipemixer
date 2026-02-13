@@ -2,7 +2,6 @@
 #include <spa/param/props.h>
 
 #include "pw/device.h"
-#include "pw/roundtrip.h"
 #include "pw/common.h"
 #include "pw/events.h"
 #include "collections/map.h"
@@ -109,6 +108,14 @@ const struct pw_device_events device_events = {
     .param = on_device_param,
 };
 
+/* TODO: fix this forward declaratoin nonsense */
+static void on_device_roundtrip_done(void *data, int _);
+
+static const struct pw_proxy_events proxy_events = {
+    .version = PW_VERSION_PROXY_EVENTS,
+    .done = on_device_roundtrip_done,
+};
+
 void device_create(uint32_t id) {
     struct device *dev = xmalloc(sizeof(*dev));
 
@@ -119,7 +126,9 @@ void device_create(uint32_t id) {
                                       PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0),
         .emitter = signal_emitter_create(),
     };
+
     pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
+    pw_proxy_add_listener(dev->pw_proxy, &dev->proxy_listener, &proxy_events, dev);
 
     MAP_INSERT(&devices, id, &dev);
 }
@@ -185,13 +194,8 @@ void device_destroy(struct device *device) {
     free(device);
 }
 
-void on_device_roundtrip_done(void *data) {
-    struct device *dev = device_lookup((uintptr_t)data);
-    if (dev == NULL) {
-        WARN("roundtrip finished for device that does not exist!");
-        WARN("was it removed after roundtrip started?");
-        return;
-    }
+static void on_device_roundtrip_done(void *data, int _) {
+    struct device *dev = data;
 
     if (dev->modified_params & ROUTE) {
         VEC_FOREACH(&dev->active_routes, i) {
@@ -287,7 +291,7 @@ void on_device_info(void *data, const struct pw_device_info *info) {
         }
     }
     if (device->modified_params) {
-        roundtrip_async(pw.core, on_device_roundtrip_done, (void *)(uintptr_t)device->id);
+        pw_proxy_sync(device->pw_proxy, 1337);
     }
 }
 

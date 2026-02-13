@@ -17,8 +17,12 @@ enum node_change_mask {
 };
 
 struct node {
-    struct pw_node *pw_node;
+    union {
+        struct pw_node *pw_node;
+        struct pw_proxy *pw_proxy;
+    };
     struct spa_hook listener;
+    struct spa_hook proxy_listener;
 
     uint32_t id;
     enum media_class media_class;

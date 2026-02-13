@@ -42,7 +42,6 @@ pipemixer_sources = [
   'src/pw/common.c',
   'src/pw/device.c',
   'src/pw/node.c',
-  'src/pw/roundtrip.c',
   'src/pw/events.c',
   'src/pw/default.c',
 ]
