@@ -37,8 +37,11 @@ struct tui {
     int tab_index;
     struct tui_tab tabs[TUI_TAB_COUNT];
 
-    bool efd_triggered;
-    struct pollen_event_source *efd_source;
+    bool update_triggered;
+    struct pollen_event_source *update_efd_source;
+
+    bool resize_triggered;
+    struct pollen_event_source *resize_efd_source;
 
     struct signal_listener pipewire_listener;
 };

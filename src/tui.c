@@ -48,11 +48,22 @@ static const char *tui_tab_name(enum tui_tab_type tab) {
 }
 
 static void trigger_update(void) {
-    if (!tui.efd_triggered) {
-        if (!pollen_efd_trigger(tui.efd_source)) {
+    if (!tui.update_triggered) {
+        if (!pollen_efd_trigger(tui.update_efd_source)) {
             ERROR("failed to trigger ui update: %m");
         } else {
-            tui.efd_triggered = true;
+            tui.update_triggered = true;
+        }
+    }
+}
+
+static void trigger_resize(void) {
+    TRACE("trigger_resize(), tui.resize_triggered = %d", tui.resize_triggered);
+    if (!tui.resize_triggered) {
+        if (!pollen_efd_trigger(tui.resize_efd_source)) {
+            ERROR("failed to trigger ui resize: %m");
+        } else {
+            tui.resize_triggered = true;
         }
     }
 }
@@ -1260,7 +1271,28 @@ static void on_pipewire_object_added(uint64_t event, const struct signal_data *d
     trigger_update();
 }
 
-static int on_sigwinch(struct pollen_event_source *_, int _, void *_) {
+static int on_stdin_ready(struct pollen_event_source *_, int _, uint32_t _, void *_) {
+    wint_t ch;
+    while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
+        if (ch == KEY_RESIZE) {
+            WARN("KEY_RESIZE %s (%d)", key_name_from_key_code(ch), ch);
+        }
+
+        struct tui_bind *bind = MAP_GET(&config.binds, ch);
+        if (bind == NULL) {
+            DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
+        } else {
+            bind->func(bind->data);
+            trigger_update();
+        }
+    }
+
+    return 0;
+}
+
+static int on_resize_triggered(struct pollen_event_source *_, uint64_t _, void *_) {
+    tui.resize_triggered = false;
+
     struct winsize winsize;
     if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
         ERROR("failed to get new window size: %s", strerror(errno));
@@ -1289,23 +1321,6 @@ static int on_sigwinch(struct pollen_event_source *_, int _, void *_) {
         tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
     }
 
-    trigger_update();
-
-    return 0;
-}
-
-static int on_stdin_ready(struct pollen_event_source *_, int _, uint32_t _, void *_) {
-    wint_t ch;
-    while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
-        struct tui_bind *bind = MAP_GET(&config.binds, ch);
-        if (bind == NULL) {
-            DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
-        } else {
-            bind->func(bind->data);
-            trigger_update();
-        }
-    }
-
     return 0;
 }
 
@@ -1315,7 +1330,7 @@ static int on_stdin_ready(struct pollen_event_source *_, int _, uint32_t _, void
  * and let ncurses figure out the rest, it's good at damage tracking
  */
 static int on_update_triggered(struct pollen_event_source *_, uint64_t _, void *_) {
-    tui.efd_triggered = false;
+    tui.update_triggered = false;
 
     pnoutrefresh(tui.pad_win,
                  tui.tabs[tui.tab_index].scroll_pos, 0,
@@ -1333,7 +1348,19 @@ static int on_update_triggered(struct pollen_event_source *_, uint64_t _, void *
     return 0;
 }
 
+static void on_sigwinch(int _, siginfo_t *_, void *_) {
+    DEBUG("SIGWINCH received");
+
+    trigger_resize();
+    trigger_update();
+}
+
 int tui_init(void) {
+    sigaction(SIGWINCH, &(struct sigaction){
+        .sa_sigaction = on_sigwinch,
+        .sa_flags = SA_RESTART | SA_SIGINFO,
+    }, NULL);
+
     initscr();
     refresh(); /* https://stackoverflow.com/a/22121866 */
     cbreak();
@@ -1352,10 +1379,12 @@ int tui_init(void) {
     }
 
     pollen_loop_add_fd(event_loop, 0 /* stdin */, EPOLLIN, false, on_stdin_ready, NULL);
-    pollen_loop_add_signal(event_loop, SIGWINCH, on_sigwinch, NULL);
 
-    tui.efd_source = pollen_loop_add_efd(event_loop, on_update_triggered, NULL);
-    tui.efd_triggered = false;
+    tui.resize_efd_source = pollen_loop_add_efd(event_loop, on_resize_triggered, NULL);
+    tui.resize_triggered = false;
+
+    tui.update_efd_source = pollen_loop_add_efd(event_loop, on_update_triggered, NULL);
+    tui.update_triggered = false;
 
     pipewire_events_subscribe(&tui.pipewire_listener, (uint64_t)-1,
                               on_pipewire_object_added, NULL);
