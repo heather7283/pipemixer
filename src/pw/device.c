@@ -111,9 +111,16 @@ const struct pw_device_events device_events = {
 /* TODO: fix this forward declaratoin nonsense */
 static void on_device_roundtrip_done(void *data, int _);
 
+static void on_proxy_removed(void *data) {
+    struct device *dev = data;
+
+    device_destroy(dev);
+}
+
 static const struct pw_proxy_events proxy_events = {
     .version = PW_VERSION_PROXY_EVENTS,
     .done = on_device_roundtrip_done,
+    .removed = on_proxy_removed,
 };
 
 void device_create(uint32_t id) {
@@ -136,7 +143,7 @@ void device_create(uint32_t id) {
 void device_destroy(struct device *device) {
     signal_emit_u64(device->emitter, DEVICE_EVENT_REMOVE, device->id);
 
-    pw_proxy_destroy((struct pw_proxy *)device->pw_device);
+    pw_proxy_destroy(device->pw_proxy);
 
     free(device->description);
 

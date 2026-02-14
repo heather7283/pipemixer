@@ -347,9 +347,16 @@ static const struct pw_node_events node_events = {
     .param = on_node_param,
 };
 
+static void on_node_removed(void *data) {
+    struct node *node = data;
+
+    node_destroy(node);
+}
+
 static const struct pw_proxy_events proxy_events = {
     .version = PW_VERSION_PROXY_EVENTS,
     .done = on_node_roundtrip_done,
+    .removed = on_node_removed,
 };
 
 void node_create(uint32_t id, enum media_class media_class) {
@@ -372,7 +379,7 @@ void node_create(uint32_t id, enum media_class media_class) {
 void node_destroy(struct node *node) {
     signal_emit_u64(node->emitter, NODE_EVENT_REMOVE, node->id);
 
-    pw_proxy_destroy((struct pw_proxy *)node->pw_node);
+    pw_proxy_destroy(node->pw_proxy);
     free(node->media_name);
     free(node->node_name);
     free(node->node_description);

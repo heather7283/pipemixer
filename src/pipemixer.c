@@ -162,7 +162,6 @@ int main(int argc, char **argv) {
     retcode = pollen_loop_run(event_loop);
 
 cleanup:
-    pollen_loop_cleanup(event_loop);
     pipewire_cleanup();
     tui_cleanup();
 

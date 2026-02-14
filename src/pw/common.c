@@ -73,24 +73,9 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
     }
 }
 
-static void on_registry_global_remove(void *data, uint32_t id) {
-    DEBUG("registry global remove: id %d", id);
-
-    struct node *node = node_lookup(id);
-    if (node != NULL) {
-        node_destroy(node);
-        return;
-    }
-    struct device *device = device_lookup(id);
-    if (device != NULL) {
-        device_destroy(device);
-    }
-}
-
 static const struct pw_registry_events registry_events = {
     .version = PW_VERSION_REGISTRY_EVENTS,
     .global = on_registry_global,
-    .global_remove = on_registry_global_remove,
 };
 
 static void on_core_error(void *data, uint32_t id, int seq, int res, const char *message) {
