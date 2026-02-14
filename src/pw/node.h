@@ -3,9 +3,17 @@
 #include <pipewire/pipewire.h>
 #include <spa/param/audio/raw-types.h>
 
-#include "pw/common.h"
 #include "pw/device.h"
 #include "collections/map.h"
+
+enum media_class {
+    MEDIA_CLASS_START,
+    STREAM_OUTPUT_AUDIO,
+    STREAM_INPUT_AUDIO,
+    AUDIO_SOURCE,
+    AUDIO_SINK,
+    MEDIA_CLASS_END,
+};
 
 enum node_change_mask {
     NODE_CHANGE_NOTHING = 0,

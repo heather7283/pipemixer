@@ -12,8 +12,7 @@
 #include "config.h"
 #include "macros.h"
 #include "eventloop.h"
-#include "pw/events.h"
-#include "pw/node.h"
+#include "pw/common.h"
 
 #define FOR_EACH_TAB(var) for (int var = 0; var < TUI_TAB_COUNT; var++)
 
@@ -1149,7 +1148,7 @@ static void on_node_events(uint64_t events,
     trigger_update();
 }
 
-static void on_node_added(struct node *node) {
+static void on_pipewire_node(struct node *node, void *_) {
     TRACE("tui_on_node_added: id %d", node->id);
 
     const int tab_index = config.tab_map_enum_to_index[media_class_to_tui_tab(node->media_class)];
@@ -1186,6 +1185,7 @@ static void on_node_added(struct node *node) {
     }
 
     redraw_current_tab();
+    trigger_update();
 }
 
 /* EVENTS FOR DEVICE ITEMS */
@@ -1227,7 +1227,7 @@ static void on_device_events_for_device(uint64_t events,
     trigger_update();
 }
 
-static void on_device_added(struct device *dev) {
+static void on_pipewire_device(struct device *dev, void *_) {
     TRACE("tui_on_device_added: id %d", dev->id);
 
     const int tab_index = config.tab_map_enum_to_index[CARDS];
@@ -1254,30 +1254,13 @@ static void on_device_added(struct device *dev) {
     }
 
     redraw_current_tab();
-}
-
-static void on_pipewire_object_added(uint64_t event, const struct signal_data *data, void *_) {
-    switch ((enum pipewire_events)event) {
-    case PIPEWIRE_EVENT_NODE_ADDED: {
-        struct node *node = node_lookup(data->as.u64);
-        if (node != NULL) {
-            on_node_added(node);
-        }
-        break;
-    }
-    case PIPEWIRE_EVENT_DEVICE_ADDED: {
-        struct device *device = device_lookup(data->as.u64);
-        if (device != NULL) {
-            on_device_added(device);
-        }
-        break;
-    }
-    default:
-        break;
-    }
-
     trigger_update();
 }
+
+static const struct pipewire_events pipewire_events = {
+    .node = on_pipewire_node,
+    .device = on_pipewire_device,
+};
 
 static int on_stdin_ready(struct pollen_event_source *_, int _, uint32_t _, void *_) {
     wint_t ch;
@@ -1394,8 +1377,7 @@ int tui_init(void) {
     tui.update_efd_source = pollen_loop_add_efd(event_loop, on_update_triggered, NULL);
     tui.update_triggered = false;
 
-    pipewire_events_subscribe(&tui.pipewire_listener, (uint64_t)-1,
-                              on_pipewire_object_added, NULL);
+    pipewire_add_listener(&tui.pipewire_hook, &pipewire_events, &tui);
 
     tui.tab_index = config.tab_map_enum_to_index[config.default_tab];
 

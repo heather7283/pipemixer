@@ -5,6 +5,7 @@
 #include <pipewire/pipewire.h>
 
 #include "collections/vec.h"
+#include "collections/map.h"
 #include "signals.h"
 
 struct route {
@@ -62,6 +63,8 @@ struct device {
 
     struct signal_emitter *emitter;
 };
+
+extern MAP(struct device *) devices;
 
 struct device *device_lookup(uint32_t id);
 

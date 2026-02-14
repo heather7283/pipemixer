@@ -35,6 +35,7 @@ pipemixer_sources = [
   'src/xmalloc.c',
   'src/utils.c',
   'src/config.c',
+  'src/events.c',
   'src/signals.c',
   'src/eventloop.c',
   'src/collections/vec.c',
@@ -42,7 +43,6 @@ pipemixer_sources = [
   'src/pw/common.c',
   'src/pw/device.c',
   'src/pw/node.c',
-  'src/pw/events.c',
   'src/pw/default.c',
 ]
 

@@ -3,13 +3,12 @@
 
 #include "pw/device.h"
 #include "pw/common.h"
-#include "pw/events.h"
 #include "collections/map.h"
 #include "log.h"
 #include "xmalloc.h"
 #include "macros.h"
 
-static MAP(struct device *) devices = {0};
+__typeof__(devices) devices = {0};
 
 struct device *device_lookup(uint32_t id) {
     struct device **dev = MAP_GET(&devices, id);
@@ -249,7 +248,6 @@ static void on_device_roundtrip_done(void *data, int _) {
 
     if (dev->new) {
         dev->new = false;
-        signal_emit_u64(pw.emitter, PIPEWIRE_EVENT_DEVICE_ADDED, dev->id);
     } else {
         signal_emit_u64(dev->emitter, DEVICE_EVENT_CHANGE, dev->id);
     }

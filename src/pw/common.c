@@ -9,7 +9,61 @@
 #include "utils.h"
 #include "log.h"
 
-struct pw pw = {0};
+struct pipewire pw = {0};
+
+enum pipewire_event_types {
+    PIPEWIRE_EVENT_NODE, /* refd node as ptr */
+    PIPEWIRE_EVENT_DEVICE, /* refd device as ptr */
+};
+
+static void event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
+    const struct pipewire_events *table = hook->callbacks;
+
+    switch (id) {
+    case PIPEWIRE_EVENT_NODE: {
+        struct node *node = node_lookup(data.u);
+        if (node) {
+            EVENT_DISPATCH(table->node, node, hook->callbacks_data);
+        }
+        break;
+    }
+    case PIPEWIRE_EVENT_DEVICE: {
+        struct device *dev = device_lookup(data.u);
+        if (dev) {
+            EVENT_DISPATCH(table->device, dev, hook->callbacks_data);
+        }
+        break;
+    }
+    default:
+        ERROR("unexpected pipewire event %"PRIu64, id);
+    }
+}
+
+static void emit_node(uint32_t id) {
+    event_emit(&pw.emitter, PIPEWIRE_EVENT_NODE, 'u', id);
+}
+
+static void emit_device(uint32_t id) {
+    event_emit(&pw.emitter, PIPEWIRE_EVENT_DEVICE, 'u', id);
+}
+
+void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events *ev, void *data) {
+    *hook = (struct event_hook){
+        .callbacks = ev,
+        .callbacks_data = data,
+        .private_data = &pw,
+    };
+    event_emitter_add_hook(&pw.emitter, hook);
+
+    struct node *node;
+    MAP_FOREACH(&nodes, &node) {
+        emit_node(node->id);
+    }
+    struct device *device;
+    MAP_FOREACH(&devices, &device) {
+        emit_device(node->id);
+    }
+}
 
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const char *type, uint32_t version,
@@ -42,6 +96,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         node_create(id, media_class_value);
+        emit_node(id);
     } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         if (media_class == NULL) {
@@ -55,6 +110,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         device_create(id);
+        emit_device(id);
     } else if (STREQ(type, PW_TYPE_INTERFACE_Metadata)) {
         const char *metadata_name = spa_dict_lookup(props, PW_KEY_METADATA_NAME);
         if (!streq(metadata_name, "default")) {
@@ -123,7 +179,7 @@ int pipewire_init(void) {
     pw.registry = pw_core_get_registry(pw.core, PW_VERSION_REGISTRY, 0);
     pw_registry_add_listener(pw.registry, &pw.registry_listener, &registry_events, NULL);
 
-    pw.emitter = signal_emitter_create();
+    event_emitter_init(&pw.emitter, event_dispatcher);
 
     return 0;
 }

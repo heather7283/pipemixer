@@ -136,6 +136,7 @@ int main(int argc, char **argv) {
         goto cleanup;
     }
 
+    events_global_init();
     signals_global_init();
 
     if (pipewire_init() < 0) {

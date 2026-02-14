@@ -6,7 +6,6 @@
 
 #include "pw/node.h"
 #include "pw/device.h"
-#include "pw/events.h"
 #include "pw/default.h"
 #include "collections/map.h"
 #include "log.h"
@@ -214,15 +213,13 @@ static void on_node_roundtrip_done(void *data, int _) {
 
     if (node->new) {
         node->new = false;
-        signal_emit_u64(pw.emitter, PIPEWIRE_EVENT_NODE_ADDED, node->id);
         node->is_default = default_metadata_check_default(&pw.default_metadata,
                                                           node->node_name, node->media_class);
         if (node->is_default) {
             INFO("node %d is now default", node->id);
         }
-    } else {
-        signal_emit_u64(node->emitter, NODE_EVENT_CHANGE, node->changed);
     }
+    signal_emit_u64(node->emitter, NODE_EVENT_CHANGE, node->changed);
 }
 
 void on_node_info(void *data, const struct pw_node_info *info) {

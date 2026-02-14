@@ -3,6 +3,7 @@
 #include <ncurses.h>
 
 #include "collections/list.h"
+#include "events.h"
 #include "signals.h"
 #include "menu.h"
 
@@ -43,7 +44,7 @@ struct tui {
     bool resize_triggered;
     struct pollen_event_source *resize_efd_source;
 
-    struct signal_listener pipewire_listener;
+    struct event_hook pipewire_hook;
 };
 
 enum tui_tab_item_draw_mask {
