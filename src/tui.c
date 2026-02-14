@@ -540,10 +540,11 @@ void tui_bind_change_focus(union tui_bind_data data) {
     }
 
     switch (direction) {
-    case DOWN:
-        if (f->type == TUI_TAB_ITEM_TYPE_NODE
-            && f->as.node.unlocked_channels
-            && f->as.node.focused_channel < f->as.node.n_channels - 1) {
+    case DOWN: {
+        const bool channel = f->type == TUI_TAB_ITEM_TYPE_NODE
+                          && f->as.node.unlocked_channels
+                          && f->as.node.focused_channel < f->as.node.n_channels - 1;
+        if (channel) {
             f->as.node.focused_channel += 1;
             tui_tab_item_draw(f, TUI_TAB_ITEM_DRAW_DECORATIONS);
         } else {
@@ -565,10 +566,12 @@ void tui_bind_change_focus(union tui_bind_data data) {
             tui_tab_item_focus(next, true, true);
         }
         break;
-    case UP:
-        if (f->type == TUI_TAB_ITEM_TYPE_NODE
-            && f->as.node.unlocked_channels
-            && f->as.node.focused_channel > 0) {
+    }
+    case UP: {
+        const bool channel = f->type == TUI_TAB_ITEM_TYPE_NODE
+                          && f->as.node.unlocked_channels
+                          && f->as.node.focused_channel > 0;
+        if (channel) {
             f->as.node.focused_channel -= 1;
             tui_tab_item_draw(f, TUI_TAB_ITEM_DRAW_DECORATIONS);
         } else {
@@ -590,6 +593,7 @@ void tui_bind_change_focus(union tui_bind_data data) {
             tui_tab_item_focus(next, true, true);
         }
         break;
+    }
     }
 }
 
@@ -1085,6 +1089,7 @@ static void on_node_change(struct tui_tab_item *item,
     TRACE("tui_on_node_changed: id %d", node->id);
 
     if (change & NODE_CHANGE_CHANNEL_COUNT) {
+        item->as.node.n_channels = VEC_SIZE(&node->channels);
         int new_item_height = VEC_SIZE(&node->channels) + 3;
         if (node->device_id != 0) {
             new_item_height += 1;
