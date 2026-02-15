@@ -98,7 +98,7 @@ void event_emit(struct event_emitter *emitter, uint64_t id, int type, ...) {
     case 'u': data.u = va_arg(arg, uint64_t); break;
     case 'i': data.i = va_arg(arg, int64_t); break;
     case 'd': data.d = va_arg(arg, double); break;
-    case 'b': data.b = va_arg(arg, bool); break;
+    case 'b': data.b = va_arg(arg, int); break;
     case '0': /* special case - empty data */ break;
     default: assert(0 && "invalid type passed to event_emit");
     }
