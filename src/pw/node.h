@@ -5,6 +5,7 @@
 
 #include "pw/device.h"
 #include "collections/map.h"
+#include "events.h"
 
 enum media_class {
     MEDIA_CLASS_START,
@@ -21,6 +22,7 @@ enum node_change_mask {
     NODE_CHANGE_MUTE = 1 << 1,
     NODE_CHANGE_VOLUME = 1 << 2,
     NODE_CHANGE_CHANNEL_COUNT = 1 << 3,
+    NODE_CHANGE_DEFAULT = 1 << 4,
     NODE_CHANGE_EVERYTHING = ~0,
 };
 
@@ -45,6 +47,8 @@ struct node {
     float *channel_volumes;
 
     bool is_default;
+    struct event_hook default_listener;
+
     uint32_t device_id;
     int32_t card_profile_device;
 

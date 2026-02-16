@@ -333,3 +333,10 @@ bool streq(const char *a, const char *b) {
     }
 }
 
+bool strneq(const char *a, const char *b, size_t len) {
+    if (a == NULL || b == NULL) {
+        return false;
+    }
+    return strncmp(a, b, len) == 0;
+}
+

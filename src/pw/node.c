@@ -6,7 +6,7 @@
 
 #include "pw/node.h"
 #include "pw/device.h"
-#include "pw/default.h"
+#include "pw/common.h"
 #include "collections/map.h"
 #include "log.h"
 #include "xmalloc.h"
@@ -129,14 +129,20 @@ void node_set_route(const struct node *node, uint32_t route_index) {
 }
 
 void node_set_default(const struct node *node) {
+    enum default_metadata_key key;
     switch (node->media_class) {
     case AUDIO_SINK:
+        key = DEFAULT_CONFIGURED_AUDIO_SINK;
+        break;
     case AUDIO_SOURCE:
-        default_metadata_set_default(&pw.default_metadata, node->node_name, node->media_class);
+        key = DEFAULT_CONFIGURED_AUDIO_SOURCE;
         break;
     default:
         WARN("node_set_default called on a node that's neither a sink nor a source");
+        return;
     }
+
+    pipewire_set_default(key, node->node_name);
 }
 
 size_t node_get_available_routes(const struct node *node, const struct route *const **proutes) {
@@ -208,15 +214,46 @@ const struct route *node_get_active_route(const struct node *node) {
     return NULL;
 }
 
+static void on_default(enum default_metadata_key key, const char *val, void *data) {
+    struct node *node = data;
+
+    /* on_default should only fire for sources and sinks */
+    ASSERT(node->media_class == AUDIO_SOURCE || node->media_class == AUDIO_SINK);
+
+    /* there are 2 types of default metadata values, those that have "configured"
+     * in their key and those that do not. I have no idea what the difference is,
+     * it is of course not documented anywhere. I'm just going to ignore those
+     * with "configured" and hope for the best. */
+    if (key == DEFAULT_CONFIGURED_AUDIO_SINK || key == DEFAULT_CONFIGURED_AUDIO_SOURCE) {
+        return;
+    }
+
+    const bool match = (key == DEFAULT_AUDIO_SINK && node->media_class == AUDIO_SINK)
+                    || (key == DEFAULT_AUDIO_SOURCE && node->media_class == AUDIO_SOURCE);
+    if (!match) {
+        return;
+    }
+
+    const bool is_default = streq(node->node_name, val);
+    if (is_default != node->is_default) {
+        node->is_default = is_default;
+        INFO("node %d default=%d", node->id, node->is_default);
+        signal_emit_u64(node->emitter, NODE_EVENT_DEFAULT, node->is_default);
+    }
+}
+
+static const struct pipewire_events pipewire_events = {
+    .default_ = on_default,
+};
+
 static void on_node_roundtrip_done(void *data, int _) {
     struct node *node = data;
 
     if (node->new) {
         node->new = false;
-        node->is_default = default_metadata_check_default(&pw.default_metadata,
-                                                          node->node_name, node->media_class);
-        if (node->is_default) {
-            INFO("node %d is now default", node->id);
+        /* add this after we (hopefully) got node.name from the server */
+        if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
+            pipewire_add_listener(&node->default_listener, &pipewire_events, node);
         }
     }
     signal_emit_u64(node->emitter, NODE_EVENT_CHANGE, node->changed);
@@ -381,6 +418,8 @@ void node_destroy(struct node *node) {
     free(node->node_description);
     free(node->channel_volumes);
     free(node->channel_names);
+
+    event_hook_remove(&node->default_listener);
 
     MAP_REMOVE(&nodes, node->id);
 

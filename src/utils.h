@@ -22,4 +22,5 @@ char *read_string_from_fd(int fd, size_t *len);
 
 /* compares two strings, safely handles NULL (NULL is distinct from NULL) */
 bool streq(const char *a, const char *b);
+bool strneq(const char *a, const char *b, size_t len);
 

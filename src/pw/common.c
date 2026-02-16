@@ -1,10 +1,11 @@
 #include <pipewire/extensions/metadata.h>
+#include <spa/utils/json.h>
 
 #include "pw/common.h"
 #include "pw/node.h"
 #include "pw/device.h"
-#include "pw/default.h"
 #include "eventloop.h"
+#include "xmalloc.h"
 #include "macros.h"
 #include "utils.h"
 #include "log.h"
@@ -12,8 +13,9 @@
 struct pipewire pw = {0};
 
 enum pipewire_event_types {
-    PIPEWIRE_EVENT_NODE, /* refd node as ptr */
-    PIPEWIRE_EVENT_DEVICE, /* refd device as ptr */
+    PIPEWIRE_EVENT_NODE,
+    PIPEWIRE_EVENT_DEVICE,
+    PIPEWIRE_EVENT_DEFAULT,
 };
 
 static void event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
@@ -34,6 +36,12 @@ static void event_dispatcher(uint64_t id, union event_data data, struct event_ho
         }
         break;
     }
+    case PIPEWIRE_EVENT_DEFAULT: {
+        enum default_metadata_key key = data.u;
+        struct default_metadata *md = &pw.default_metadata;
+        EVENT_DISPATCH(table->default_, key, md->properties[key], hook->callbacks_data);
+        break;
+    }
     default:
         ERROR("unexpected pipewire event %"PRIu64, id);
     }
@@ -47,6 +55,10 @@ static void emit_device(uint32_t id, struct event_hook *hook) {
     event_emit(&pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', id);
 }
 
+static void emit_default(enum default_metadata_key key, struct event_hook *hook) {
+    event_emit(&pw.emitter, hook, PIPEWIRE_EVENT_DEFAULT, 'u', key);
+}
+
 void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events *ev, void *data) {
     *hook = (struct event_hook){
         .callbacks = ev,
@@ -55,15 +67,86 @@ void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events
     };
     event_emitter_add_hook(&pw.emitter, hook);
 
-    struct node *node;
-    MAP_FOREACH(&nodes, &node) {
-        emit_node(node->id, hook);
+    struct node **pnode;
+    MAP_FOREACH(&nodes, &pnode) {
+        emit_node((*pnode)->id, hook);
     }
-    struct device *device;
-    MAP_FOREACH(&devices, &device) {
-        emit_device(node->id, hook);
+    struct device **pdevice;
+    MAP_FOREACH(&devices, &pdevice) {
+        emit_device((*pnode)->id, hook);
+    }
+    for (unsigned i = 0; i < DEFAULT_METADATA_KEY_COUNT; i++) {
+        emit_default(i, hook);
     }
 }
+
+static const char *default_metadata_key_str(enum default_metadata_key key) {
+    static const char *const keys[] = {
+        [DEFAULT_AUDIO_SINK] = "default.audio.sink",
+        [DEFAULT_CONFIGURED_AUDIO_SINK] = "default.configured.audio.sink",
+        [DEFAULT_AUDIO_SOURCE] = "default.audio.source",
+        [DEFAULT_CONFIGURED_AUDIO_SOURCE] = "default.configured.audio.source",
+    };
+
+    return keys[key];
+}
+
+void pipewire_set_default(enum default_metadata_key key, const char *value) {
+    /* TODO: proper escaping? */
+    char *json;
+    xasprintf(&json, "{ \"name\": \"%s\" }", value);
+
+    pw_metadata_set_property(pw.default_metadata.pw_metadata, 0,
+                             default_metadata_key_str(key), "Spa:String:JSON", json);
+    free(json);
+}
+
+static int on_default_metadata_property(void *data, uint32_t id, const char *key,
+                                        const char *type, const char *val) {
+    struct default_metadata *md = data;
+
+    INFO("default metadata property id=%u key=%s type=%s val=%s", id, key, type, val);
+
+    if (!streq(type, "Spa:String:JSON")) {
+        WARN("unexpected metadata property type %s", type);
+        return 0; /* what am I even expected to return here? */
+    }
+
+    const char *name = NULL;
+    int name_len = 0;
+    struct spa_json iter;
+    if (spa_json_begin_object(&iter, val, strlen(val)) < 0) {
+        ERROR("could not parse metdata property json");
+        return 0;
+    } else if ((name_len = spa_json_object_find(&iter, "name", &name)) < 0) {
+        ERROR("did not find \"name\" in metadata property json");
+        return 0;
+    } else if (name[0] != '"' || name[name_len - 1] != '"') {
+        ERROR("value of \"name\" in metadata property is not a string");
+        return 0;
+    }
+
+    /* thank you pipewire for this amazing json api that
+     * returns strings WITH QUOTES FOR WHATEVER REASON??? */
+    name += 1;
+    name_len -= 2;
+
+    for (unsigned i = 0; i < DEFAULT_METADATA_KEY_COUNT; i++) {
+        if (streq(key, default_metadata_key_str(i))) {
+            free(md->properties[i]);
+            xasprintf(&md->properties[i], "%.*s", name_len, name);
+            emit_default(i, NULL);
+            break;
+        }
+    }
+
+    return 0;
+}
+
+static const struct pw_metadata_events default_metadata_events = {
+    .version = PW_VERSION_METADATA_EVENTS,
+    .property = on_default_metadata_property,
+};
 
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const char *type, uint32_t version,
@@ -111,21 +194,21 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
 
         device_create(id);
         emit_device(id, NULL);
-    } else if (STREQ(type, PW_TYPE_INTERFACE_Metadata)) {
-        const char *metadata_name = spa_dict_lookup(props, PW_KEY_METADATA_NAME);
-        if (!streq(metadata_name, "default")) {
+    } else if (streq(type, PW_TYPE_INTERFACE_Metadata)) {
+        if (!streq(spa_dict_lookup(props, "metadata.name"), "default")) {
             return;
         }
 
         struct default_metadata *md = &pw.default_metadata;
-
-        INFO("get default metadata, id %d", id);
-        if (md->id != 0) {
-            WARN("got default metadata object again??? wtf");
+        if (md->pw_metadata) {
+            WARN("got another instance of default metadata (id %d)", id);
             return;
         }
 
-        default_metadata_init(md, id);
+        INFO("got default metadata, id %d", id);
+        md->pw_metadata = pw_registry_bind(pw.registry, id, type, PW_VERSION_METADATA, 0);
+        pw_metadata_add_listener(md->pw_metadata, &md->listener,
+                                 &default_metadata_events, md);
     }
 }
 
@@ -197,7 +280,6 @@ void pipewire_cleanup(void) {
     if (pw.main_loop != NULL) {
         pw_main_loop_destroy(pw.main_loop);
     }
-    default_metadata_cleanup(&pw.default_metadata);
     pw_deinit();
 }
 
