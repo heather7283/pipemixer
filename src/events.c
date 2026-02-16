@@ -16,9 +16,13 @@ static void event_emitter_dispatch_events(struct event_emitter *emitter) {
     VEC_FOREACH(&emitter->events, i) {
         struct event *event = &emitter->events.data[i];
 
-        LIST_FOREACH(elem, &emitter->hooks) {
-            struct event_hook *hook = CONTAINER_OF(elem, struct event_hook, link);
-            emitter->dispatcher(event->id, event->data, hook);
+        if (event->hook) {
+            emitter->dispatcher(event->id, event->data, event->hook);
+        } else {
+            LIST_FOREACH(elem, &emitter->hooks) {
+                struct event_hook *hook = CONTAINER_OF(elem, struct event_hook, link);
+                emitter->dispatcher(event->id, event->data, hook);
+            }
         }
     }
     VEC_CLEAR(&emitter->events);
@@ -70,11 +74,13 @@ void event_hook_remove(struct event_hook *hook) {
     }
 }
 
-static void event_emit_internal(struct event_emitter *emitter, uint64_t id, union event_data data) {
+static void event_emit_internal(struct event_emitter *emitter, struct event_hook *hook,
+                                uint64_t id, union event_data data) {
     struct event *ev = VEC_EMPLACE_BACK(&emitter->events);
     *ev = (struct event){
         .id = id,
         .data = data,
+        .hook = hook,
     };
 
     if (list_is_empty(&emitter->link)) {
@@ -88,7 +94,8 @@ static void event_emit_internal(struct event_emitter *emitter, uint64_t id, unio
     }
 }
 
-void event_emit(struct event_emitter *emitter, uint64_t id, int type, ...) {
+void event_emit(struct event_emitter *emitter, struct event_hook *hook,
+                uint64_t id, int type, ...) {
     va_list arg;
     va_start(arg, type);
 
@@ -105,6 +112,6 @@ void event_emit(struct event_emitter *emitter, uint64_t id, int type, ...) {
 
     va_end(arg);
 
-    event_emit_internal(emitter, id, data);
+    event_emit_internal(emitter, hook, id, data);
 }
 

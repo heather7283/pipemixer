@@ -40,6 +40,7 @@ struct event_emitter {
     VEC(struct event {
         uint64_t id;
         union event_data data;
+        struct event_hook *hook;
     }) events;
     event_dispatcher_t *dispatcher;
 
@@ -57,5 +58,7 @@ void event_emitter_add_hook(struct event_emitter *e, struct event_hook *hook);
 void event_hook_remove(struct event_hook *hook);
 
 /* type of one of p, u, i, d, b, or 0 for empty data */
-void event_emit(struct event_emitter *emitter, uint64_t id, int type, ...);
+void event_emit(struct event_emitter *emitter,
+                struct event_hook *hook,
+                uint64_t id, int type, ...);
 

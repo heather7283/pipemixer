@@ -39,12 +39,12 @@ static void event_dispatcher(uint64_t id, union event_data data, struct event_ho
     }
 }
 
-static void emit_node(uint32_t id) {
-    event_emit(&pw.emitter, PIPEWIRE_EVENT_NODE, 'u', id);
+static void emit_node(uint32_t id, struct event_hook *hook) {
+    event_emit(&pw.emitter, hook, PIPEWIRE_EVENT_NODE, 'u', id);
 }
 
-static void emit_device(uint32_t id) {
-    event_emit(&pw.emitter, PIPEWIRE_EVENT_DEVICE, 'u', id);
+static void emit_device(uint32_t id, struct event_hook *hook) {
+    event_emit(&pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', id);
 }
 
 void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events *ev, void *data) {
@@ -57,11 +57,11 @@ void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events
 
     struct node *node;
     MAP_FOREACH(&nodes, &node) {
-        emit_node(node->id);
+        emit_node(node->id, hook);
     }
     struct device *device;
     MAP_FOREACH(&devices, &device) {
-        emit_device(node->id);
+        emit_device(node->id, hook);
     }
 }
 
@@ -96,7 +96,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         node_create(id, media_class_value);
-        emit_node(id);
+        emit_node(id, NULL);
     } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
         if (media_class == NULL) {
@@ -110,7 +110,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         device_create(id);
-        emit_device(id);
+        emit_device(id, NULL);
     } else if (STREQ(type, PW_TYPE_INTERFACE_Metadata)) {
         const char *metadata_name = spa_dict_lookup(props, PW_KEY_METADATA_NAME);
         if (!streq(metadata_name, "default")) {
