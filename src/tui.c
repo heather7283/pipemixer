@@ -139,13 +139,12 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             wattron(win, A_DIM);
         }
 
-        for (uint32_t i = 0; i < VEC_SIZE(&node->channels); i++) {
+        for (uint32_t i = 0; i < node->n_channels; i++) {
             const int pos = item->pos + i + 2;
 
-            const int vol_int = (int)roundf(VEC_AT(&node->channels, i)->volume * 100);
+            const int vol_int = (int)roundf(node->channel_volumes[i] * 100);
 
-            mvwprintw(win, pos, volume_area_start, "%5s %-3d ",
-                      VEC_AT(&node->channels, i)->name, vol_int);
+            mvwprintw(win, pos, volume_area_start, "%5s %-3d ", node->channel_names[i], vol_int);
 
             /* draw volume bar */
             int pair = DEFAULT;
@@ -170,19 +169,19 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             wattron(win, A_DIM);
         }
 
-        for (uint32_t i = 0; i < VEC_SIZE(&node->channels); i++) {
+        for (uint32_t i = 0; i < node->n_channels; i++) {
             const int pos = item->pos + i + 2;
 
             const wchar_t *wchar_left, *wchar_right;
             cchar_t cchar_left, cchar_right;
 
-            if (VEC_SIZE(&node->channels) == 1) {
+            if (node->n_channels == 1) {
                 wchar_left = config.volume_frame.ml;
                 wchar_right = config.volume_frame.mr;
             } else if (i == 0) {
                 wchar_left = config.volume_frame.tl;
                 wchar_right = config.volume_frame.tr;
-            } else if (i == VEC_SIZE(&node->channels) - 1) {
+            } else if (i == node->n_channels - 1) {
                 wchar_left = config.volume_frame.bl;
                 wchar_right = config.volume_frame.br;
             } else {
@@ -1088,8 +1087,8 @@ static void on_node_change(struct tui_tab_item *item,
     TRACE("tui_on_node_changed: id %d", node->id);
 
     if (change & NODE_CHANGE_CHANNEL_COUNT) {
-        item->as.node.n_channels = VEC_SIZE(&node->channels);
-        int new_item_height = VEC_SIZE(&node->channels) + 3;
+        item->as.node.n_channels = node->n_channels;
+        int new_item_height = item->as.node.n_channels + 3;
         if (node->device_id != 0) {
             new_item_height += 1;
         }
@@ -1159,7 +1158,7 @@ static void on_pipewire_node(struct node *node, void *_) {
         .type = TUI_TAB_ITEM_TYPE_NODE,
         .as.node = {
             .node_id = node->id,
-            .n_channels = VEC_SIZE(&node->channels),
+            .n_channels = node->n_channels,
         },
     };
 

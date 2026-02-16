@@ -39,10 +39,10 @@ struct node {
     char *node_description;
 
     bool mute;
-    VEC(struct node_channel {
-        const char *name;
-        float volume;
-    }) channels;
+
+    unsigned n_channels;
+    const char **channel_names;
+    float *channel_volumes;
 
     bool is_default;
     uint32_t device_id;
