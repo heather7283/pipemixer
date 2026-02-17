@@ -7,6 +7,7 @@
 #include "collections/vec.h"
 #include "eventloop.h"
 #include "macros.h"
+#include "log.h"
 
 static struct pollen_event_source *efd_source = NULL;
 
@@ -17,10 +18,17 @@ static void event_emitter_dispatch_events(struct event_emitter *emitter) {
         struct event *event = &emitter->events.data[i];
 
         if (event->hook) {
+            TRACE("event %zu for emitter %p: id=%lu disp=%p data=%lu hook=%p (unicast)",
+                  i, emitter, event->id, emitter->dispatcher, event->data.u, event->hook);
+
             emitter->dispatcher(event->id, event->data, event->hook);
         } else {
             LIST_FOREACH(elem, &emitter->hooks) {
                 struct event_hook *hook = CONTAINER_OF(elem, struct event_hook, link);
+
+                TRACE("event %zu for emitter %p: id=%lu disp=%p data=%lu hook=%p (broadcast)",
+                      i, emitter, event->id, emitter->dispatcher, event->data.u, hook);
+
                 emitter->dispatcher(event->id, event->data, hook);
             }
         }
@@ -29,10 +37,13 @@ static void event_emitter_dispatch_events(struct event_emitter *emitter) {
 }
 
 static int on_efd_triggered(struct pollen_event_source *_, uint64_t _, void *_) {
-    LIST_FOREACH(elem, &pending_emitters) {
-        struct event_emitter *emitter = CONTAINER_OF(elem, struct event_emitter, link);
+    while (!list_is_empty(&pending_emitters)) {
+        struct event_emitter *emitter = CONTAINER_OF(list_remove(pending_emitters.next),
+                                                     struct event_emitter, link);
+
+        TRACE("processing events for emitter %p", (void *)emitter);
+
         event_emitter_dispatch_events(emitter);
-        list_remove(&emitter->link);
     }
 
     return 0;
@@ -44,6 +55,8 @@ bool events_global_init(void) {
 }
 
 void event_emitter_init(struct event_emitter *e, event_dispatcher_t *dispatcher) {
+    TRACE("event_emitter_init(emitter=%p, dispatcher=%p)", e, dispatcher);
+
     *e = (struct event_emitter){
         .dispatcher = dispatcher,
         .hooks = list_init(&e->hooks),
@@ -61,6 +74,8 @@ void event_emitter_cleanup(struct event_emitter *e) {
 }
 
 void event_emitter_add_hook(struct event_emitter *emitter, struct event_hook *hook) {
+    TRACE("event_emitter_add_hook(emitter=%p, hook=%p)", emitter, hook);
+
     list_insert_before(&emitter->hooks, &hook->link);
 }
 

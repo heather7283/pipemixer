@@ -137,7 +137,6 @@ int main(int argc, char **argv) {
     }
 
     events_global_init();
-    signals_global_init();
 
     if (pipewire_init() < 0) {
         fprintf(stderr, "pipemixer: failed to connect to pipewire\n");

@@ -4,7 +4,6 @@
 
 #include "collections/list.h"
 #include "events.h"
-#include "signals.h"
 #include "menu.h"
 
 enum tui_tab_type {
@@ -72,19 +71,18 @@ struct tui_tab_item {
     enum tui_tab_item_type type;
     union {
         struct {
-            uint32_t node_id;
+            struct node *node;
 
             uint32_t n_channels;
             bool unlocked_channels;
             uint32_t focused_channel;
         } node;
         struct {
-            uint32_t device_id;
+            struct device *dev;
         } device;
     } as;
 
-    struct signal_listener device_listener;
-    struct signal_listener node_listener;
+    struct event_hook listener;
 
     int tab_index;
     struct list link;

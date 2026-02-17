@@ -38,6 +38,14 @@ char *xstrdup(const char *s) {
     return (s == NULL) ? NULL : check_alloc(strdup(s));
 }
 
+void *xmemdup(const void *ptr, size_t size) {
+    return ptr ? memcpy(check_alloc(malloc(size)), ptr, size) : NULL;
+}
+
+void *xmemduparray(const void *ptr, size_t nmemb, size_t size) {
+    return ptr ? memcpy(check_alloc(reallocarray(NULL, nmemb, size)), ptr, nmemb * size) : NULL;
+}
+
 static int xvasprintf(char **restrict strp, const char *restrict fmt, va_list ap) {
 	va_list ap_copy;
 

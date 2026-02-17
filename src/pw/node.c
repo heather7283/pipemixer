@@ -1,3 +1,4 @@
+#include <search.h>
 #include <assert.h>
 #include <math.h>
 
@@ -20,6 +21,108 @@
  * Use this hack to make the compiler shut up.
  */
 __typeof__(nodes) nodes = {0};
+
+enum node_event_types {
+    NODE_EVENT_REMOVED,
+    NODE_EVENT_ROUTES,
+    NODE_EVENT_PROPS,
+    NODE_EVENT_CHANNELS,
+    NODE_EVENT_VOLUME,
+    NODE_EVENT_MUTE,
+    NODE_EVENT_DEFAULT,
+};
+
+static void node_event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
+    const struct node_events *table = hook->callbacks;
+    struct node *node = hook->private_data;
+
+    switch ((enum node_event_types)id) {
+    case NODE_EVENT_REMOVED:
+        EVENT_DISPATCH(table->removed, node, hook->callbacks_data);
+        break;
+    case NODE_EVENT_ROUTES:
+        EVENT_DISPATCH(table->routes, node, node->routes, node->n_routes, hook->callbacks_data);
+        break;
+    case NODE_EVENT_PROPS:
+        EVENT_DISPATCH(table->props, node, &node->props, hook->callbacks_data);
+        break;
+    case NODE_EVENT_CHANNELS:
+        EVENT_DISPATCH(table->channels, node,
+                       node->channel_names, node->n_channels,
+                       hook->callbacks_data);
+        break;
+    case NODE_EVENT_VOLUME:
+        EVENT_DISPATCH(table->volume, node,
+                       node->channel_volumes, node->n_channels,
+                       hook->callbacks_data);
+        break;
+    case NODE_EVENT_MUTE:
+        EVENT_DISPATCH(table->mute, node, node->mute, hook->callbacks_data);
+        break;
+    case NODE_EVENT_DEFAULT:
+        EVENT_DISPATCH(table->default_, node, node->is_default, hook->callbacks_data);
+        break;
+    default:
+        ERROR("unexpected node event id %"PRIu64, id);
+    }
+}
+
+static void emit_removed(struct node *node, struct event_hook *hook) {
+    TRACE("node emit_removed(%p)", node);
+    event_emit(&node->emitter, hook, NODE_EVENT_REMOVED, '0');
+}
+
+static void emit_routes(struct node *node, struct event_hook *hook) {
+    event_emit(&node->emitter, hook, NODE_EVENT_ROUTES, '0');
+}
+
+static void emit_props(struct node *node, struct event_hook *hook) {
+    event_emit(&node->emitter, hook, NODE_EVENT_PROPS, '0');
+}
+
+static void emit_channels(struct node *node, struct event_hook *hook) {
+    event_emit(&node->emitter, hook, NODE_EVENT_CHANNELS, '0');
+}
+
+static void emit_volume(struct node *node, struct event_hook *hook) {
+    event_emit(&node->emitter, hook, NODE_EVENT_VOLUME, '0');
+}
+
+static void emit_mute(struct node *node, struct event_hook *hook) {
+    event_emit(&node->emitter, hook, NODE_EVENT_MUTE, '0');
+}
+
+static void emit_default(struct node *node, struct event_hook *hook) {
+    event_emit(&node->emitter, hook, NODE_EVENT_DEFAULT, '0');
+}
+
+static void emit_everything(struct node *node, struct event_hook *hook) {
+    static void (*const funcs[])(struct node *, struct event_hook *) = {
+        emit_props, emit_channels, emit_volume, emit_mute, emit_routes, emit_default,
+    };
+    for (unsigned i = 0; i < SIZEOF_ARRAY(funcs); i++) {
+        funcs[i](node, hook);
+    }
+}
+
+static void hook_remove(struct event_hook *hook) {
+    node_unref((struct node **)&hook->private_data);
+}
+
+void node_add_listener(struct node *node, struct event_hook *hook,
+                       const struct node_events *ev, void *data) {
+    *hook = (struct event_hook){
+        .callbacks = ev,
+        .callbacks_data = data,
+        .private_data = node_ref(node),
+        .remove = hook_remove,
+    };
+    event_emitter_add_hook(&node->emitter, hook);
+
+    if (!node->new) {
+        emit_everything(node, hook);
+    }
+}
 
 static enum spa_direction media_class_to_direction(enum media_class class) {
     switch (class) {
@@ -44,18 +147,14 @@ struct node *node_lookup(uint32_t id) {
 }
 
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
-    if (node->device_id == 0) {
+    /* TODO: check media_class? */
+    if (!node->device_id) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
+    } else if (!node->device) {
+        WARN("tried to set props of node %d with device, but no device was found", node->id);
     } else {
-        struct device *dev = device_lookup(node->device_id);
-        if (dev == NULL) {
-            WARN("tried to set props of node %d with associated device, "
-                 "but no device was found", node->id);
-            return;
-        }
-
         enum spa_direction direction = media_class_to_direction(node->media_class);
-        device_set_props(dev, props, direction, node->card_profile_device);
+        device_set_props(node->device, props, direction, node->card_profile_device);
     }
 }
 
@@ -116,15 +215,10 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
 }
 
 void node_set_route(const struct node *node, uint32_t route_index) {
-    if (node->device_id == 0) {
+    if (!node->device) {
         WARN("Tried to set route on a node that does not have a device");
     } else {
-        struct device *dev = device_lookup(node->device_id);
-        if (dev == NULL) {
-            ERROR("Tried to set route on a node but no device was found");
-        } else {
-            device_set_route(dev, node->card_profile_device, route_index);
-        }
+        device_set_route(node->device, node->card_profile_device, route_index);
     }
 }
 
@@ -142,76 +236,7 @@ void node_set_default(const struct node *node) {
         return;
     }
 
-    pipewire_set_default(key, node->node_name);
-}
-
-size_t node_get_available_routes(const struct node *node, const struct route *const **proutes) {
-    static VEC(const struct route *) routes = {0};
-
-    if (node->device_id == 0) {
-        return 0;
-    }
-    const struct device *dev = device_lookup(node->device_id);
-    if (dev == NULL) {
-        return 0;
-    }
-
-    if (dev->active_profile == NULL) {
-        ERROR("cannot get available routes for node %d with dev %d: no active profile on node",
-              node->id, dev->id);
-        return 0;
-    }
-
-    const enum spa_direction direction = media_class_to_direction(node->media_class);
-
-    VEC_CLEAR(&routes);
-    VEC_FOREACH(&dev->routes, i) {
-        const struct route *route = VEC_AT(&dev->routes, i);
-        if (route->direction != direction) {
-            continue;
-        }
-
-        VEC_FOREACH(&route->profiles, j) {
-            const int32_t profile = *VEC_AT(&route->profiles, j);
-            if (profile == dev->active_profile->index) {
-                VEC_APPEND(&routes, &route);
-            }
-        }
-    }
-
-    if (proutes != NULL) {
-        *proutes = routes.data;
-    }
-    return VEC_SIZE(&routes);
-}
-
-const struct route *node_get_active_route(const struct node *node) {
-    if (node->device_id == 0) {
-        return NULL;
-    }
-    const struct device *dev = device_lookup(node->device_id);
-    if (dev == NULL) {
-        return NULL;
-    }
-
-    const enum spa_direction direction = media_class_to_direction(node->media_class);
-    VEC_FOREACH(&dev->active_routes, i) {
-        const struct route *route = VEC_AT(&dev->active_routes, i);
-
-        if (route->device != node->card_profile_device || route->direction != direction) {
-            continue;
-        }
-
-        VEC_FOREACH(&route->profiles, j) {
-            const int32_t profile = *VEC_AT(&route->profiles, j);
-            if (profile == dev->active_profile->index) {
-                return route;
-            }
-        }
-    }
-
-    WARN("did not find active route for node %d", node->id);
-    return NULL;
+    pipewire_set_default(key, node->props.node_name);
 }
 
 static void on_default(enum default_metadata_key key, const char *val, void *data) {
@@ -234,11 +259,11 @@ static void on_default(enum default_metadata_key key, const char *val, void *dat
         return;
     }
 
-    const bool is_default = streq(node->node_name, val);
+    const bool is_default = streq(node->props.node_name, val);
     if (is_default != node->is_default) {
         node->is_default = is_default;
-        INFO("node %d default=%d", node->id, node->is_default);
-        signal_emit_u64(node->emitter, NODE_EVENT_DEFAULT, node->is_default);
+        INFO("node %d default: %d", node->id, node->is_default);
+        emit_default(node, NULL);
     }
 }
 
@@ -246,80 +271,90 @@ static const struct pipewire_events pipewire_events = {
     .default_ = on_default,
 };
 
-static void on_node_roundtrip_done(void *data, int _) {
+static int device_cmp(const void *a, const void *b) {
+    return (*(int32_t *)a != *(int32_t *)b);
+}
+
+static void on_device_routes(struct device *dev,
+                             const struct route *routes, unsigned len, void *data) {
     struct node *node = data;
 
-    if (node->new) {
-        node->new = false;
-        /* add this after we (hopefully) got node.name from the server */
-        if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
-            pipewire_add_listener(&node->default_listener, &pipewire_events, node);
+    node->routes = xreallocarray(node->routes, len, sizeof(node->routes[0]));
+    node->n_routes = 0;
+
+    for (unsigned i = 0; i < len; i++) {
+        const struct route *route = &routes[i];
+
+        const bool skip = route->direction != media_class_to_direction(node->media_class)
+                       || !lfind(&node->card_profile_device,
+                                 route->devices, &(size_t){route->n_devices}, sizeof(int32_t),
+                                 device_cmp);
+        if (skip) {
+            continue;
         }
+
+        DEBUG("node %d route: idx=%d dev=%d dir=%d act=%d",
+              node->id, route->index, route->device, route->direction, route->active);
+
+        node->routes[node->n_routes++] = (struct route){
+            .index = route->index,
+            .device = route->device,
+            .direction = route->direction,
+            .name = xstrdup(route->name),
+            .description = xstrdup(route->description),
+            .active = route->active,
+        };
     }
-    signal_emit_u64(node->emitter, NODE_EVENT_CHANGE, node->changed);
 }
+
+static const struct device_events device_events = {
+    .routes = on_device_routes,
+};
 
 void on_node_info(void *data, const struct pw_node_info *info) {
     struct node *node = data;
 
-    DEBUG("node info: id %d, op %d/%d%s, ip %d/%d%s, state %d%s, %d params%s,%s change "
-          BYTE_BINARY_FORMAT,
-          info->id,
-          info->n_output_ports, info->max_output_ports,
-          info->change_mask & PW_NODE_CHANGE_MASK_OUTPUT_PORTS ? " C" : "",
-          info->n_input_ports, info->max_input_ports,
-          info->change_mask & PW_NODE_CHANGE_MASK_INPUT_PORTS ? " C" : "",
-          info->state,
-          info->change_mask & PW_NODE_CHANGE_MASK_STATE ? " C" : "",
-          info->n_params,
-          info->change_mask & PW_NODE_CHANGE_MASK_PARAMS ? " C" : "",
-          info->change_mask & PW_NODE_CHANGE_MASK_PROPS ? " props," : "",
-          BYTE_BINARY_ARGS(info->change_mask));
+    DEBUG("node %d info: state=%d n_params=%d change=0x%lx",
+          info->id, info->state, info->n_params, info->change_mask);
 
-    /* reset changes */
-    node->changed = NODE_CHANGE_NOTHING;
+    if (info->change_mask & PW_DEVICE_CHANGE_MASK_PROPS) {
+        const struct spa_dict *props = info->props;
+        for (unsigned i = 0; i < props->n_items; i++) {
+            const struct spa_dict_item *item = &props->items[i];
+            const char *k = item->key;
+            const char *v = item->value;
 
-    uint32_t i = 0;
-    const struct spa_dict_item *item;
-    spa_dict_for_each(item, info->props) {
-        const char *k = item->key;
-        const char *v = item->value;
+            bool changed = false;
+            if (streq(k, "media.name")) {
+                free(node->props.media_name);
+                node->props.media_name = xstrdup(v);
+                changed = true;
+            } else if (streq(k, "node.name")) {
+                free(node->props.node_name);
+                node->props.node_name = xstrdup(v);
+                changed = true;
+            } else if (streq(k, "node.description")) {
+                free(node->props.node_description);
+                node->props.node_description = xstrdup(v);
+                changed = true;
+            } else if (streq(k, "card.profile.device")) {
+                str_to_i32(v, &node->card_profile_device);
+            } else if (streq(k, "device.id") && !node->device_id) {
+                str_to_u32(v, &node->device_id);
+                struct device *dev = device_lookup(node->device_id);
+                if (!dev) {
+                    WARN("got device.id=%d on node %d but no device with this id was found",
+                         node->device_id, node->id);
+                } else {
+                    node->device = device_ref(dev);
+                    device_add_listener(node->device, &node->device_hook, &device_events, node);
+                }
+            }
 
-        TRACE("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
-
-        if (STREQ(k, PW_KEY_MEDIA_NAME)) {
-            free(node->media_name);
-            node->media_name = xstrdup(v);
-            node->changed = NODE_CHANGE_INFO;
-        } else if (STREQ(k, PW_KEY_NODE_NAME)) {
-            free(node->node_name);
-            node->node_name = xstrdup(v);
-            node->changed = NODE_CHANGE_INFO;
-        } else if (STREQ(k, PW_KEY_NODE_DESCRIPTION)) {
-            free(node->node_description);
-            node->node_description = xstrdup(v);
-            node->changed = NODE_CHANGE_INFO;
-        } else if (STREQ(k, PW_KEY_DEVICE_ID)) {
-            str_to_u32(v, &node->device_id);
-        } else if (STREQ(k, "card.profile.device")) {
-            str_to_i32(v, &node->card_profile_device);
-        }
-    }
-
-    bool needs_roundtrip = false;
-    if (info->change_mask & PW_NODE_CHANGE_MASK_PARAMS) {
-        for (i = 0; i < info->n_params; i++) {
-            struct spa_param_info *param = &info->params[i];
-            if (param->id == SPA_PARAM_Props && param->flags & SPA_PARAM_INFO_READ) {
-                pw_node_enum_params(node->pw_node, 0, param->id, 0, -1, NULL);
-                needs_roundtrip = true;
+            if (changed && !node->new) {
+                emit_props(node, NULL);
             }
         }
-    }
-    if (needs_roundtrip) {
-        pw_proxy_sync(node->pw_proxy, 228);
-    } else {
-        on_node_roundtrip_done(node, 228);
     }
 }
 
@@ -327,24 +362,28 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                    uint32_t next, const struct spa_pod *param) {
     struct node *node = data;
 
-    DEBUG("node %d param: id %d seq %d index %d next %d", node->id, id, seq, index, next);
+    DEBUG("node %d param: id=%d seq=%d index=%d next=%d", node->id, id, seq, index, next);
 
-    const struct spa_pod_prop *volumes_prop = spa_pod_find_prop(param, NULL,
-                                                                SPA_PROP_channelVolumes);
-    const struct spa_pod_prop *channels_prop = spa_pod_find_prop(param, NULL,
-                                                                 SPA_PROP_channelMap);
-    const struct spa_pod_prop *mute_prop = spa_pod_find_prop(param, NULL,
-                                                             SPA_PROP_mute);
-    if (volumes_prop == NULL || channels_prop == NULL || mute_prop == NULL) {
+    if (id != SPA_PARAM_Props) {
+        WARN("Unexpected param id (%d) in on_node_param", id);
         return;
     }
 
-    const struct spa_pod_array *volumes_arr = (const struct spa_pod_array *)&volumes_prop->value;
-    const struct spa_pod_array *channels_arr = (const struct spa_pod_array *)&channels_prop->value;
-    const uint32_t volumes_child_size = volumes_arr->body.child.size;
-    const uint32_t channels_child_size = channels_arr->body.child.size;
-    const uint32_t n_channels = (volumes_arr->pod.size - 8) / volumes_child_size;
+    const struct spa_pod_array *channels, *volumes;
+    int32_t *pmute;
+    const unsigned n = parse_param(param,
+                                   &volumes, SPA_TYPE_Array, SPA_PROP_channelVolumes,
+                                   &channels, SPA_TYPE_Array, SPA_PROP_channelMap,
+                                   &pmute, SPA_TYPE_Bool, SPA_PROP_mute,
+                                   NULL);
+    if (n != 3) {
+        ERROR("failed to parse node Props");
+        return;
+    }
 
+    ASSERT(SPA_POD_ARRAY_N_VALUES(channels) == SPA_POD_ARRAY_N_VALUES(volumes));
+
+    const unsigned n_channels = SPA_POD_ARRAY_N_VALUES(channels);
     if (node->n_channels != n_channels) {
         node->n_channels = n_channels;
         node->channel_names =
@@ -352,25 +391,34 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         node->channel_volumes =
             xreallocarray(node->channel_volumes, node->n_channels, sizeof(*node->channel_volumes));
 
-        node->changed |= NODE_CHANGE_CHANNEL_COUNT;
+        if (!node->new) {
+            emit_channels(node, NULL);
+        }
     }
 
+    /* TODO: fix this mess */
+    const unsigned volumes_child_size = SPA_POD_ARRAY_VALUE_SIZE(volumes);
+    const unsigned channels_child_size = SPA_POD_ARRAY_VALUE_SIZE(channels);
     for (unsigned i = 0; i < n_channels; i++) {
         const float *volume =
-            (void *)((uintptr_t)&volumes_arr->body + 8 + (volumes_child_size * i));
+            (void *)((uintptr_t)&volumes->body + 8 + (volumes_child_size * i));
         const enum spa_audio_channel *channel_enum =
-            (void *)((uintptr_t)&channels_arr->body + 8 + (channels_child_size * i));
+            (void *)((uintptr_t)&channels->body + 8 + (channels_child_size * i));
 
         node->channel_names[i] = channel_name_from_enum(*channel_enum);
         node->channel_volumes[i] = cbrtf(*volume);
     }
 
-    node->changed |= NODE_CHANGE_VOLUME;
+    if (!node->new) {
+        emit_volume(node, NULL);
+    }
 
-    const bool old_mute = node->mute;
-    spa_pod_get_bool(&mute_prop->value, &node->mute);
-    if (old_mute != node->mute) {
-        node->changed |= NODE_CHANGE_MUTE;
+    if (*pmute != node->mute) {
+        node->mute = *pmute;
+
+        if (!node->new) {
+            emit_mute(node, NULL);
+        }
     }
 }
 
@@ -380,16 +428,33 @@ static const struct pw_node_events node_events = {
     .param = on_node_param,
 };
 
-static void on_node_removed(void *data) {
+static void on_proxy_roundtrip_done(void *data, int _) {
     struct node *node = data;
 
-    node_destroy(node);
+    if (node->new) {
+        node->new = false;
+
+        /* add this only after we (hopefully) got node.name from the server */
+        if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
+            pipewire_add_listener(&node->default_listener, &pipewire_events, node);
+        }
+
+        emit_everything(node, NULL);
+    } else {
+        WARN("got roundrip_done on but node.new=false");
+    }
+}
+
+static void on_proxy_removed(void *data) {
+    struct node *node = data;
+
+    emit_removed(node, NULL);
 }
 
 static const struct pw_proxy_events proxy_events = {
     .version = PW_VERSION_PROXY_EVENTS,
-    .done = on_node_roundtrip_done,
-    .removed = on_node_removed,
+    .done = on_proxy_roundtrip_done,
+    .removed = on_proxy_removed,
 };
 
 void node_create(uint32_t id, enum media_class media_class) {
@@ -397,25 +462,32 @@ void node_create(uint32_t id, enum media_class media_class) {
 
     *node = (struct node){
         .id = id,
-        .new = true,
         .media_class = media_class,
         .pw_node = pw_registry_bind(pw.registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0),
-        .emitter = signal_emitter_create(),
+        .new = true,
+        .refcnt = 1,
     };
 
+    event_emitter_init(&node->emitter, node_event_dispatcher);
+
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
+    /* TODO: make sure this sends out an initial event immediately */
+    pw_node_subscribe_params(node->pw_node, (uint32_t[]){SPA_PARAM_Props}, 1);
     pw_proxy_add_listener(node->pw_proxy, &node->proxy_listener, &proxy_events, node);
+    pw_proxy_sync(node->pw_proxy, 0xB00B1E5);
 
     MAP_INSERT(&nodes, id, &node);
+
+    TRACE("node_create(%p): id=%u", (void *)node, node->id);
 }
 
-void node_destroy(struct node *node) {
-    signal_emit_u64(node->emitter, NODE_EVENT_REMOVE, node->id);
+static void node_destroy(struct node *node) {
+    TRACE("node_destroy(%p)", (void *)node);
 
     pw_proxy_destroy(node->pw_proxy);
-    free(node->media_name);
-    free(node->node_name);
-    free(node->node_description);
+    free(node->props.media_name);
+    free(node->props.node_name);
+    free(node->props.node_description);
     free(node->channel_volumes);
     free(node->channel_names);
 
@@ -423,14 +495,32 @@ void node_destroy(struct node *node) {
 
     MAP_REMOVE(&nodes, node->id);
 
-    signal_emitter_release(node->emitter);
+    event_emitter_cleanup(&node->emitter);
+
+    if (node->device) {
+        device_unref(&node->device);
+    }
 
     free(node);
 }
 
-void node_events_subscribe(struct node *node,
-                           struct signal_listener *listener, enum node_events events,
-                           signal_callback_t callback, void *callback_data) {
-    signal_listener_subscribe(listener, node->emitter, events, callback, callback_data);
+struct node *node_ref(struct node *node) {
+    ASSERT(node->refcnt++ > 0);
+
+    TRACE("node_ref(%p): %u -> %u", (void *)node, node->refcnt - 1, node->refcnt);
+
+    return node;
+}
+
+void node_unref(struct node **pnode) {
+    struct node *node = *pnode;
+    ASSERT(node->refcnt > 0);
+
+    TRACE("node_unref(%p): %u -> %u", (void *)node, node->refcnt, node->refcnt - 1);
+
+    if (--node->refcnt == 0) {
+        node_destroy(node);
+    }
+    *pnode = NULL;
 }
 

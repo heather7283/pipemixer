@@ -16,6 +16,10 @@ void *xreallocarray(void *ptr, size_t nmemb, size_t size);
 
 /* strdup, but aborts on alloc fail and returns NULL when called on NULL */
 char *xstrdup(const char *s);
+
+void *xmemdup(const void *ptr, size_t size);
+void *xmemduparray(const void *ptr, size_t nmemb, size_t size);
+
 /* printf to mallocd string */
 int xasprintf(char **restrict strp, const char *restrict fmt, ...);
 

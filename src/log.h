@@ -36,5 +36,10 @@ PRINTF(2, 3) void log_print(enum log_loglevel level, char *msg, ...);
     } \
 })
 
+#define ABORT(fmt, ...) ({ \
+    ERROR(fmt, ##__VA_ARGS__); \
+    abort(); \
+})
+
 #undef PRINTF
 

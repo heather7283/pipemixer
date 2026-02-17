@@ -7,8 +7,90 @@
 #include "log.h"
 #include "xmalloc.h"
 #include "macros.h"
+#include "utils.h"
 
 __typeof__(devices) devices = {0};
+
+enum device_event_types {
+    DEVICE_EVENT_REMOVED,
+    DEVICE_EVENT_PROPS,
+    DEVICE_EVENT_ROUTES,
+    DEVICE_EVENT_PROFILES,
+};
+
+static void device_event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
+    const struct device_events *table = hook->callbacks;
+    struct device *dev = hook->private_data;
+
+    switch ((enum device_event_types)id) {
+    case DEVICE_EVENT_REMOVED: {
+        EVENT_DISPATCH(table->removed, dev, hook->callbacks_data);
+        break;
+    }
+    case DEVICE_EVENT_PROPS: {
+        EVENT_DISPATCH(table->props, dev, &dev->props, hook->callbacks_data);
+        break;
+    }
+    case DEVICE_EVENT_ROUTES: {
+        EVENT_DISPATCH(table->routes, dev,
+                       dev->routes.data, dev->routes.size,
+                       hook->callbacks_data);
+        break;
+    }
+    case DEVICE_EVENT_PROFILES: {
+        EVENT_DISPATCH(table->profiles, dev,
+                       dev->profiles.data, dev->profiles.size,
+                       hook->callbacks_data);
+        break;
+    }
+    default:
+        ERROR("unexpected device event id %"PRIu64, id);
+    }
+}
+
+static void emit_removed(struct device *dev, struct event_hook *hook) {
+    event_emit(&dev->emitter, hook, DEVICE_EVENT_REMOVED, '0');
+}
+
+static void emit_props(struct device *dev, struct event_hook *hook) {
+    event_emit(&dev->emitter, hook, DEVICE_EVENT_PROPS, '0');
+}
+
+static void emit_routes(struct device *dev, struct event_hook *hook) {
+    event_emit(&dev->emitter, hook, DEVICE_EVENT_ROUTES, '0');
+}
+
+static void emit_profiles(struct device *dev, struct event_hook *hook) {
+    event_emit(&dev->emitter, hook, DEVICE_EVENT_PROFILES, '0');
+}
+
+static void emit_everything(struct device *dev, struct event_hook *hook) {
+    static void (*const funcs[])(struct device *, struct event_hook *) = {
+        emit_props, emit_routes, emit_profiles,
+    };
+    for (unsigned i = 0; i < SIZEOF_ARRAY(funcs); i++) {
+        funcs[i](dev, hook);
+    }
+}
+
+static void hook_remove(struct event_hook *hook) {
+    device_unref((struct device **)&hook->private_data);
+}
+
+void device_add_listener(struct device *dev, struct event_hook *hook,
+                         const struct device_events *ev, void *data) {
+    *hook = (struct event_hook){
+        .callbacks = ev,
+        .callbacks_data = data,
+        .private_data = device_ref(dev),
+        .remove = hook_remove,
+    };
+    event_emitter_add_hook(&dev->emitter, hook);
+
+    if (!dev->new) {
+        emit_everything(dev, hook);
+    }
+}
 
 struct device *device_lookup(uint32_t id) {
     struct device **dev = MAP_GET(&devices, id);
@@ -23,8 +105,12 @@ void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device) {
     bool found = false;
     struct route *route = NULL;
-    VEC_FOREACH(&dev->active_routes, i) {
-        route = VEC_AT(&dev->active_routes, i);
+    VEC_FOREACH(&dev->routes, i) {
+        route = &dev->routes.data[i];
+        if (!route->active) {
+            continue;
+        }
+
         if (route->direction == direction && route->device == card_profile_device) {
             found = true;
             break;
@@ -76,15 +162,6 @@ void device_set_profile(const struct device *dev, int32_t index) {
     pw_device_set_param(dev->pw_device, SPA_PARAM_Profile, 0, profile);
 }
 
-const struct profile *device_get_active_profile(const struct device *dev) {
-    return dev->active_profile;
-}
-
-size_t device_get_available_profiles(const struct device *dev, const struct profile **pprofiles) {
-    *pprofiles = VEC_DATA(&dev->profiles);
-    return VEC_SIZE(&dev->profiles);
-}
-
 static void profile_free_contents(struct profile *profile) {
     if (profile != NULL) {
         free(profile->name);
@@ -96,366 +173,139 @@ static void route_free_contents(struct route *route) {
     if (route != NULL) {
         free(route->description);
         free(route->name);
-        VEC_FREE(&route->devices);
-        VEC_FREE(&route->profiles);
-    }
-}
-
-const struct pw_device_events device_events = {
-    .version = PW_VERSION_DEVICE_EVENTS,
-    .info = on_device_info,
-    .param = on_device_param,
-};
-
-/* TODO: fix this forward declaratoin nonsense */
-static void on_device_roundtrip_done(void *data, int _);
-
-static void on_proxy_removed(void *data) {
-    struct device *dev = data;
-
-    device_destroy(dev);
-}
-
-static const struct pw_proxy_events proxy_events = {
-    .version = PW_VERSION_PROXY_EVENTS,
-    .done = on_device_roundtrip_done,
-    .removed = on_proxy_removed,
-};
-
-void device_create(uint32_t id) {
-    struct device *dev = xmalloc(sizeof(*dev));
-
-    *dev = (struct device){
-        .id = id,
-        .new = true,
-        .pw_device = pw_registry_bind(pw.registry, id,
-                                      PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0),
-        .emitter = signal_emitter_create(),
-    };
-
-    pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
-    pw_proxy_add_listener(dev->pw_proxy, &dev->proxy_listener, &proxy_events, dev);
-
-    MAP_INSERT(&devices, id, &dev);
-}
-
-void device_destroy(struct device *device) {
-    signal_emit_u64(device->emitter, DEVICE_EVENT_REMOVE, device->id);
-
-    pw_proxy_destroy(device->pw_proxy);
-
-    free(device->description);
-
-    VEC_FOREACH(&device->routes, i) {
-        struct route *route = VEC_AT(&device->routes, i);
-        route_free_contents(route);
-    }
-    VEC_FREE(&device->routes);
-
-    VEC_FOREACH(&device->active_routes, i) {
-        struct route *route = VEC_AT(&device->active_routes, i);
-        route_free_contents(route);
-    }
-    VEC_FREE(&device->active_routes);
-
-    VEC_FOREACH(&device->profiles, i) {
-        struct profile *profile = VEC_AT(&device->profiles, i);
-        profile_free_contents(profile);
-    }
-    VEC_FREE(&device->profiles);
-
-    if (device->active_profile != NULL) {
-        profile_free_contents(device->active_profile);
-        free(device->active_profile);
-    }
-
-    /* staging */
-    VEC_FOREACH(&device->staging.routes, i) {
-        struct route *route = VEC_AT(&device->staging.routes, i);
-        route_free_contents(route);
-    }
-    VEC_FREE(&device->staging.routes);
-
-    VEC_FOREACH(&device->staging.active_routes, i) {
-        struct route *route = VEC_AT(&device->staging.active_routes, i);
-        route_free_contents(route);
-    }
-    VEC_FREE(&device->staging.active_routes);
-
-    VEC_FOREACH(&device->staging.profiles, i) {
-        struct profile *profile = VEC_AT(&device->staging.profiles, i);
-        profile_free_contents(profile);
-    }
-    VEC_FREE(&device->staging.profiles);
-
-    if (device->staging.active_profile != NULL) {
-        profile_free_contents(device->staging.active_profile);
-        free(device->staging.active_profile);
-    }
-
-    MAP_REMOVE(&devices, device->id);
-
-    signal_emitter_release(device->emitter);
-
-    free(device);
-}
-
-static void on_device_roundtrip_done(void *data, int _) {
-    struct device *dev = data;
-
-    if (dev->modified_params & ROUTE) {
-        VEC_FOREACH(&dev->active_routes, i) {
-            struct route *route = VEC_AT(&dev->active_routes, i);
-            route_free_contents(route);
-        }
-        VEC_CLEAR(&dev->active_routes);
-
-        VEC_EXCHANGE(&dev->active_routes, &dev->staging.active_routes);
-
-        dev->modified_params &= ~ROUTE;
-    }
-    if (dev->modified_params & ENUM_ROUTE) {
-        VEC_FOREACH(&dev->routes, i) {
-            struct route *route = VEC_AT(&dev->routes, i);
-            route_free_contents(route);
-        }
-        VEC_CLEAR(&dev->routes);
-
-        VEC_EXCHANGE(&dev->routes, &dev->staging.routes);
-
-        dev->modified_params &= ~ENUM_ROUTE;
-    }
-    if (dev->modified_params & ENUM_PROFILE) {
-        VEC_FOREACH(&dev->profiles, i) {
-            struct profile *profile = VEC_AT(&dev->profiles, i);
-            profile_free_contents(profile);
-        }
-        VEC_CLEAR(&dev->profiles);
-
-        VEC_EXCHANGE(&dev->profiles, &dev->staging.profiles);
-
-        dev->modified_params &= ~ENUM_PROFILE;
-    }
-    if (dev->modified_params & PROFILE) {
-        profile_free_contents(dev->active_profile);
-        free(dev->active_profile);
-        dev->active_profile = NULL;
-
-        SWAP(dev->active_profile, dev->staging.active_profile);
-
-        dev->modified_params &= ~PROFILE;
-    }
-
-    if (dev->new) {
-        dev->new = false;
-    } else {
-        signal_emit_u64(dev->emitter, DEVICE_EVENT_CHANGE, dev->id);
-    }
-}
-
-void on_device_info(void *data, const struct pw_device_info *info) {
-    struct device *device = data;
-
-    DEBUG("device info: id %d, %d params%s,%s change "
-          BYTE_BINARY_FORMAT,
-          info->id,
-          info->n_params,
-          info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS ? " C" : "",
-          info->change_mask & PW_DEVICE_CHANGE_MASK_PROPS ? " props," : "",
-          BYTE_BINARY_ARGS(info->change_mask));
-
-    uint32_t i = 0;
-    const struct spa_dict_item *item;
-    spa_dict_for_each(item, info->props) {
-        const char *k = item->key;
-        const char *v = item->value;
-
-        TRACE("%c---%s: %s", (++i == info->props->n_items ? '\\' : '|'), k, v);
-
-        if (STREQ(k, PW_KEY_DEVICE_DESCRIPTION) && device->description == NULL) {
-            device->description = xstrdup(v);
-        }
-    }
-
-    if (info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) {
-        for (i = 0; i < info->n_params; i++) {
-            struct spa_param_info *param = &info->params[i];
-            if (param->id == SPA_PARAM_Route && param->flags & SPA_PARAM_INFO_READ) {
-                pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
-                device->modified_params |= ROUTE;
-            } else if (param->id == SPA_PARAM_EnumRoute && param->flags & SPA_PARAM_INFO_READ) {
-                pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
-                device->modified_params |= ENUM_ROUTE;
-            } else if (param->id == SPA_PARAM_Profile && param->flags & SPA_PARAM_INFO_READ) {
-                pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
-                device->modified_params |= PROFILE;
-            } else if (param->id == SPA_PARAM_EnumProfile && param->flags & SPA_PARAM_INFO_READ) {
-                pw_device_enum_params(device->pw_device, 0, param->id, 0, -1, NULL);
-                device->modified_params |= ENUM_PROFILE;
-            }
-        }
-    }
-    if (device->modified_params) {
-        pw_proxy_sync(device->pw_proxy, 1337);
+        free(route->devices);
+        free(route->profiles);
     }
 }
 
 static void on_device_param_route(struct device *dev, const struct spa_pod *param) {
-    const struct spa_pod_prop *name =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_name);
-    const struct spa_pod_prop *index =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_index);
-    const struct spa_pod_prop *device =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_device);
-    const struct spa_pod_prop *profiles =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_profiles);
-    const struct spa_pod_prop *direction =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_direction);
-    const struct spa_pod_prop *description =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_description);
-    if (index == NULL || device == NULL || direction == NULL
-        || description == NULL || name == NULL) {
-        WARN("Didn't find all required fields in Route");
+    int32_t *pindex, *pdevice, *pprofile;
+    const unsigned n = parse_param(param,
+                                   &pindex, SPA_TYPE_Int, SPA_PARAM_ROUTE_index,
+                                   &pdevice, SPA_TYPE_Int, SPA_PARAM_ROUTE_device,
+                                   &pprofile, SPA_TYPE_Int, SPA_PARAM_ROUTE_profile,
+                                   NULL);
+    if (n != 3) {
+        ERROR("failed to get index, device and profile from Route");
         return;
     }
 
-    struct route *new_route = VEC_EMPLACE_BACK_ZEROED(&dev->staging.active_routes);
+    struct route *active = NULL;
+    VEC_FOREACH(&dev->staging.routes, i) {
+        struct route *route = &dev->staging.routes.data[i];
 
-    spa_pod_get_int(&index->value, &new_route->index);
-    spa_pod_get_int(&device->value, &new_route->device);
-    spa_pod_get_id(&direction->value, &new_route->direction);
-
-    const char *description_str = NULL;
-    spa_pod_get_string(&description->value, &description_str);
-    new_route->description = xstrdup(description_str);
-
-    const char *name_str = NULL;
-    spa_pod_get_string(&name->value, &name_str);
-    new_route->name = xstrdup(name_str);
-
-    struct spa_pod *iter;
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&profiles->value, iter) {
-        VEC_APPEND(&new_route->profiles, (int32_t *)iter);
+        if (route->index == *pindex) {
+            active = route;
+            break;
+        }
     }
 
-    DEBUG("New route (Route) on dev %d: %s device %d index %d dir %d",
-          dev->id, new_route->description, new_route->device,
-          new_route->index, new_route->direction);
+    if (!active) {
+        WARN("Route %d doesn't match any EnumRoute on dev %d", *pindex, dev->id);
+    } else {
+        active->active = true;
+        active->index = *pindex;
+        active->device = *pdevice;
+        DEBUG("dev %d Route: index=%d", dev->id, active->index);
+    }
 }
 
 static void on_device_param_enum_route(struct device *dev, const struct spa_pod *param) {
-    const struct spa_pod_prop *name =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_name);
-    const struct spa_pod_prop *index =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_index);
-    const struct spa_pod_prop *devices =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_devices);
-    const struct spa_pod_prop *profiles =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_profiles);
-    const struct spa_pod_prop *direction =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_direction);
-    const struct spa_pod_prop *description =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_ROUTE_description);
-    if (index == NULL || direction == NULL || description == NULL
-        || profiles == NULL || devices == NULL || name == NULL) {
-        WARN("Didn't find all required fields in Route");
+    /* EnumRoute does not have device and profile, only devices and profiles */
+    const char *name, *description;
+    const struct spa_pod_array *devices, *profiles;
+    int32_t *pindex;
+    uint32_t *pdirection;
+    const unsigned n = parse_param(param,
+                                   &name, SPA_TYPE_String, SPA_PARAM_ROUTE_name,
+                                   &description, SPA_TYPE_String, SPA_PARAM_ROUTE_description,
+                                   &devices, SPA_TYPE_Array, SPA_PARAM_ROUTE_devices,
+                                   &profiles, SPA_TYPE_Array, SPA_PARAM_ROUTE_profiles,
+                                   &pindex, SPA_TYPE_Int, SPA_PARAM_ROUTE_index,
+                                   &pdirection, SPA_TYPE_Id, SPA_PARAM_ROUTE_direction,
+                                   NULL);
+    if (n != 6) {
+        ERROR("failed to parse EnumRoute");
         return;
     }
 
-    struct route *new_route = VEC_EMPLACE_BACK_ZEROED(&dev->staging.routes);
+    struct route *new_route = VEC_EMPLACE_BACK(&dev->staging.routes);
+    *new_route = (struct route){
+        .index = *pindex,
+        .direction = *pdirection,
+        .name = xstrdup(name),
+        .description = xstrdup(description),
+        .n_devices = SPA_POD_ARRAY_N_VALUES(devices),
+        .devices = xmemduparray(SPA_POD_ARRAY_VALUES(devices),
+                                SPA_POD_ARRAY_N_VALUES(devices),
+                                SPA_POD_ARRAY_VALUE_SIZE(devices)),
+        .n_profiles = SPA_POD_ARRAY_N_VALUES(profiles),
+        .profiles = xmemduparray(SPA_POD_ARRAY_VALUES(profiles),
+                                SPA_POD_ARRAY_N_VALUES(profiles),
+                                SPA_POD_ARRAY_VALUE_SIZE(profiles)),
+    };
 
-    spa_pod_get_int(&index->value, &new_route->index);
-    spa_pod_get_id(&direction->value, &new_route->direction);
-
-    const char *description_str = NULL;
-    spa_pod_get_string(&description->value, &description_str);
-    new_route->description = xstrdup(description_str);
-
-    const char *name_str = NULL;
-    spa_pod_get_string(&name->value, &name_str);
-    new_route->name = xstrdup(name_str);
-
-    struct spa_pod *iter;
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&devices->value, iter) {
-        VEC_APPEND(&new_route->devices, (int32_t *)iter);
-    }
-    SPA_POD_ARRAY_FOREACH((const struct spa_pod_array *)&profiles->value, iter) {
-        VEC_APPEND(&new_route->profiles, (int32_t *)iter);
-    }
-
-    DEBUG("New route (EnumRoute) on dev %d: %s index %d dir %d",
-          dev->id, new_route->description, new_route->index, new_route->direction);
+    DEBUG("dev %d EnumRoute: index=%d dir=%d name=%s desc=%s",
+          dev->id, new_route->index, new_route->direction, new_route->name, new_route->description);
 }
 
 static void on_device_param_enum_profile(struct device *dev, const struct spa_pod *param) {
-    const struct spa_pod_prop *index =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_PROFILE_index);
-    const struct spa_pod_prop *description =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_PROFILE_description);
-    const struct spa_pod_prop *name =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_PROFILE_name);
-    if (index == NULL || description == NULL || name == NULL) {
-        WARN("Didn't find index or name or description in Profile");
+    const char *description, *name;
+    int32_t *pindex;
+    const unsigned n = parse_param(param,
+                                   &description, SPA_TYPE_String, SPA_PARAM_PROFILE_description,
+                                   &name, SPA_TYPE_String, SPA_PARAM_PROFILE_name,
+                                   &pindex, SPA_TYPE_Int, SPA_PARAM_PROFILE_index,
+                                   NULL);
+    if (n != 3) {
+        ERROR("failed to parse Profile");
         return;
     }
 
-    struct profile *new_profile = VEC_EMPLACE_BACK_ZEROED(&dev->staging.profiles);
+    struct profile *new_profile = VEC_EMPLACE_BACK(&dev->staging.profiles);
+    *new_profile = (struct profile){
+        .index = *pindex,
+        .description = xstrdup(description),
+        .name = xstrdup(name),
+    };
 
-    spa_pod_get_int(&index->value, &new_profile->index);
-
-    const char *description_str = NULL;
-    spa_pod_get_string(&description->value, &description_str);
-    new_profile->description = xstrdup(description_str);
-
-    const char *name_str = NULL;
-    spa_pod_get_string(&name->value, &name_str);
-    new_profile->name = xstrdup(name_str);
-
-    DEBUG("New profile (EnumProfile) on dev %d: %s (%s) index %d",
-          dev->id, new_profile->description, new_profile->name, new_profile->index);
+    DEBUG("dev %d EnumProfile: index=%d name=%s desc=%s",
+          dev->id, new_profile->index, new_profile->name, new_profile->description);
 }
 
 static void on_device_param_profile(struct device *dev, const struct spa_pod *param) {
-    if (dev->staging.active_profile != NULL) {
-        ERROR("Got Profile for dev %d, but active profile is already set to %d (%s), "
-              "PLEASE REPORT THIS AS A BUG!!!",
-              dev->id, dev->active_profile->index, dev->active_profile->name);
+    int32_t *pindex;
+    if (parse_param(param, &pindex, SPA_TYPE_Int, SPA_PARAM_PROFILE_index, NULL) != 1) {
+        ERROR("failed to get index from Profile");
         return;
     }
 
-    const struct spa_pod_prop *index =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_PROFILE_index);
-    const struct spa_pod_prop *description =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_PROFILE_description);
-    const struct spa_pod_prop *name =
-        spa_pod_find_prop(param, NULL, SPA_PARAM_PROFILE_name);
-    if (index == NULL || description == NULL || name == NULL) {
-        WARN("Didn't find index or name or description in Profile");
-        return;
+    struct profile *active = NULL;
+    VEC_FOREACH(&dev->staging.profiles, i) {
+        struct profile *prof = &dev->staging.profiles.data[i];
+
+        if (prof->active) {
+            WARN("BUG: got a Profile (%d) after active Profile has already been found (%d)!",
+                 *pindex, prof->index);
+        } else if (prof->index == *pindex) {
+            active = prof;
+            /* don't break here to check all others too */
+        }
     }
 
-    struct profile *new_profile = xcalloc(1, sizeof(*new_profile));
-
-    spa_pod_get_int(&index->value, &new_profile->index);
-
-    const char *description_str = NULL;
-    spa_pod_get_string(&description->value, &description_str);
-    new_profile->description = xstrdup(description_str);
-
-    const char *name_str = NULL;
-    spa_pod_get_string(&name->value, &name_str);
-    new_profile->name = xstrdup(name_str);
-
-    dev->staging.active_profile = new_profile;
-    DEBUG("New profile (Profile) on dev %d: %s (%s) index %d",
-          dev->id, new_profile->description, new_profile->name, new_profile->index);
+    if (!active) {
+        WARN("Profile %d doesn't match any EnumProfile on dev %d", *pindex, dev->id);
+    } else {
+        active->active = true;
+        DEBUG("dev %d Profile: index=%d", dev->id, active->index);
+    }
 }
 
-void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
-                     uint32_t next, const struct spa_pod *param) {
+static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
+                            uint32_t next, const struct spa_pod *param) {
     struct device *device = data;
 
-    DEBUG("device %d param: id %d seq %d index %d next %d", device->id, id, seq, index, next);
+    DEBUG("dev %d param: seq=%d id=%d index=%d next=%d", device->id, id, seq, index, next);
 
     switch (id) {
     case SPA_PARAM_Route:
@@ -470,12 +320,186 @@ void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
     case SPA_PARAM_EnumProfile:
         on_device_param_enum_profile(device, param);
         break;
+    default:
+        ERROR("unexpected device param");
     }
 }
 
-void device_events_subscribe(struct device *device,
-                             struct signal_listener *listener, enum device_events events,
-                             signal_callback_t callback, void *callback_data) {
-    signal_listener_subscribe(listener, device->emitter, events, callback, callback_data);
+static void on_device_info(void *data, const struct pw_device_info *info) {
+    struct device *dev = data;
+
+    DEBUG("dev %d info: n_params=%d change=0x%lx", info->id, info->n_params, info->change_mask);
+
+    if (info->change_mask & PW_DEVICE_CHANGE_MASK_PROPS) {
+        bool changed = false;
+
+        const struct spa_dict *props = info->props;
+        for (unsigned i = 0; i < props->n_items; i++) {
+            const struct spa_dict_item *item = &props->items[i];
+            const char *k = item->key;
+            const char *v = item->value;
+
+            if (streq(k, "device.description")) {
+                free(dev->props.description);
+                dev->props.description = xstrdup(v);
+                changed = true;
+            }
+        }
+
+        if (changed && !dev->new) {
+            emit_props(dev, NULL);
+        }
+    }
+
+    if (info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) {
+        bool changed = false;
+
+        for (unsigned i = 0; i < info->n_params; i++) {
+            struct spa_param_info *param = &info->params[i];
+
+            /* TODO: is this needed? what does this even do? */
+            if (!(param->flags & SPA_PARAM_INFO_READ)) {
+                continue;
+            }
+
+            const bool matches = (param->id == SPA_PARAM_Profile)
+                              || (param->id == SPA_PARAM_EnumProfile)
+                              || (param->id == SPA_PARAM_Route)
+                              || (param->id == SPA_PARAM_EnumRoute);
+            if (matches) {
+                /* TODO: more granular updates? */
+                changed = true;
+                break;
+            }
+        }
+
+        if (changed) {
+            /* in this exact order! */
+            static const int ids[] = {
+                SPA_PARAM_EnumProfile, SPA_PARAM_Profile, SPA_PARAM_EnumRoute, SPA_PARAM_Route
+            };
+            for (unsigned i = 0; i < SIZEOF_ARRAY(ids); i++) {
+                /* TODO: would be great to figure out what the last parameter ("filter") does */
+                pw_device_enum_params(dev->pw_device, 0, ids[i], 0, -1, NULL);
+            }
+
+            pw_proxy_sync(dev->pw_proxy, 1337);
+        }
+    }
+}
+
+const struct pw_device_events device_events = {
+    .version = PW_VERSION_DEVICE_EVENTS,
+    .info = on_device_info,
+    .param = on_device_param,
+};
+
+static void on_proxy_roundtrip_done(void *data, int _) {
+    struct device *dev = data;
+
+    VEC_FOREACH(&dev->routes, i) {
+        struct route *route = &dev->routes.data[i];
+        route_free_contents(route);
+    }
+    VEC_CLEAR(&dev->routes);
+    VEC_EXCHANGE(&dev->routes, &dev->staging.routes);
+
+    VEC_FOREACH(&dev->profiles, i) {
+        struct profile *profile = &dev->profiles.data[i];
+        profile_free_contents(profile);
+    }
+    VEC_CLEAR(&dev->profiles);
+    VEC_EXCHANGE(&dev->profiles, &dev->staging.profiles);
+
+
+    if (dev->new) {
+        dev->new = false;
+        emit_everything(dev, NULL);
+    } else {
+        emit_routes(dev, NULL);
+        emit_profiles(dev, NULL);
+    }
+}
+
+static void on_proxy_removed(void *data) {
+    struct device *dev = data;
+
+    emit_removed(dev, NULL);
+}
+
+static const struct pw_proxy_events proxy_events = {
+    .version = PW_VERSION_PROXY_EVENTS,
+    .done = on_proxy_roundtrip_done,
+    .removed = on_proxy_removed,
+};
+
+void device_create(uint32_t id) {
+    struct device *dev = xmalloc(sizeof(*dev));
+
+    *dev = (struct device){
+        .id = id,
+        .pw_device = pw_registry_bind(pw.registry, id,
+                                      PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0),
+        .new = true,
+        .refcnt = 1,
+    };
+
+    event_emitter_init(&dev->emitter, device_event_dispatcher);
+
+    pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
+    pw_proxy_add_listener(dev->pw_proxy, &dev->proxy_listener, &proxy_events, dev);
+
+    MAP_INSERT(&devices, id, &dev);
+}
+
+static void device_destroy(struct device *device) {
+    pw_proxy_destroy(device->pw_proxy);
+
+    free(device->props.description);
+
+    VEC_FOREACH(&device->routes, i) {
+        struct route *route = &device->routes.data[i];
+        route_free_contents(route);
+    }
+    VEC_FREE(&device->routes);
+
+    VEC_FOREACH(&device->profiles, i) {
+        struct profile *profile = &device->profiles.data[i];
+        profile_free_contents(profile);
+    }
+    VEC_FREE(&device->profiles);
+
+    /* staging */
+    VEC_FOREACH(&device->staging.routes, i) {
+        struct route *route = &device->staging.routes.data[i];
+        route_free_contents(route);
+    }
+    VEC_FREE(&device->staging.routes);
+
+    VEC_FOREACH(&device->staging.profiles, i) {
+        struct profile *profile = &device->staging.profiles.data[i];
+        profile_free_contents(profile);
+    }
+    VEC_FREE(&device->staging.profiles);
+
+    MAP_REMOVE(&devices, device->id);
+
+    event_emitter_cleanup(&device->emitter);
+
+    free(device);
+}
+
+struct device *device_ref(struct device *dev) {
+    ASSERT(dev->refcnt++ > 0);
+    return dev;
+}
+
+void device_unref(struct device **pdev) {
+    struct device *dev = *pdev;
+    ASSERT(dev->refcnt > 0);
+    if (--dev->refcnt == 0) {
+        device_destroy(dev);
+    }
+    *pdev = NULL;
 }
 

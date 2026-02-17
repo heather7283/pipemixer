@@ -18,10 +18,10 @@ enum pipewire_event_types {
     PIPEWIRE_EVENT_DEFAULT,
 };
 
-static void event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
+static void pipewire_event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
     const struct pipewire_events *table = hook->callbacks;
 
-    switch (id) {
+    switch ((enum pipewire_event_types)id) {
     case PIPEWIRE_EVENT_NODE: {
         struct node *node = node_lookup(data.u);
         if (node) {
@@ -75,8 +75,10 @@ void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events
     MAP_FOREACH(&devices, &pdevice) {
         emit_device((*pnode)->id, hook);
     }
-    for (unsigned i = 0; i < DEFAULT_METADATA_KEY_COUNT; i++) {
-        emit_default(i, hook);
+    if (pw.default_metadata.pw_metadata) {
+        for (unsigned i = 0; i < DEFAULT_METADATA_KEY_COUNT; i++) {
+            emit_default(i, hook);
+        }
     }
 }
 
@@ -151,13 +153,7 @@ static const struct pw_metadata_events default_metadata_events = {
 static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const char *type, uint32_t version,
                                const struct spa_dict *props) {
-    DEBUG("registry global: id %d, perms "PW_PERMISSION_FORMAT", ver %d, type %s",
-          id, PW_PERMISSION_ARGS(permissions), version, type);
-    uint32_t i = 0;
-    const struct spa_dict_item *item;
-    spa_dict_for_each(item, props) {
-        TRACE("%c---%s: %s", (++i == props->n_items ? '\\' : '|'), item->key, item->value);
-    }
+    DEBUG("registry global: id=%d, perms=0o%o, type=%s, ver=%d", id, permissions, type, version);
 
     if (STREQ(type, PW_TYPE_INTERFACE_Node)) {
         const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
@@ -262,7 +258,7 @@ int pipewire_init(void) {
     pw.registry = pw_core_get_registry(pw.core, PW_VERSION_REGISTRY, 0);
     pw_registry_add_listener(pw.registry, &pw.registry_listener, &registry_events, NULL);
 
-    event_emitter_init(&pw.emitter, event_dispatcher);
+    event_emitter_init(&pw.emitter, pipewire_event_dispatcher);
 
     return 0;
 }

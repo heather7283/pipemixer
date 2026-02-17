@@ -26,6 +26,12 @@ enum node_change_mask {
     NODE_CHANGE_EVERYTHING = ~0,
 };
 
+struct node_props {
+    char *media_name;
+    char *node_name;
+    char *node_description;
+};
+
 struct node {
     union {
         struct pw_node *pw_node;
@@ -36,12 +42,9 @@ struct node {
 
     uint32_t id;
     enum media_class media_class;
-    char *media_name;
-    char *node_name;
-    char *node_description;
+    struct node_props props;
 
     bool mute;
-
     unsigned n_channels;
     const char **channel_names;
     float *channel_volumes;
@@ -50,12 +53,17 @@ struct node {
     struct event_hook default_listener;
 
     uint32_t device_id;
+    struct device *device;
+    struct event_hook device_hook;
+
     int32_t card_profile_device;
+    struct route *routes;
+    unsigned n_routes;
+
+    struct event_emitter emitter;
 
     bool new;
-    enum node_change_mask changed;
-
-    struct signal_emitter *emitter;
+    unsigned refcnt;
 };
 
 extern MAP(struct node *) nodes;
@@ -63,11 +71,9 @@ extern MAP(struct node *) nodes;
 struct node *node_lookup(uint32_t id);
 
 void node_create(uint32_t id, enum media_class media_class);
-void node_destroy(struct node *node);
 
-void on_node_info(void *data, const struct pw_node_info *info);
-void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
-                   uint32_t next, const struct spa_pod *param);
+struct node *node_ref(struct node *node);
+void node_unref(struct node **pnode);
 
 void node_set_mute(const struct node *node, bool mute);
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel);
@@ -77,14 +83,16 @@ void node_set_default(const struct node *node);
 const struct route *node_get_active_route(const struct node *node);
 size_t node_get_available_routes(const struct node *node, const struct route *const **proutes);
 
-enum node_events {
-    NODE_EVENT_CHANGE = 1 << 0, /* change mask as u64 */
-    NODE_EVENT_REMOVE = 1 << 1, /* node id as u64 */
-    NODE_EVENT_DEFAULT = 1 << 2, /* default state as bool */
-    NODE_EVENT_ANY = ~0,
+struct node_events {
+    void (*removed)(struct node *node, void *data);
+    void (*routes)(struct node *node, const struct route routes[], unsigned count, void *data);
+    void (*props)(struct node *node, const struct node_props *props, void *data);
+    void (*channels)(struct node *node, const char *channels[], unsigned count, void *data);
+    void (*volume)(struct node *node, const float channels[], unsigned count, void *data);
+    void (*mute)(struct node *node, bool mute, void *data);
+    void (*default_)(struct node *node, bool is_default, void *data);
 };
 
-void node_events_subscribe(struct node *node,
-                           struct signal_listener *listener, enum node_events events,
-                           signal_callback_t callback, void *callback_data);
+void node_add_listener(struct node *node, struct event_hook *hook,
+                       const struct node_events *events, void *data);
 
