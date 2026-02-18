@@ -1,4 +1,5 @@
 #include <spa/pod/builder.h>
+#include <spa/pod/parser.h>
 #include <spa/param/props.h>
 
 #include "pw/device.h"
@@ -162,12 +163,17 @@ void device_set_profile(const struct device *dev, int32_t index) {
 }
 
 static void on_device_param_route(struct device *dev, const struct spa_pod *param) {
-    int32_t *pindex, *pdevice, *pprofile;
-    const unsigned n = parse_param(param,
-                                   &pindex, SPA_TYPE_Int, SPA_PARAM_ROUTE_index,
-                                   &pdevice, SPA_TYPE_Int, SPA_PARAM_ROUTE_device,
-                                   &pprofile, SPA_TYPE_Int, SPA_PARAM_ROUTE_profile,
-                                   NULL);
+    struct spa_pod_parser p;
+    spa_pod_parser_pod(&p, param);
+
+    pw_int_t index, device, profile;
+
+    const int n =
+        spa_pod_parser_get_object(&p,
+                                  SPA_TYPE_OBJECT_ParamRoute, &(pw_id_t){},
+                                  SPA_PARAM_ROUTE_index, SPA_POD_Int(&index),
+                                  SPA_PARAM_ROUTE_device, SPA_POD_Int(&device),
+                                  SPA_PARAM_ROUTE_profile, SPA_POD_Int(&profile));
     if (n != 3) {
         ERROR("failed to get index, device and profile from Route");
         return;
@@ -177,55 +183,66 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
     VEC_FOREACH(&dev->staging.routes, i) {
         struct route *route = &dev->staging.routes.data[i];
 
-        if (route->index == *pindex) {
+        if (route->index == index) {
             active = route;
             break;
         }
     }
 
     if (!active) {
-        WARN("Route %d doesn't match any EnumRoute on dev %d", *pindex, dev->id);
+        WARN("Route %d doesn't match any EnumRoute on dev %d", index, dev->id);
     } else {
         active->active = true;
-        active->index = *pindex;
-        active->device = *pdevice;
+        active->index = index;
+        active->device = device;
         DEBUG("dev %d Route: index=%d", dev->id, active->index);
     }
 }
 
 static void on_device_param_enum_route(struct device *dev, const struct spa_pod *param) {
     /* EnumRoute does not have device and profile, only devices and profiles */
+    struct spa_pod_parser p;
+    spa_pod_parser_pod(&p, param);
+
+    pw_int_t index;
+    pw_id_t direction;
     const char *name, *description;
-    const struct spa_pod_array *devices, *profiles;
-    int32_t *pindex;
-    uint32_t *pdirection;
-    const unsigned n = parse_param(param,
-                                   &name, SPA_TYPE_String, SPA_PARAM_ROUTE_name,
-                                   &description, SPA_TYPE_String, SPA_PARAM_ROUTE_description,
-                                   &devices, SPA_TYPE_Array, SPA_PARAM_ROUTE_devices,
-                                   &profiles, SPA_TYPE_Array, SPA_PARAM_ROUTE_profiles,
-                                   &pindex, SPA_TYPE_Int, SPA_PARAM_ROUTE_index,
-                                   &pdirection, SPA_TYPE_Id, SPA_PARAM_ROUTE_direction,
-                                   NULL);
+
+    uint32_t dev_csize, dev_ctype, dev_nvals;
+    const pw_int_t *dev_vals;
+
+    uint32_t prof_csize, prof_ctype, prof_nvals;
+    const pw_int_t *prof_vals;
+
+    const int n =
+        spa_pod_parser_get_object(&p,
+                                  SPA_TYPE_OBJECT_ParamRoute, &(pw_id_t){},
+                                  SPA_PARAM_ROUTE_name, SPA_POD_String(&name),
+                                  SPA_PARAM_ROUTE_description, SPA_POD_String(&description),
+                                  SPA_PARAM_ROUTE_index, SPA_POD_Int(&index),
+                                  SPA_PARAM_ROUTE_direction, SPA_POD_Id(&direction),
+                                  SPA_PARAM_ROUTE_devices, SPA_POD_Array(&dev_csize, &dev_ctype,
+                                                                         &dev_nvals, &dev_vals),
+                                  SPA_PARAM_ROUTE_profiles, SPA_POD_Array(&prof_csize, &prof_ctype,
+                                                                          &prof_nvals, &prof_vals));
     if (n != 6) {
         ERROR("failed to parse EnumRoute");
+        return;
+    } else if (dev_ctype != SPA_TYPE_Int || prof_ctype != SPA_TYPE_Int) {
+        ERROR("unexpected array member type in pod");
         return;
     }
 
     struct route *new_route = VEC_EMPLACE_BACK(&dev->staging.routes);
     *new_route = (struct route){
-        .index = *pindex,
-        .direction = *pdirection,
+        .index = index,
+        .direction = direction,
         .name = xstrdup(name),
         .description = xstrdup(description),
-        .n_devices = SPA_POD_ARRAY_N_VALUES(devices),
-        .devices = xmemduparray(SPA_POD_ARRAY_VALUES(devices),
-                                SPA_POD_ARRAY_N_VALUES(devices),
-                                SPA_POD_ARRAY_VALUE_SIZE(devices)),
-        .n_profiles = SPA_POD_ARRAY_N_VALUES(profiles),
-        .profiles = xmemduparray(SPA_POD_ARRAY_VALUES(profiles),
-                                SPA_POD_ARRAY_N_VALUES(profiles),
-                                SPA_POD_ARRAY_VALUE_SIZE(profiles)),
+        .n_devices = dev_nvals,
+        .devices = xmemduparray(dev_vals, dev_nvals, dev_csize),
+        .n_profiles = prof_nvals,
+        .profiles = xmemduparray(prof_vals, prof_nvals, prof_csize),
     };
 
     DEBUG("dev %d EnumRoute: index=%d dir=%d name=%s desc=%s",
@@ -233,13 +250,18 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
 }
 
 static void on_device_param_enum_profile(struct device *dev, const struct spa_pod *param) {
+    struct spa_pod_parser p;
+    spa_pod_parser_pod(&p, param);
+
     const char *description, *name;
-    int32_t *pindex;
-    const unsigned n = parse_param(param,
-                                   &description, SPA_TYPE_String, SPA_PARAM_PROFILE_description,
-                                   &name, SPA_TYPE_String, SPA_PARAM_PROFILE_name,
-                                   &pindex, SPA_TYPE_Int, SPA_PARAM_PROFILE_index,
-                                   NULL);
+    pw_int_t index;
+
+    const int n =
+        spa_pod_parser_get_object(&p,
+                                  SPA_TYPE_OBJECT_ParamProfile, &(pw_id_t){},
+                                  SPA_PARAM_PROFILE_name, SPA_POD_String(&name),
+                                  SPA_PARAM_PROFILE_description, SPA_POD_String(&description),
+                                  SPA_PARAM_PROFILE_index, SPA_POD_Int(&index));
     if (n != 3) {
         ERROR("failed to parse Profile");
         return;
@@ -247,7 +269,7 @@ static void on_device_param_enum_profile(struct device *dev, const struct spa_po
 
     struct profile *new_profile = VEC_EMPLACE_BACK(&dev->staging.profiles);
     *new_profile = (struct profile){
-        .index = *pindex,
+        .index = index,
         .description = xstrdup(description),
         .name = xstrdup(name),
     };
@@ -257,8 +279,16 @@ static void on_device_param_enum_profile(struct device *dev, const struct spa_po
 }
 
 static void on_device_param_profile(struct device *dev, const struct spa_pod *param) {
-    int32_t *pindex;
-    if (parse_param(param, &pindex, SPA_TYPE_Int, SPA_PARAM_PROFILE_index, NULL) != 1) {
+    struct spa_pod_parser p;
+    spa_pod_parser_pod(&p, param);
+
+    pw_int_t index;
+
+    const int n =
+        spa_pod_parser_get_object(&p,
+                                  SPA_TYPE_OBJECT_ParamProfile, &(pw_id_t){},
+                                  SPA_PARAM_PROFILE_index, SPA_POD_Int(&index));
+    if (n != 1) {
         ERROR("failed to get index from Profile");
         return;
     }
@@ -269,15 +299,15 @@ static void on_device_param_profile(struct device *dev, const struct spa_pod *pa
 
         if (prof->active) {
             WARN("BUG: got a Profile (%d) after active Profile has already been found (%d)!",
-                 *pindex, prof->index);
-        } else if (prof->index == *pindex) {
+                 index, prof->index);
+        } else if (prof->index == index) {
             active = prof;
             /* don't break here to check all others too */
         }
     }
 
     if (!active) {
-        WARN("Profile %d doesn't match any EnumProfile on dev %d", *pindex, dev->id);
+        WARN("Profile %d doesn't match any EnumProfile on dev %d", index, dev->id);
     } else {
         active->active = true;
         DEBUG("dev %d Profile: index=%d", dev->id, active->index);

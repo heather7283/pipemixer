@@ -3,6 +3,7 @@
 #include <math.h>
 
 #include <spa/pod/builder.h>
+#include <spa/pod/parser.h>
 #include <spa/param/props.h>
 
 #include "pw/node.h"
@@ -369,57 +370,62 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 
     DEBUG("node %d param: id=%d seq=%d index=%d next=%d", node->id, id, seq, index, next);
 
-    if (id != SPA_PARAM_Props) {
-        WARN("Unexpected param id (%d) in on_node_param", id);
-        return;
-    }
+    struct spa_pod_parser p;
+    spa_pod_parser_pod(&p, param);
 
-    const struct spa_pod_array *channels, *volumes;
-    int32_t *pmute;
-    const unsigned n = parse_param(param,
-                                   &volumes, SPA_TYPE_Array, SPA_PROP_channelVolumes,
-                                   &channels, SPA_TYPE_Array, SPA_PROP_channelMap,
-                                   &pmute, SPA_TYPE_Bool, SPA_PROP_mute,
-                                   NULL);
+    pw_bool_t mute;
+
+    uint32_t map_csize, map_ctype, map_nvals;
+    const pw_id_t *map_vals;
+
+    uint32_t vol_csize, vol_ctype, vol_nvals;
+    const float *vol_vals;
+
+    const int n =
+        spa_pod_parser_get_object(&p,
+                                  SPA_TYPE_OBJECT_Props, &(pw_id_t){},
+                                  SPA_PROP_mute, SPA_POD_Bool(&mute),
+                                  SPA_PROP_channelMap, SPA_POD_Array(&map_csize, &map_ctype,
+                                                                     &map_nvals, &map_vals),
+                                  SPA_PROP_channelVolumes, SPA_POD_Array(&vol_csize, &vol_ctype,
+                                                                         &vol_nvals, &vol_vals));
     if (n != 3) {
         ERROR("failed to parse node Props");
         return;
+    } else if (vol_ctype != SPA_TYPE_Float || map_ctype != SPA_TYPE_Id) {
+        ERROR("unexpected array member type in pod");
+        return;
+    } else if (map_nvals != vol_nvals) {
+        ERROR("channelMap size != channelVolumes size (wtf)");
+        return;
     }
 
-    ASSERT(SPA_POD_ARRAY_N_VALUES(channels) == SPA_POD_ARRAY_N_VALUES(volumes));
-
-    const unsigned n_channels = SPA_POD_ARRAY_N_VALUES(channels);
-    if (node->n_channels != n_channels) {
-        node->n_channels = n_channels;
+    if (node->n_channels != map_nvals) {
         node->channel_names =
-            xreallocarray(node->channel_names, node->n_channels, sizeof(*node->channel_names));
+            xreallocarray(node->channel_names, map_nvals, sizeof(node->channel_names[0]));
         node->channel_volumes =
-            xreallocarray(node->channel_volumes, node->n_channels, sizeof(*node->channel_volumes));
+            xreallocarray(node->channel_volumes, map_nvals, sizeof(node->channel_volumes[0]));
+        node->n_channels = map_nvals;
 
         if (!node->new) {
             emit_channels(node, NULL);
         }
     }
 
-    /* TODO: fix this mess */
-    const unsigned volumes_child_size = SPA_POD_ARRAY_VALUE_SIZE(volumes);
-    const unsigned channels_child_size = SPA_POD_ARRAY_VALUE_SIZE(channels);
-    for (unsigned i = 0; i < n_channels; i++) {
-        const float *volume =
-            (void *)((uintptr_t)&volumes->body + 8 + (volumes_child_size * i));
-        const enum spa_audio_channel *channel_enum =
-            (void *)((uintptr_t)&channels->body + 8 + (channels_child_size * i));
+    for (unsigned i = 0; i < map_nvals; i++) {
+        const enum spa_audio_channel chan = map_vals[i];
+        const float volume = vol_vals[i];
 
-        node->channel_names[i] = channel_name_from_enum(*channel_enum);
-        node->channel_volumes[i] = cbrtf(*volume);
+        node->channel_names[i] = channel_name_from_enum(chan);
+        node->channel_volumes[i] = cbrtf(volume);
     }
 
     if (!node->new) {
         emit_volume(node, NULL);
     }
 
-    if (*pmute != node->mute) {
-        node->mute = *pmute;
+    if (mute != node->mute) {
+        node->mute = mute;
 
         if (!node->new) {
             emit_mute(node, NULL);

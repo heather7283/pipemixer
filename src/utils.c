@@ -6,8 +6,6 @@
 #include <curses.h>
 #include <limits.h>
 
-#include <spa/pod/iter.h>
-
 #include "utils.h"
 #include "macros.h"
 #include "xmalloc.h"
@@ -341,55 +339,5 @@ bool strneq(const char *a, const char *b, size_t len) {
         return false;
     }
     return strncmp(a, b, len) == 0;
-}
-
-unsigned parse_param(const struct spa_pod *param, ...) {
-    unsigned ret = 0;
-
-    va_list args;
-    va_start(args, param);
-
-    void *out;
-    while ((out = va_arg(args, void *)) != NULL) {
-        const uint32_t type = va_arg(args, int);
-        const uint32_t key = va_arg(args, int);
-
-        const struct spa_pod_prop *prop = spa_pod_find_prop(param, NULL, key);
-        if (!prop) {
-            ERROR("didn't find pod for key %d", key);
-            continue;
-        }
-
-        const struct spa_pod *pod = &prop->value;
-        if (pod->type != type) {
-            ERROR("expected pod of type %d on key %d, got %d", type, key, pod->type);
-            continue;
-        }
-
-        switch (type) {
-        case SPA_TYPE_Id:
-            *(uint32_t **)out = SPA_POD_BODY(pod);
-            break;
-        case SPA_TYPE_Int:
-            *(int32_t **)out = SPA_POD_BODY(pod);
-            break;
-        case SPA_TYPE_Bool:
-            *(int32_t **)out = SPA_POD_BODY(pod);
-            break;
-        case SPA_TYPE_String:
-            *(char **)out = SPA_POD_BODY(pod);
-            break;
-        case SPA_TYPE_Array:
-            *(struct spa_pod_array **)out = (struct spa_pod_array *)pod;
-            break;
-        default:
-            ABORT("parse_param: unhandled type %d", type);
-        }
-
-        ret += 1;
-    }
-
-    va_end(args);
-    return ret;
 }
 
