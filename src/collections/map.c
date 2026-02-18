@@ -1,7 +1,7 @@
 #include "collections/map.h"
 #include "xmalloc.h"
 
-static uint32_t index(uint32_t key, uint32_t n_buckets) {
+static uint32_t get_index(uint32_t key, uint32_t n_buckets) {
     const uint32_t p = __builtin_ctz(n_buckets);
     const uint32_t knuth = 2654435769;
     return (key * knuth) >> (sizeof(key) * 8 - p);
@@ -20,7 +20,7 @@ static void resize(struct map *map) {
             old_next = old_entry->next;
 
             struct map_entry **pentry;
-            const uint32_t idx = index(old_entry->key, map->n_buckets);
+            const uint32_t idx = get_index(old_entry->key, map->n_buckets);
             for (pentry = &map->buckets[idx]; *pentry; pentry = &(*pentry)->next);
 
             *pentry = old_entry;
@@ -39,7 +39,7 @@ void map_insert(struct map *map, uint32_t key, void *val) {
     }
 
     struct map_entry **pentry;
-    const uint32_t idx = index(key, map->n_buckets);
+    const uint32_t idx = get_index(key, map->n_buckets);
     for (pentry = &map->buckets[idx]; *pentry; pentry = &(*pentry)->next);
 
     *pentry = xmalloc(sizeof(**pentry));
@@ -56,7 +56,7 @@ void *map_get(struct map *map, uint32_t key) {
         return NULL;
     }
 
-    const uint32_t idx = index(key, map->n_buckets);
+    const uint32_t idx = get_index(key, map->n_buckets);
     for (struct map_entry *entry = map->buckets[idx]; entry; entry = entry->next) {
         if (entry->key == key) {
             return entry->val;
@@ -71,7 +71,7 @@ void *map_remove(struct map *map, uint32_t key) {
         return NULL;
     }
 
-    const uint32_t idx = index(key, map->n_buckets);
+    const uint32_t idx = get_index(key, map->n_buckets);
     for (struct map_entry **pentry = &map->buckets[idx]; *pentry; pentry = &(*pentry)->next) {
         if ((*pentry)->key == key) {
             void *val = (*pentry)->val;
