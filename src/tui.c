@@ -1110,6 +1110,7 @@ static void on_device_removed(struct device *dev, void *data) {
 
     if (item->tab_index == tui.tab_index) {
         redraw_current_tab();
+        trigger_update();
     }
 
     free(item);
@@ -1183,6 +1184,7 @@ static void on_node_removed(struct node *node, void *data) {
 
     if (item->tab_index == tui.tab_index) {
         redraw_current_tab();
+        trigger_update();
     }
 
     free(item);
