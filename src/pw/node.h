@@ -4,7 +4,6 @@
 #include <spa/param/audio/raw-types.h>
 
 #include "pw/device.h"
-#include "collections/map.h"
 #include "events.h"
 
 enum media_class {
@@ -66,11 +65,7 @@ struct node {
     unsigned refcnt;
 };
 
-extern MAP(struct node *) nodes;
-
-struct node *node_lookup(uint32_t id);
-
-void node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_class);
+struct node *node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_class);
 
 struct node *node_ref(struct node *node);
 void node_unref(struct node **pnode);

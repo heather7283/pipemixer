@@ -4,6 +4,7 @@
 #include "pw/common.h"
 #include "pw/node.h"
 #include "pw/device.h"
+#include "collections/map.h"
 #include "eventloop.h"
 #include "xmalloc.h"
 #include "macros.h"
@@ -32,6 +33,9 @@ struct pipewire {
         char *properties[DEFAULT_METADATA_KEY_COUNT];
         bool roundtrip;
     } default_metadata;
+
+    MAP(struct node *) nodes;
+    MAP(struct device *) devices;
 
     struct event_emitter *emitter;
 } pw = {0};
@@ -92,18 +96,38 @@ void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events
     event_emitter_add_hook(pw.emitter, hook);
 
     struct node **pnode;
-    MAP_FOREACH(&nodes, &pnode) {
+    MAP_FOREACH(&pw.nodes, &pnode) {
         emit_node((*pnode)->id, hook);
     }
+
     struct device **pdevice;
-    MAP_FOREACH(&devices, &pdevice) {
+    MAP_FOREACH(&pw.devices, &pdevice) {
         emit_device((*pnode)->id, hook);
     }
+
     if (pw.default_metadata.pw_metadata) {
         for (unsigned i = 0; i < DEFAULT_METADATA_KEY_COUNT; i++) {
             emit_default(i, hook);
         }
     }
+}
+
+struct node *node_lookup(uint32_t id) {
+    struct node **node = MAP_GET(&pw.nodes, id);
+    if (node == NULL) {
+        WARN("node with id %u was not found", id);
+        return NULL;
+    }
+    return *node;
+}
+
+struct device *device_lookup(uint32_t id) {
+    struct device **dev = MAP_GET(&pw.devices, id);
+    if (dev == NULL) {
+        WARN("device with id %u was not found", id);
+        return NULL;
+    }
+    return *dev;
 }
 
 static const char *default_metadata_key_str(enum default_metadata_key key) {
@@ -199,7 +223,8 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         struct pw_node *pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
-        node_create(pw_node, id, media_class_value);
+        struct node *node = node_create(pw_node, id, media_class_value);
+        MAP_INSERT(&pw.nodes, id, &node);
         emit_node(id, NULL);
     } else if (streq(type, PW_TYPE_INTERFACE_Device)) {
         const char *media_class = spa_dict_lookup(props, "media.class");
@@ -214,7 +239,8 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         }
 
         struct pw_device *pw_device = pw_registry_bind(pw.registry, id, type, PW_VERSION_DEVICE, 0);
-        device_create(pw_device, id);
+        struct device *device = device_create(pw_device, id);
+        MAP_INSERT(&pw.devices, id, &device);
         emit_device(id, NULL);
     } else if (streq(type, PW_TYPE_INTERFACE_Metadata)) {
         if (!streq(spa_dict_lookup(props, "metadata.name"), "default")) {
@@ -234,9 +260,28 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
     }
 }
 
+static void on_registry_global_remove(void *data, uint32_t id) {
+    struct node **pnode = MAP_GET(&pw.nodes, id);
+    if (pnode) {
+        TRACE("registry global_remove: found node %u", id);
+        node_unref(pnode);
+        MAP_REMOVE(&pw.nodes, id);
+        return;
+    }
+
+    struct device **pdevice = MAP_GET(&pw.devices, id);
+    if (pdevice) {
+        TRACE("registry global_remove: found device %u", id);
+        device_unref(pdevice);
+        MAP_REMOVE(&pw.devices, id);
+        return;
+    }
+}
+
 static const struct pw_registry_events registry_events = {
     .version = PW_VERSION_REGISTRY_EVENTS,
     .global = on_registry_global,
+    .global_remove = on_registry_global_remove,
 };
 
 static void on_core_error(void *data, uint32_t id, int seq, int res, const char *message) {

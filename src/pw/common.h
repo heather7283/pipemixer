@@ -6,6 +6,7 @@
 #include "events.h"
 #include "pw/node.h"
 #include "pw/device.h"
+#include "pw/types.h"
 
 enum default_metadata_key {
     DEFAULT_AUDIO_SOURCE,
@@ -18,6 +19,9 @@ enum default_metadata_key {
 
 int pipewire_init(void);
 void pipewire_cleanup(void);
+
+struct node *node_lookup(pw_id_t id);
+struct device *device_lookup(pw_id_t id);
 
 void pipewire_set_default(enum default_metadata_key key, const char *value);
 

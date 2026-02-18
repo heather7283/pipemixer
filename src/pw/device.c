@@ -3,13 +3,10 @@
 #include <spa/param/props.h>
 
 #include "pw/device.h"
-#include "collections/map.h"
 #include "log.h"
 #include "xmalloc.h"
 #include "macros.h"
 #include "utils.h"
-
-__typeof__(devices) devices = {0};
 
 enum device_event_types {
     DEVICE_EVENT_REMOVED,
@@ -90,15 +87,6 @@ void device_add_listener(struct device *dev, struct event_hook *hook,
     if (!dev->new) {
         emit_everything(dev, hook);
     }
-}
-
-struct device *device_lookup(uint32_t id) {
-    struct device **dev = MAP_GET(&devices, id);
-    if (dev == NULL) {
-        WARN("device with id %u was not found", id);
-        return NULL;
-    }
-    return *dev;
 }
 
 void device_set_props(const struct device *dev, const struct spa_pod *props,
@@ -446,7 +434,7 @@ static const struct pw_proxy_events proxy_events = {
     .removed = on_proxy_removed,
 };
 
-void device_create(struct pw_device *pw_device, uint32_t id) {
+struct device *device_create(struct pw_device *pw_device, uint32_t id) {
     struct device *dev = xmalloc(sizeof(*dev));
 
     *dev = (struct device){
@@ -461,7 +449,7 @@ void device_create(struct pw_device *pw_device, uint32_t id) {
     pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
     pw_proxy_add_listener(dev->pw_proxy, &dev->proxy_listener, &proxy_events, dev);
 
-    MAP_INSERT(&devices, dev->id, &dev);
+    return dev;
 }
 
 static void device_destroy(struct device *device) {
@@ -493,8 +481,6 @@ static void device_destroy(struct device *device) {
         profile_free_contents(profile);
     }
     VEC_FREE(&device->staging.profiles);
-
-    MAP_REMOVE(&devices, device->id);
 
     event_emitter_release(device->emitter);
 

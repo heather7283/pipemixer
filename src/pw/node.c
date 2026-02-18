@@ -9,19 +9,11 @@
 #include "pw/node.h"
 #include "pw/device.h"
 #include "pw/common.h"
-#include "collections/map.h"
 #include "log.h"
 #include "xmalloc.h"
 #include "macros.h"
 #include "config.h"
 #include "utils.h"
-
-/*
- * C is a great language and 2 anonymous struct that are completely identical to
- * each other are apparently incompatible types.
- * Use this hack to make the compiler shut up.
- */
-__typeof__(nodes) nodes = {0};
 
 enum node_event_types {
     NODE_EVENT_REMOVED,
@@ -136,15 +128,6 @@ static enum spa_direction media_class_to_direction(enum media_class class) {
     default:
         assert(0 && "Unexpected media_class value passed to media_class_to_direction");
     }
-}
-
-struct node *node_lookup(uint32_t id) {
-    struct node **node = MAP_GET(&nodes, id);
-    if (node == NULL) {
-        WARN("node with id %u was not found", id);
-        return NULL;
-    }
-    return *node;
 }
 
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
@@ -468,7 +451,7 @@ static const struct pw_proxy_events proxy_events = {
     .removed = on_proxy_removed,
 };
 
-void node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_class) {
+struct node *node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_class) {
     struct node *node = xmalloc(sizeof(*node));
 
     *node = (struct node){
@@ -487,9 +470,9 @@ void node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_cl
     pw_proxy_add_listener(node->pw_proxy, &node->proxy_listener, &proxy_events, node);
     pw_proxy_sync(node->pw_proxy, 0xB00B1E5);
 
-    MAP_INSERT(&nodes, node->id, &node);
-
     TRACE("node_create(%p): id=%u", (void *)node, node->id);
+
+    return node;
 }
 
 static void node_destroy(struct node *node) {
@@ -508,8 +491,6 @@ static void node_destroy(struct node *node) {
     }
 
     event_hook_remove(&node->default_listener);
-
-    MAP_REMOVE(&nodes, node->id);
 
     event_emitter_release(node->emitter);
 
