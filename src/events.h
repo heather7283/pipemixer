@@ -34,24 +34,11 @@ typedef void event_dispatcher_t(uint64_t id, union event_data data, struct event
 
 #define EVENT_DISPATCH(fn, ...) if (fn) fn(__VA_ARGS__);
 
-struct event_emitter {
-    struct list hooks;
-
-    VEC(struct event {
-        uint64_t id;
-        union event_data data;
-        struct event_hook *hook;
-    }) events;
-    event_dispatcher_t *dispatcher;
-
-    struct list link;
-};
-
 /* events system uses one global eventfd that is created with this call */
 bool events_global_init(void);
 
-void event_emitter_init(struct event_emitter *e, event_dispatcher_t *dispatcher);
-void event_emitter_cleanup(struct event_emitter *e);
+struct event_emitter *event_emitter_create(event_dispatcher_t *dispatcher);
+void event_emitter_release(struct event_emitter *emitter);
 
 void event_emitter_add_hook(struct event_emitter *e, struct event_hook *hook);
 

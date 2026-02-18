@@ -70,31 +70,31 @@ static void node_event_dispatcher(uint64_t id, union event_data data, struct eve
 
 static void emit_removed(struct node *node, struct event_hook *hook) {
     TRACE("node emit_removed(%p)", node);
-    event_emit(&node->emitter, hook, NODE_EVENT_REMOVED, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_REMOVED, '0');
 }
 
 static void emit_routes(struct node *node, struct event_hook *hook) {
-    event_emit(&node->emitter, hook, NODE_EVENT_ROUTES, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_ROUTES, '0');
 }
 
 static void emit_props(struct node *node, struct event_hook *hook) {
-    event_emit(&node->emitter, hook, NODE_EVENT_PROPS, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_PROPS, '0');
 }
 
 static void emit_channels(struct node *node, struct event_hook *hook) {
-    event_emit(&node->emitter, hook, NODE_EVENT_CHANNELS, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_CHANNELS, '0');
 }
 
 static void emit_volume(struct node *node, struct event_hook *hook) {
-    event_emit(&node->emitter, hook, NODE_EVENT_VOLUME, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_VOLUME, '0');
 }
 
 static void emit_mute(struct node *node, struct event_hook *hook) {
-    event_emit(&node->emitter, hook, NODE_EVENT_MUTE, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_MUTE, '0');
 }
 
 static void emit_default(struct node *node, struct event_hook *hook) {
-    event_emit(&node->emitter, hook, NODE_EVENT_DEFAULT, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_DEFAULT, '0');
 }
 
 static void emit_everything(struct node *node, struct event_hook *hook) {
@@ -118,7 +118,7 @@ void node_add_listener(struct node *node, struct event_hook *hook,
         .private_data = node_ref(node),
         .remove = hook_remove,
     };
-    event_emitter_add_hook(&node->emitter, hook);
+    event_emitter_add_hook(node->emitter, hook);
 
     if (!node->new) {
         emit_everything(node, hook);
@@ -479,7 +479,7 @@ void node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_cl
         .refcnt = 1,
     };
 
-    event_emitter_init(&node->emitter, node_event_dispatcher);
+    node->emitter = event_emitter_create(node_event_dispatcher);
 
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
     /* TODO: make sure this sends out an initial event immediately */
@@ -511,7 +511,7 @@ static void node_destroy(struct node *node) {
 
     MAP_REMOVE(&nodes, node->id);
 
-    event_emitter_cleanup(&node->emitter);
+    event_emitter_release(node->emitter);
 
     if (node->device) {
         device_unref(&node->device);

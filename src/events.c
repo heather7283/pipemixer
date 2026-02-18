@@ -6,12 +6,31 @@
 #include "events.h"
 #include "collections/vec.h"
 #include "eventloop.h"
+#include "xmalloc.h"
 #include "macros.h"
 #include "log.h"
+
+struct event_emitter {
+    struct list hooks;
+
+    VEC(struct event {
+        uint64_t id;
+        union event_data data;
+        struct event_hook *hook;
+    }) events;
+    event_dispatcher_t *dispatcher;
+
+    struct list link;
+
+    bool in_callback;
+    bool released;
+};
 
 static struct pollen_event_source *efd_source = NULL;
 
 static struct list pending_emitters = { &pending_emitters, &pending_emitters };
+
+static void event_emitter_free(struct event_emitter *e);
 
 static void event_emitter_dispatch_events(struct event_emitter *emitter) {
     VEC_FOREACH(&emitter->events, i) {
@@ -41,9 +60,14 @@ static int on_efd_triggered(struct pollen_event_source *_, uint64_t _, void *_) 
         struct event_emitter *emitter = CONTAINER_OF(list_remove(pending_emitters.next),
                                                      struct event_emitter, link);
 
+        emitter->in_callback = true;
         TRACE("processing events for emitter %p", (void *)emitter);
-
         event_emitter_dispatch_events(emitter);
+        emitter->in_callback = false;
+
+        if (emitter->released) {
+            event_emitter_free(emitter);
+        }
     }
 
     return 0;
@@ -54,23 +78,34 @@ bool events_global_init(void) {
     return efd_source != NULL;
 }
 
-void event_emitter_init(struct event_emitter *e, event_dispatcher_t *dispatcher) {
-    TRACE("event_emitter_init(emitter=%p, dispatcher=%p)", e, dispatcher);
+struct event_emitter *event_emitter_create(event_dispatcher_t *dispatcher) {
+    struct event_emitter *e = xmalloc(sizeof(*e));
 
     *e = (struct event_emitter){
         .dispatcher = dispatcher,
         .hooks = list_init(&e->hooks),
         .link = list_init(&e->link),
     };
+
+    return e;
 }
 
-void event_emitter_cleanup(struct event_emitter *e) {
+static void event_emitter_free(struct event_emitter *e) {
     LIST_FOREACH(elem, &e->hooks) {
         struct event_hook *hook = CONTAINER_OF(elem, struct event_hook, link);
         event_hook_remove(hook);
     }
     VEC_FREE(&e->events);
     list_remove(&e->link);
+    free(e);
+}
+
+void event_emitter_release(struct event_emitter *e) {
+    if (e->in_callback) {
+        e->released = true;
+    } else {
+        event_emitter_free(e);
+    }
 }
 
 void event_emitter_add_hook(struct event_emitter *emitter, struct event_hook *hook) {

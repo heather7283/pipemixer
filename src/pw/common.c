@@ -33,7 +33,7 @@ struct pipewire {
         bool roundtrip;
     } default_metadata;
 
-    struct event_emitter emitter;
+    struct event_emitter *emitter;
 } pw = {0};
 
 enum pipewire_event_types {
@@ -72,15 +72,15 @@ static void pipewire_event_dispatcher(uint64_t id, union event_data data, struct
 }
 
 static void emit_node(uint32_t id, struct event_hook *hook) {
-    event_emit(&pw.emitter, hook, PIPEWIRE_EVENT_NODE, 'u', id);
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_NODE, 'u', id);
 }
 
 static void emit_device(uint32_t id, struct event_hook *hook) {
-    event_emit(&pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', id);
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', id);
 }
 
 static void emit_default(enum default_metadata_key key, struct event_hook *hook) {
-    event_emit(&pw.emitter, hook, PIPEWIRE_EVENT_DEFAULT, 'u', key);
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEFAULT, 'u', key);
 }
 
 void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events *ev, void *data) {
@@ -89,7 +89,7 @@ void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events
         .callbacks_data = data,
         .private_data = &pw,
     };
-    event_emitter_add_hook(&pw.emitter, hook);
+    event_emitter_add_hook(pw.emitter, hook);
 
     struct node **pnode;
     MAP_FOREACH(&nodes, &pnode) {
@@ -284,7 +284,7 @@ int pipewire_init(void) {
     pw.registry = pw_core_get_registry(pw.core, PW_VERSION_REGISTRY, 0);
     pw_registry_add_listener(pw.registry, &pw.registry_listener, &registry_events, NULL);
 
-    event_emitter_init(&pw.emitter, pipewire_event_dispatcher);
+    pw.emitter = event_emitter_create(pipewire_event_dispatcher);
 
     return 0;
 }

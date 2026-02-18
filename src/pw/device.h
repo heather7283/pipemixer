@@ -32,7 +32,7 @@ struct device {
         VEC(struct profile) profiles;
     } staging;
 
-    struct event_emitter emitter;
+    struct event_emitter *emitter;
 
     unsigned refcnt;
 };

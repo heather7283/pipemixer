@@ -60,7 +60,7 @@ struct node {
     struct route *routes;
     unsigned n_routes;
 
-    struct event_emitter emitter;
+    struct event_emitter *emitter;
 
     bool new;
     unsigned refcnt;

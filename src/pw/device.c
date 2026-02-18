@@ -49,19 +49,19 @@ static void device_event_dispatcher(uint64_t id, union event_data data, struct e
 }
 
 static void emit_removed(struct device *dev, struct event_hook *hook) {
-    event_emit(&dev->emitter, hook, DEVICE_EVENT_REMOVED, '0');
+    event_emit(dev->emitter, hook, DEVICE_EVENT_REMOVED, '0');
 }
 
 static void emit_props(struct device *dev, struct event_hook *hook) {
-    event_emit(&dev->emitter, hook, DEVICE_EVENT_PROPS, '0');
+    event_emit(dev->emitter, hook, DEVICE_EVENT_PROPS, '0');
 }
 
 static void emit_routes(struct device *dev, struct event_hook *hook) {
-    event_emit(&dev->emitter, hook, DEVICE_EVENT_ROUTES, '0');
+    event_emit(dev->emitter, hook, DEVICE_EVENT_ROUTES, '0');
 }
 
 static void emit_profiles(struct device *dev, struct event_hook *hook) {
-    event_emit(&dev->emitter, hook, DEVICE_EVENT_PROFILES, '0');
+    event_emit(dev->emitter, hook, DEVICE_EVENT_PROFILES, '0');
 }
 
 static void emit_everything(struct device *dev, struct event_hook *hook) {
@@ -85,7 +85,7 @@ void device_add_listener(struct device *dev, struct event_hook *hook,
         .private_data = device_ref(dev),
         .remove = hook_remove,
     };
-    event_emitter_add_hook(&dev->emitter, hook);
+    event_emitter_add_hook(dev->emitter, hook);
 
     if (!dev->new) {
         emit_everything(dev, hook);
@@ -456,7 +456,7 @@ void device_create(struct pw_device *pw_device, uint32_t id) {
         .refcnt = 1,
     };
 
-    event_emitter_init(&dev->emitter, device_event_dispatcher);
+    dev->emitter = event_emitter_create(device_event_dispatcher);
 
     pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
     pw_proxy_add_listener(dev->pw_proxy, &dev->proxy_listener, &proxy_events, dev);
@@ -496,7 +496,7 @@ static void device_destroy(struct device *device) {
 
     MAP_REMOVE(&devices, device->id);
 
-    event_emitter_cleanup(&device->emitter);
+    event_emitter_release(device->emitter);
 
     free(device);
 }
