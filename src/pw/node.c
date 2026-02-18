@@ -317,7 +317,7 @@ void on_node_info(void *data, const struct pw_node_info *info) {
     DEBUG("node %d info: state=%d n_params=%d change=0x%lx",
           info->id, info->state, info->n_params, info->change_mask);
 
-    if (info->change_mask & PW_DEVICE_CHANGE_MASK_PROPS) {
+    if (info->change_mask & PW_NODE_CHANGE_MASK_PROPS) {
         const struct spa_dict *props = info->props;
         for (unsigned i = 0; i < props->n_items; i++) {
             const struct spa_dict_item *item = &props->items[i];
