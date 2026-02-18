@@ -17,7 +17,7 @@ enum default_metadata_key {
     DEFAULT_METADATA_KEY_COUNT,
 };
 
-int pipewire_init(void);
+bool pipewire_init(void);
 void pipewire_cleanup(void);
 
 struct node *node_lookup(pw_id_t id);

@@ -36,7 +36,6 @@ pipemixer_sources = [
   'src/utils.c',
   'src/config.c',
   'src/events.c',
-  'src/eventloop.c',
   'src/collections/vec.c',
   'src/collections/map.c',
   'src/pw/common.c',

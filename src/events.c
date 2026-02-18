@@ -26,7 +26,7 @@ struct event_emitter {
     bool released;
 };
 
-static struct pollen_event_source *efd_source = NULL;
+static struct spa_source *event_source = NULL;
 
 static struct list pending_emitters = { &pending_emitters, &pending_emitters };
 
@@ -55,7 +55,7 @@ static void event_emitter_dispatch_events(struct event_emitter *emitter) {
     VEC_CLEAR(&emitter->events);
 }
 
-static int on_efd_triggered(struct pollen_event_source *_, uint64_t _, void *_) {
+static void dispatch_events(void *_, uint64_t _) {
     while (!list_is_empty(&pending_emitters)) {
         struct event_emitter *emitter = CONTAINER_OF(list_remove(pending_emitters.next),
                                                      struct event_emitter, link);
@@ -69,13 +69,11 @@ static int on_efd_triggered(struct pollen_event_source *_, uint64_t _, void *_) 
             event_emitter_free(emitter);
         }
     }
-
-    return 0;
 }
 
 bool events_global_init(void) {
-    efd_source = pollen_loop_add_efd(event_loop, on_efd_triggered, NULL);
-    return efd_source != NULL;
+    event_source = pw_loop_add_event(event_loop, dispatch_events, NULL);
+    return event_source != NULL;
 }
 
 struct event_emitter *event_emitter_create(event_dispatcher_t *dispatcher) {
@@ -139,7 +137,7 @@ static void event_emit_internal(struct event_emitter *emitter, struct event_hook
         list_insert_before(&pending_emitters, &emitter->link);
 
         if (first) {
-            pollen_efd_trigger(efd_source);
+            pw_loop_signal_event(event_loop, event_source);
         }
     }
 }

@@ -1,6 +1,7 @@
 #include <sys/eventfd.h>
 #include <sys/ioctl.h>
 #include <assert.h>
+#include <poll.h>
 #include <math.h>
 #include <wchar.h>
 
@@ -48,8 +49,8 @@ static const char *tui_tab_name(enum tui_tab_type tab) {
 
 static void trigger_update(void) {
     if (!tui.update_triggered) {
-        if (!pollen_efd_trigger(tui.update_efd_source)) {
-            ERROR("failed to trigger ui update: %m");
+        if (pw_loop_signal_event(event_loop, tui.update_source) < 0) {
+            ERROR("failed to trigger ui update");
         } else {
             tui.update_triggered = true;
         }
@@ -57,10 +58,9 @@ static void trigger_update(void) {
 }
 
 static void trigger_resize(void) {
-    TRACE("trigger_resize(), tui.resize_triggered = %d", tui.resize_triggered);
     if (!tui.resize_triggered) {
-        if (!pollen_efd_trigger(tui.resize_efd_source)) {
-            ERROR("failed to trigger ui resize: %m");
+        if (pw_loop_signal_event(event_loop, tui.resize_source) < 0) {
+            ERROR("failed to trigger ui resize");
         } else {
             tui.resize_triggered = true;
         }
@@ -976,7 +976,7 @@ void tui_bind_quit_or_cancel_selection(union tui_bind_data data) {
 }
 
 void tui_bind_quit(union tui_bind_data data) {
-    pollen_loop_quit(event_loop, 0);
+    pw_main_loop_quit(main_loop);
 }
 
 static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x, bool keep_contents) {
@@ -1258,7 +1258,7 @@ static const struct pipewire_events pipewire_events = {
     .device = on_pipewire_device,
 };
 
-static int on_stdin_ready(struct pollen_event_source *_, int _, uint32_t _, void *_) {
+static void on_stdin_ready(void *_, int _, uint32_t _) {
     wint_t ch;
     while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
         if (ch == KEY_RESIZE) {
@@ -1273,17 +1273,15 @@ static int on_stdin_ready(struct pollen_event_source *_, int _, uint32_t _, void
             trigger_update();
         }
     }
-
-    return 0;
 }
 
-static int on_resize_triggered(struct pollen_event_source *_, uint64_t _, void *_) {
+static void on_resize_triggered(void *_, uint64_t _) {
     tui.resize_triggered = false;
 
     struct winsize winsize;
     if (ioctl(0 /* stdin */, TIOCGWINSZ, &winsize) < 0) {
         ERROR("failed to get new window size: %s", strerror(errno));
-        return -1;
+        return;
     }
 
     resize_term(winsize.ws_row, winsize.ws_col);
@@ -1307,8 +1305,6 @@ static int on_resize_triggered(struct pollen_event_source *_, uint64_t _, void *
     if (tui.menu_active) {
         tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
     }
-
-    return 0;
 }
 
 /*
@@ -1316,7 +1312,7 @@ static int on_resize_triggered(struct pollen_event_source *_, uint64_t _, void *
  * Instead just update after any event that might or might not cause a draw
  * and let ncurses figure out the rest, it's good at damage tracking
  */
-static int on_update_triggered(struct pollen_event_source *_, uint64_t _, void *_) {
+static void on_update_triggered(void *_, uint64_t _) {
     tui.update_triggered = false;
 
     pnoutrefresh(tui.pad_win,
@@ -1331,21 +1327,18 @@ static int on_update_triggered(struct pollen_event_source *_, uint64_t _, void *
     }
 
     doupdate();
-
-    return 0;
 }
 
-static void on_sigwinch(int _, siginfo_t *_, void *_) {
-    DEBUG("SIGWINCH received");
-
+static void on_sigwinch(int _) {
     trigger_resize();
     trigger_update();
 }
 
-int tui_init(void) {
+bool tui_init(void) {
+    /* must set signal handler BEFORE ncurses init */
     sigaction(SIGWINCH, &(struct sigaction){
-        .sa_sigaction = on_sigwinch,
-        .sa_flags = SA_RESTART | SA_SIGINFO,
+        .sa_handler = on_sigwinch,
+        .sa_flags = SA_RESTART,
     }, NULL);
 
     initscr();
@@ -1365,12 +1358,12 @@ int tui_init(void) {
         list_init(&tui.tabs[tab].items);
     }
 
-    pollen_loop_add_fd(event_loop, 0 /* stdin */, EPOLLIN, false, on_stdin_ready, NULL);
+    tui.stdin_source = pw_loop_add_io(event_loop, 0, POLLIN, false, on_stdin_ready, event_loop);
 
-    tui.resize_efd_source = pollen_loop_add_efd(event_loop, on_resize_triggered, NULL);
+    tui.resize_source = pw_loop_add_event(event_loop, on_resize_triggered, event_loop);
     tui.resize_triggered = false;
 
-    tui.update_efd_source = pollen_loop_add_efd(event_loop, on_update_triggered, NULL);
+    tui.update_source = pw_loop_add_event(event_loop, on_update_triggered, event_loop);
     tui.update_triggered = false;
 
     pipewire_add_listener(&tui.pipewire_hook, &pipewire_events, &tui);
@@ -1380,10 +1373,10 @@ int tui_init(void) {
     /* send SIGWINCH to self to pick up initial terminal size */
     raise(SIGWINCH);
 
-    return 0;
+    return true;
 }
 
-int tui_cleanup(void) {
+void tui_cleanup(void) {
     if (tui.bar_win != NULL) {
         delwin(tui.bar_win);
     }
@@ -1392,7 +1385,5 @@ int tui_cleanup(void) {
     }
 
     endwin();
-
-    return 0;
 }
 

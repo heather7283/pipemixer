@@ -1,5 +1,6 @@
 #pragma once
 
+#include <pipewire/loop.h>
 #include <ncurses.h>
 
 #include "collections/list.h"
@@ -37,11 +38,11 @@ struct tui {
     int tab_index;
     struct tui_tab tabs[TUI_TAB_COUNT];
 
+    struct spa_source *stdin_source;
     bool update_triggered;
-    struct pollen_event_source *update_efd_source;
-
+    struct spa_source *update_source;
     bool resize_triggered;
-    struct pollen_event_source *resize_efd_source;
+    struct spa_source *resize_source;
 
     struct event_hook pipewire_hook;
 };
@@ -90,8 +91,8 @@ struct tui_tab_item {
 
 extern struct tui tui;
 
-int tui_init(void);
-int tui_cleanup(void);
+bool tui_init(void);
+void tui_cleanup(void);
 
 /* binds */
 union tui_bind_data;

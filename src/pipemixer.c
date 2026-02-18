@@ -1,5 +1,3 @@
-#include <string.h>
-#include <errno.h>
 #include <unistd.h>
 #include <getopt.h>
 #include <ncurses.h>
@@ -8,22 +6,22 @@
 #include "tui.h"
 #include "config.h"
 #include "utils.h"
-#include "eventloop.h"
 #include "macros.h"
+#include "eventloop.h"
 #include "pw/common.h"
 
-static void crash_handler(int sig) {
+struct pw_main_loop *main_loop = NULL;
+struct pw_loop *event_loop = NULL;
+
+static void bad_signal_handler(int sig) {
     /* restore terminal state before crashing */
     endwin();
     raise(sig);
 }
 
-static int sigint_sigterm_handler(struct pollen_event_source *_, int signal, void *_) {
-    INFO("caught signal %d, stopping main loop", signal);
-
-    pollen_loop_quit(event_loop, 0);
-
-    return 0;
+static void exit_signal_handler(int sig) {
+    INFO("caught signal %d, stopping main loop", sig);
+    pw_main_loop_quit(main_loop);
 }
 
 void print_help_and_exit(FILE *stream, int exit_status) {
@@ -115,7 +113,7 @@ int main(int argc, char **argv) {
         }
     }
 
-    if (log_fd != -1) {
+    if (log_fd > 0) {
         log_stream = fdopen(log_fd, "w");
         if (log_stream == NULL) {
             fprintf(stderr, "failed to fdopen() fd %d: %s\n", log_fd, strerror(errno));
@@ -129,45 +127,55 @@ int main(int argc, char **argv) {
     setlocale(LC_ALL, "");
     load_config(config_path);
 
-    event_loop = pollen_loop_create();
-    if (event_loop == NULL) {
-        fprintf(stderr, "pipemixer: failed to create event loop\n");
+    pw_init(NULL, NULL);
+
+    main_loop = pw_main_loop_new(NULL);
+    if (!main_loop) {
+        fprintf(stderr, "failed to create event loop\n");
         retcode = 1;
         goto cleanup;
     }
+    event_loop = pw_main_loop_get_loop(main_loop);
 
     events_global_init();
 
-    if (pipewire_init() < 0) {
+    /* naming is unfortunate */
+    if (!pipewire_init()) {
         fprintf(stderr, "pipemixer: failed to connect to pipewire\n");
         retcode = 1;
         goto cleanup;
     }
 
     /* setup crash handler before initialising ncurses */
-    struct sigaction sa = {
-        .sa_handler = crash_handler,
-        .sa_flags = SA_NODEFER | SA_RESETHAND,
+    static const int bad_signals[] = {
+        SIGSEGV, SIGABRT, SIGFPE, SIGILL, SIGBUS,
     };
-    sigaction(SIGSEGV, &sa, NULL);
-    sigaction(SIGABRT, &sa, NULL);
-    sigaction(SIGFPE, &sa, NULL);
-    sigaction(SIGILL, &sa, NULL);
-    sigaction(SIGBUS, &sa, NULL);
+    for (unsigned i = 0; i < SIZEOF_ARRAY(bad_signals); i++) {
+        sigaction(bad_signals[i], &(struct sigaction){
+            .sa_handler = bad_signal_handler,
+            .sa_flags = SA_NODEFER | SA_RESETHAND | SA_RESTART,
+        }, NULL);
+    }
+
+    static const int exit_signals[] = {
+        SIGTERM, SIGINT,
+    };
+    for (unsigned i = 0; i < SIZEOF_ARRAY(exit_signals); i++) {
+        sigaction(exit_signals[i], &(struct sigaction){
+            .sa_handler = exit_signal_handler,
+            .sa_flags = SA_RESTART,
+        }, NULL);
+    }
 
     tui_init();
 
-    pollen_loop_add_signal(event_loop, SIGTERM, sigint_sigterm_handler, NULL);
-    pollen_loop_add_signal(event_loop, SIGINT, sigint_sigterm_handler, NULL);
-    retcode = pollen_loop_run(event_loop);
+    TRACE("entering main loop");
+    pw_main_loop_run(main_loop);
+    TRACE("leaving main loop");
 
 cleanup:
     pipewire_cleanup();
     tui_cleanup();
-
-    if (log_stream != NULL) {
-        fclose(log_stream);
-    }
 
     /* see https://invisible-island.net/ncurses/man/curs_memleaks.3x.html */
     exit_curses(retcode);

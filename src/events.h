@@ -4,7 +4,6 @@
 #include <stdbool.h>
 
 #include "collections/list.h"
-#include "collections/vec.h"
 
 struct event_hook;
 struct event_emitter;

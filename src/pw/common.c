@@ -12,9 +12,8 @@
 #include "log.h"
 
 struct pipewire {
-    struct pw_main_loop *main_loop;
-    struct pw_loop *main_loop_loop;
-    int main_loop_loop_fd;
+    struct pw_loop *main_loop;
+    int main_loop_fd;
 
     struct pw_context *context;
 
@@ -293,36 +292,17 @@ static const struct pw_core_events core_events = {
     .error = on_core_error,
 };
 
-static int pipewire_fd_handler(struct pollen_event_source *callback,
-                               int fd, uint32_t events, void *data) {
-    int res = pw_loop_iterate(pw.main_loop_loop, 0);
-    if (res < 0 && res != -EINTR) {
-        return res;
-    } else {
-        return 0;
-    }
-}
-
-int pipewire_init(void) {
-    pw_init(NULL, NULL);
-
-    pw.main_loop = pw_main_loop_new(NULL /* properties */);
-    pw.main_loop_loop = pw_main_loop_get_loop(pw.main_loop);
-    pw.main_loop_loop_fd = pw_loop_get_fd(pw.main_loop_loop);
-
-    pollen_loop_add_fd(event_loop, pw.main_loop_loop_fd, EPOLLIN, false,
-                       pipewire_fd_handler, NULL);
-
-    pw.context = pw_context_new(pw.main_loop_loop, NULL, 0);
+bool pipewire_init(void) {
+    pw.context = pw_context_new(event_loop, NULL, 0);
     if (pw.context == NULL) {
         ERROR("failed to create pw_context: %s", strerror(errno));
-        return -1;
+        return false;
     }
 
     pw.core = pw_context_connect(pw.context, NULL, 0);
     if (pw.core == NULL) {
         ERROR("failed to connect to pipewire: %s", strerror(errno));
-        return -1;
+        return false;
     }
     pw_core_add_listener(pw.core, &pw.core_listener, &core_events, NULL);
 
@@ -331,7 +311,7 @@ int pipewire_init(void) {
 
     pw.emitter = event_emitter_create(pipewire_event_dispatcher);
 
-    return 0;
+    return true;
 }
 
 void pipewire_cleanup(void) {
@@ -345,7 +325,7 @@ void pipewire_cleanup(void) {
         pw_context_destroy(pw.context);
     }
     if (pw.main_loop != NULL) {
-        pw_main_loop_destroy(pw.main_loop);
+        pw_loop_destroy(pw.main_loop);
     }
     pw_deinit();
 }
