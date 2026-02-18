@@ -279,6 +279,11 @@ static void on_device_routes(struct device *dev,
                              const struct route *routes, unsigned len, void *data) {
     struct node *node = data;
 
+    for (unsigned i = 0; i < node->n_routes; i++) {
+        struct route *route = &node->routes[i];
+        route_free_contents(route);
+    }
+
     node->routes = xreallocarray(node->routes, len, sizeof(node->routes[0]));
     node->n_routes = 0;
 
@@ -485,11 +490,16 @@ static void node_destroy(struct node *node) {
     TRACE("node_destroy(%p)", (void *)node);
 
     pw_proxy_destroy(node->pw_proxy);
+
     free(node->props.media_name);
     free(node->props.node_name);
     free(node->props.node_description);
     free(node->channel_volumes);
     free(node->channel_names);
+    for (unsigned i = 0; i < node->n_routes; i++) {
+        struct route *route = &node->routes[i];
+        route_free_contents(route);
+    }
 
     event_hook_remove(&node->default_listener);
 

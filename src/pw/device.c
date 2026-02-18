@@ -161,22 +161,6 @@ void device_set_profile(const struct device *dev, int32_t index) {
     pw_device_set_param(dev->pw_device, SPA_PARAM_Profile, 0, profile);
 }
 
-static void profile_free_contents(struct profile *profile) {
-    if (profile != NULL) {
-        free(profile->name);
-        free(profile->description);
-    }
-}
-
-static void route_free_contents(struct route *route) {
-    if (route != NULL) {
-        free(route->description);
-        free(route->name);
-        free(route->devices);
-        free(route->profiles);
-    }
-}
-
 static void on_device_param_route(struct device *dev, const struct spa_pod *param) {
     int32_t *pindex, *pdevice, *pprofile;
     const unsigned n = parse_param(param,

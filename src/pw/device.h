@@ -1,37 +1,11 @@
 #pragma once
 
-#include <assert.h>
-
 #include <pipewire/pipewire.h>
 
+#include "pw/types.h"
 #include "collections/vec.h"
 #include "collections/map.h"
 #include "events.h"
-
-struct route {
-    int32_t index;
-    int32_t device;
-    uint32_t direction; /* enum spa_direction */
-
-    int32_t *devices;
-    int32_t *profiles;
-    unsigned n_devices;
-    unsigned n_profiles;
-
-    char *description;
-    char *name;
-
-    bool active;
-};
-
-struct profile {
-    int32_t index;
-
-    char *description;
-    char *name;
-
-    bool active;
-};
 
 struct device_props {
     char *description;

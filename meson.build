@@ -40,6 +40,7 @@ pipemixer_sources = [
   'src/collections/vec.c',
   'src/collections/map.c',
   'src/pw/common.c',
+  'src/pw/types.c',
   'src/pw/device.c',
   'src/pw/node.c',
 ]
