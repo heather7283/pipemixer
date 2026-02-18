@@ -35,7 +35,7 @@ struct pipemixer_config {
     /* tab_map_enum_to_index[enum tui_tab] returns i, i is tab position in the ui */
     int tab_map_enum_to_index[TUI_TAB_COUNT];
 
-    MAP(struct tui_bind) binds;
+    struct map binds;
 };
 
 extern struct pipemixer_config config;

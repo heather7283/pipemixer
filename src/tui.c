@@ -1265,8 +1265,8 @@ static void on_stdin_ready(void *_, int _, uint32_t _) {
             WARN("KEY_RESIZE %s (%d)", key_name_from_key_code(ch), ch);
         }
 
-        struct tui_bind *bind = MAP_GET(&config.binds, ch);
-        if (bind == NULL) {
+        struct tui_bind *bind = map_get(&config.binds, ch);
+        if (!bind) {
             DEBUG("unhandled key %s (%d)", key_name_from_key_code(ch), ch);
         } else {
             bind->func(bind->data);

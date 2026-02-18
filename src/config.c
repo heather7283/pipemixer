@@ -15,11 +15,12 @@
 
 #define ADD_BIND(keycode, function, data_type, data_value) \
     do { \
-        struct tui_bind bind = { \
+        struct tui_bind *bind = xmalloc(sizeof(*bind)); \
+        *bind = (struct tui_bind){ \
             .func = function, \
             .data.data_type = data_value, \
         }; \
-        MAP_INSERT(&config.binds, keycode, &bind); \
+        map_insert(&config.binds, keycode, bind); \
     } while (0)
 
 struct pipemixer_config config = {
@@ -336,7 +337,10 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
             } else if (STREQ(k, "quit")) {
                 ADD_BIND(keycode, tui_bind_quit, nothing, NOTHING);
             } else if (STREQ(k, "unbind")) {
-                MAP_REMOVE(&config.binds, keycode);
+                struct tui_bind *bind = map_remove(&config.binds, keycode);
+                if (bind) {
+                    free(bind);
+                }
             } else {
                 CONFIG_LOG("unknown action: %s", k);
             }
