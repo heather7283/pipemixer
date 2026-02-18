@@ -356,7 +356,7 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     struct spa_pod_parser p;
     spa_pod_parser_pod(&p, param);
 
-    pw_bool_t mute;
+    bool mute;
 
     uint32_t map_csize, map_ctype, map_nvals;
     const pw_id_t *map_vals;
@@ -408,6 +408,7 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     }
 
     if (mute != node->mute) {
+        INFO("node %u mute %d", node->id, mute);
         node->mute = mute;
 
         if (!node->new) {
