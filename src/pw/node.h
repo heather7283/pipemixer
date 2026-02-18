@@ -70,10 +70,12 @@ extern MAP(struct node *) nodes;
 
 struct node *node_lookup(uint32_t id);
 
-void node_create(uint32_t id, enum media_class media_class);
+void node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_class);
 
 struct node *node_ref(struct node *node);
 void node_unref(struct node **pnode);
+
+#define ALL_CHANNELS ((uint32_t)-1)
 
 void node_set_mute(const struct node *node, bool mute);
 void node_change_volume(const struct node *node, bool absolute, float volume, uint32_t channel);

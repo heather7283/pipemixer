@@ -2,7 +2,6 @@
 #include <spa/param/props.h>
 
 #include "pw/device.h"
-#include "pw/common.h"
 #include "collections/map.h"
 #include "log.h"
 #include "xmalloc.h"
@@ -433,13 +432,12 @@ static const struct pw_proxy_events proxy_events = {
     .removed = on_proxy_removed,
 };
 
-void device_create(uint32_t id) {
+void device_create(struct pw_device *pw_device, uint32_t id) {
     struct device *dev = xmalloc(sizeof(*dev));
 
     *dev = (struct device){
         .id = id,
-        .pw_device = pw_registry_bind(pw.registry, id,
-                                      PW_TYPE_INTERFACE_Device, PW_VERSION_DEVICE, 0),
+        .pw_device = pw_device,
         .new = true,
         .refcnt = 1,
     };
@@ -449,7 +447,7 @@ void device_create(uint32_t id) {
     pw_device_add_listener(dev->pw_device, &dev->listener, &device_events, dev);
     pw_proxy_add_listener(dev->pw_proxy, &dev->proxy_listener, &proxy_events, dev);
 
-    MAP_INSERT(&devices, id, &dev);
+    MAP_INSERT(&devices, dev->id, &dev);
 }
 
 static void device_destroy(struct device *device) {

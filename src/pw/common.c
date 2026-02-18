@@ -10,7 +10,31 @@
 #include "utils.h"
 #include "log.h"
 
-struct pipewire pw = {0};
+struct pipewire {
+    struct pw_main_loop *main_loop;
+    struct pw_loop *main_loop_loop;
+    int main_loop_loop_fd;
+
+    struct pw_context *context;
+
+    struct pw_core *core;
+    struct spa_hook core_listener;
+
+    struct pw_registry *registry;
+    struct spa_hook registry_listener;
+
+    struct default_metadata {
+        union {
+            struct pw_metadata *pw_metadata;
+            struct pw_proxy *pw_proxy;
+        };
+        struct spa_hook listener, proxy_listener;
+        char *properties[DEFAULT_METADATA_KEY_COUNT];
+        bool roundtrip;
+    } default_metadata;
+
+    struct event_emitter emitter;
+} pw = {0};
 
 enum pipewire_event_types {
     PIPEWIRE_EVENT_NODE,
@@ -155,8 +179,8 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
                                const struct spa_dict *props) {
     DEBUG("registry global: id=%d, perms=0o%o, type=%s, ver=%d", id, permissions, type, version);
 
-    if (STREQ(type, PW_TYPE_INTERFACE_Node)) {
-        const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
+    if (streq(type, PW_TYPE_INTERFACE_Node)) {
+        const char *media_class = spa_dict_lookup(props, "media.class");
         enum media_class media_class_value;
         if (media_class == NULL) {
             DEBUG("empty media.class, not binding");
@@ -174,10 +198,11 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
             return;
         }
 
-        node_create(id, media_class_value);
+        struct pw_node *pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
+        node_create(pw_node, id, media_class_value);
         emit_node(id, NULL);
-    } else if (STREQ(type, PW_TYPE_INTERFACE_Device)) {
-        const char *media_class = spa_dict_lookup(props, PW_KEY_MEDIA_CLASS);
+    } else if (streq(type, PW_TYPE_INTERFACE_Device)) {
+        const char *media_class = spa_dict_lookup(props, "media.class");
         if (media_class == NULL) {
             DEBUG("empty media.class, not binding");
             return;
@@ -188,7 +213,8 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
             return;
         }
 
-        device_create(id);
+        struct pw_device *pw_device = pw_registry_bind(pw.registry, id, type, PW_VERSION_DEVICE, 0);
+        device_create(pw_device, id);
         emit_device(id, NULL);
     } else if (streq(type, PW_TYPE_INTERFACE_Metadata)) {
         if (!streq(spa_dict_lookup(props, "metadata.name"), "default")) {

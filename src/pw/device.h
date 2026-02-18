@@ -67,7 +67,7 @@ extern MAP(struct device *) devices;
 
 struct device *device_lookup(uint32_t id);
 
-void device_create(uint32_t id);
+void device_create(struct pw_device *pw_device, uint32_t id);
 
 struct device *device_ref(struct device *dev);
 void device_unref(struct device **pdev);

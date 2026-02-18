@@ -457,13 +457,13 @@ static const struct pw_proxy_events proxy_events = {
     .removed = on_proxy_removed,
 };
 
-void node_create(uint32_t id, enum media_class media_class) {
+void node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_class) {
     struct node *node = xmalloc(sizeof(*node));
 
     *node = (struct node){
         .id = id,
+        .pw_node = pw_node,
         .media_class = media_class,
-        .pw_node = pw_registry_bind(pw.registry, id, PW_TYPE_INTERFACE_Node, PW_VERSION_NODE, 0),
         .new = true,
         .refcnt = 1,
     };
@@ -476,7 +476,7 @@ void node_create(uint32_t id, enum media_class media_class) {
     pw_proxy_add_listener(node->pw_proxy, &node->proxy_listener, &proxy_events, node);
     pw_proxy_sync(node->pw_proxy, 0xB00B1E5);
 
-    MAP_INSERT(&nodes, id, &node);
+    MAP_INSERT(&nodes, node->id, &node);
 
     TRACE("node_create(%p): id=%u", (void *)node, node->id);
 }
