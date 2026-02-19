@@ -61,15 +61,6 @@ static void emit_profiles(struct device *dev, struct event_hook *hook) {
     event_emit(dev->emitter, hook, DEVICE_EVENT_PROFILES, '0');
 }
 
-static void emit_everything(struct device *dev, struct event_hook *hook) {
-    static void (*const funcs[])(struct device *, struct event_hook *) = {
-        emit_props, emit_routes, emit_profiles,
-    };
-    for (unsigned i = 0; i < SIZEOF_ARRAY(funcs); i++) {
-        funcs[i](dev, hook);
-    }
-}
-
 static void hook_remove(struct event_hook *hook) {
     device_unref((struct device **)&hook->private_data);
 }
@@ -84,8 +75,14 @@ void device_add_listener(struct device *dev, struct event_hook *hook,
     };
     event_emitter_add_hook(dev->emitter, hook);
 
-    if (!dev->new) {
-        emit_everything(dev, hook);
+    if (dev->has_props) {
+        emit_props(dev, hook);
+    }
+    if (dev->has_routes) {
+        emit_routes(dev, hook);
+    }
+    if (dev->has_profiles) {
+        emit_profiles(dev, hook);
     }
 }
 
@@ -332,8 +329,6 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
     DEBUG("dev %d info: n_params=%d change=0x%lx", info->id, info->n_params, info->change_mask);
 
     if (info->change_mask & PW_DEVICE_CHANGE_MASK_PROPS) {
-        bool changed = false;
-
         const struct spa_dict *props = info->props;
         for (unsigned i = 0; i < props->n_items; i++) {
             const struct spa_dict_item *item = &props->items[i];
@@ -343,13 +338,11 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
             if (streq(k, "device.description")) {
                 free(dev->props.description);
                 dev->props.description = xstrdup(v);
-                changed = true;
             }
         }
 
-        if (changed && !dev->new) {
-            emit_props(dev, NULL);
-        }
+        emit_props(dev, NULL);
+        dev->has_props = true;
     }
 
     if (info->change_mask & PW_DEVICE_CHANGE_MASK_PARAMS) {
@@ -412,14 +405,10 @@ static void on_proxy_roundtrip_done(void *data, int _) {
     VEC_CLEAR(&dev->profiles);
     VEC_EXCHANGE(&dev->profiles, &dev->staging.profiles);
 
-
-    if (dev->new) {
-        dev->new = false;
-        emit_everything(dev, NULL);
-    } else {
-        emit_routes(dev, NULL);
-        emit_profiles(dev, NULL);
-    }
+    emit_routes(dev, NULL);
+    dev->has_routes = true;
+    emit_profiles(dev, NULL);
+    dev->has_profiles = true;
 }
 
 static void on_proxy_removed(void *data) {

@@ -89,15 +89,6 @@ static void emit_default(struct node *node, struct event_hook *hook) {
     event_emit(node->emitter, hook, NODE_EVENT_DEFAULT, '0');
 }
 
-static void emit_everything(struct node *node, struct event_hook *hook) {
-    static void (*const funcs[])(struct node *, struct event_hook *) = {
-        emit_props, emit_channels, emit_volume, emit_mute, emit_routes, emit_default,
-    };
-    for (unsigned i = 0; i < SIZEOF_ARRAY(funcs); i++) {
-        funcs[i](node, hook);
-    }
-}
-
 static void hook_remove(struct event_hook *hook) {
     node_unref((struct node **)&hook->private_data);
 }
@@ -112,8 +103,19 @@ void node_add_listener(struct node *node, struct event_hook *hook,
     };
     event_emitter_add_hook(node->emitter, hook);
 
-    if (!node->new) {
-        emit_everything(node, hook);
+    if (node->has_props) {
+        emit_props(node, hook);
+    }
+    if (node->has_routes) {
+        emit_routes(node, hook);
+    }
+    if (node->has_param_props) {
+        emit_channels(node, hook);
+        emit_volume(node, hook);
+        emit_mute(node, hook);
+    }
+    if (node->has_default) {
+        emit_default(node, hook);
     }
 }
 
@@ -244,10 +246,11 @@ static void on_default(enum default_metadata_key key, const char *val, void *dat
     }
 
     const bool is_default = streq(node->props.node_name, val);
-    if (is_default != node->is_default) {
+    if (is_default != node->is_default || !node->has_default) {
         node->is_default = is_default;
         INFO("node %d default: %d", node->id, node->is_default);
         emit_default(node, NULL);
+        node->has_default = true;
     }
 }
 
@@ -294,6 +297,9 @@ static void on_device_routes(struct device *dev,
             .active = route->active,
         };
     }
+
+    emit_routes(node, NULL);
+    node->has_routes = true;
 }
 
 static const struct device_events device_events = {
@@ -307,43 +313,50 @@ void on_node_info(void *data, const struct pw_node_info *info) {
           info->id, info->state, info->n_params, info->change_mask);
 
     if (info->change_mask & PW_NODE_CHANGE_MASK_PROPS) {
+        const bool first_props = !node->has_props;
         const struct spa_dict *props = info->props;
         for (unsigned i = 0; i < props->n_items; i++) {
             const struct spa_dict_item *item = &props->items[i];
             const char *k = item->key;
             const char *v = item->value;
 
-            bool changed = false;
             if (streq(k, "media.name")) {
                 free(node->props.media_name);
                 node->props.media_name = xstrdup(v);
-                changed = true;
             } else if (streq(k, "node.name")) {
                 free(node->props.node_name);
                 node->props.node_name = xstrdup(v);
-                changed = true;
+
+                /* now we can start checking for default */
+                if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
+                    pipewire_add_listener(&node->default_listener, &pipewire_events, node);
+                }
             } else if (streq(k, "node.description")) {
                 free(node->props.node_description);
                 node->props.node_description = xstrdup(v);
-                changed = true;
             } else if (streq(k, "card.profile.device")) {
                 str_to_i32(v, &node->card_profile_device);
-            } else if (streq(k, "device.id") && !node->device_id) {
+            } else if (streq(k, "device.id") && !node->device) {
                 str_to_u32(v, &node->device_id);
-                struct device *dev = device_lookup(node->device_id);
-                if (!dev) {
-                    WARN("got device.id=%d on node %d but no device with this id was found",
-                         node->device_id, node->id);
-                } else {
-                    node->device = device_ref(dev);
-                    device_add_listener(node->device, &node->device_hook, &device_events, node);
-                }
-            }
-
-            if (changed && !node->new) {
-                emit_props(node, NULL);
             }
         }
+
+        if (first_props) {
+            pw_node_subscribe_params(node->pw_node, (uint32_t[]){SPA_PARAM_Props}, 1);
+        }
+        if (node->device_id && !node->device) {
+            struct device *dev = device_lookup(node->device_id);
+            if (!dev) {
+                WARN("got device.id=%d on node %d but no device with this id was found",
+                     node->device_id, node->id);
+            } else {
+                node->device = device_ref(dev);
+                device_add_listener(node->device, &node->device_hook, &device_events, node);
+            }
+        }
+
+        emit_props(node, NULL);
+        node->has_props = true;
     }
 }
 
@@ -385,16 +398,14 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
 
     struct param_props *props = &node->param_props;
 
-    if (props->n_channels != map_nvals) {
+    if (props->n_channels != map_nvals || !node->has_param_props) {
         props->channel_names =
             xreallocarray(props->channel_names, map_nvals, sizeof(props->channel_names[0]));
         props->channel_volumes =
             xreallocarray(props->channel_volumes, map_nvals, sizeof(props->channel_volumes[0]));
         props->n_channels = map_nvals;
 
-        if (!node->new) {
-            emit_channels(node, NULL);
-        }
+        emit_channels(node, NULL);
     }
 
     for (unsigned i = 0; i < map_nvals; i++) {
@@ -405,18 +416,15 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         props->channel_volumes[i] = cbrtf(volume);
     }
 
-    if (!node->new) {
-        emit_volume(node, NULL);
-    }
+    emit_volume(node, NULL);
 
-    if (mute != props->mute) {
+    if (mute != props->mute || !node->has_param_props) {
         INFO("node %u mute %d", node->id, mute);
         props->mute = mute;
-
-        if (!node->new) {
-            emit_mute(node, NULL);
-        }
+        emit_mute(node, NULL);
     }
+
+    node->has_param_props = true;
 }
 
 static const struct pw_node_events node_events = {
@@ -424,23 +432,6 @@ static const struct pw_node_events node_events = {
     .info = on_node_info,
     .param = on_node_param,
 };
-
-static void on_proxy_roundtrip_done(void *data, int _) {
-    struct node *node = data;
-
-    if (node->new) {
-        node->new = false;
-
-        /* add this only after we (hopefully) got node.name from the server */
-        if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
-            pipewire_add_listener(&node->default_listener, &pipewire_events, node);
-        }
-
-        emit_everything(node, NULL);
-    } else {
-        WARN("got roundrip_done on but node.new=false");
-    }
-}
 
 static void on_proxy_removed(void *data) {
     struct node *node = data;
@@ -450,7 +441,6 @@ static void on_proxy_removed(void *data) {
 
 static const struct pw_proxy_events proxy_events = {
     .version = PW_VERSION_PROXY_EVENTS,
-    .done = on_proxy_roundtrip_done,
     .removed = on_proxy_removed,
 };
 
@@ -468,8 +458,6 @@ struct node *node_create(struct pw_node *pw_node, uint32_t id, enum media_class 
     node->emitter = event_emitter_create(node_event_dispatcher);
 
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
-    /* TODO: make sure this sends out an initial event immediately */
-    pw_node_subscribe_params(node->pw_node, (uint32_t[]){SPA_PARAM_Props}, 1);
     pw_proxy_add_listener(node->pw_proxy, &node->proxy_listener, &proxy_events, node);
     pw_proxy_sync(node->pw_proxy, 0xB00B1E5);
 

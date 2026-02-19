@@ -58,6 +58,11 @@ struct node {
 
     struct event_emitter *emitter;
 
+    bool has_props;
+    bool has_routes;
+    bool has_param_props;
+    bool has_default;
+
     bool new;
     unsigned refcnt;
 };

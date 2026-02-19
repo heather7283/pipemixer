@@ -18,7 +18,6 @@ struct device {
     struct spa_hook listener;
     struct spa_hook proxy_listener;
 
-    bool new;
     uint32_t id;
     struct device_props props;
 
@@ -33,6 +32,11 @@ struct device {
 
     struct event_emitter *emitter;
 
+    bool has_props;
+    bool has_routes;
+    bool has_profiles;
+
+    bool new;
     unsigned refcnt;
 };
 
