@@ -8,7 +8,6 @@
 #include "eventloop.h"
 #include "xmalloc.h"
 #include "macros.h"
-#include "log.h"
 
 struct event_emitter {
     struct list hooks;
@@ -37,17 +36,10 @@ static void event_emitter_dispatch_events(struct event_emitter *emitter) {
         struct event *event = &emitter->events.data[i];
 
         if (event->hook) {
-            TRACE("event %zu for emitter %p: id=%lu disp=%p data=%lu hook=%p (unicast)",
-                  i, emitter, event->id, emitter->dispatcher, event->data.u, event->hook);
-
             emitter->dispatcher(event->id, event->data, event->hook);
         } else {
             LIST_FOREACH(elem, &emitter->hooks) {
                 struct event_hook *hook = CONTAINER_OF(elem, struct event_hook, link);
-
-                TRACE("event %zu for emitter %p: id=%lu disp=%p data=%lu hook=%p (broadcast)",
-                      i, emitter, event->id, emitter->dispatcher, event->data.u, hook);
-
                 emitter->dispatcher(event->id, event->data, hook);
             }
         }
@@ -61,7 +53,6 @@ static void dispatch_events(void *_, uint64_t _) {
                                                      struct event_emitter, link);
 
         emitter->in_callback = true;
-        TRACE("processing events for emitter %p", (void *)emitter);
         event_emitter_dispatch_events(emitter);
         emitter->in_callback = false;
 
@@ -107,8 +98,6 @@ void event_emitter_release(struct event_emitter *e) {
 }
 
 void event_emitter_add_hook(struct event_emitter *emitter, struct event_hook *hook) {
-    TRACE("event_emitter_add_hook(emitter=%p, hook=%p)", emitter, hook);
-
     list_insert_before(&emitter->hooks, &hook->link);
 }
 
