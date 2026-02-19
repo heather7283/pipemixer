@@ -257,10 +257,6 @@ static const struct pipewire_events pipewire_events = {
     .default_ = on_default,
 };
 
-static int device_cmp(const void *a, const void *b) {
-    return (*(int32_t *)a != *(int32_t *)b);
-}
-
 static void process_param_props(struct node *node, bool mute, unsigned n_channels,
                                 const char *names[], const float volumes[]) {
     struct param_props *props = &node->param_props;
@@ -292,6 +288,10 @@ static void process_param_props(struct node *node, bool mute, unsigned n_channel
     node->has_param_props = true;
 }
 
+static int int32_cmp(const void *a, const void *b) {
+    return (*(int32_t *)a != *(int32_t *)b);
+}
+
 static void on_device_routes(struct device *dev,
                              const struct param_route *routes, unsigned len, void *data) {
     struct node *node = data;
@@ -302,17 +302,29 @@ static void on_device_routes(struct device *dev,
     }
 
     node->routes = xreallocarray(node->routes, len, sizeof(node->routes[0]));
-    node->active_route = NULL;
     node->n_routes = 0;
 
+    /* I wish I could explain what is happening here, but I don't even fully
+     * understand it myself. Pipewire's surreal and incomprehensible nature
+     * simply cannot be put into words. */
+    const struct param_route *active_candidate = NULL;
     for (unsigned i = 0; i < len; i++) {
         const struct param_route *route = &routes[i];
 
         const bool skip = route->direction != media_class_to_direction(node->media_class)
-                       || !lfind(&node->card_profile_device,
-                                 route->devices, &(size_t){route->n_devices}, sizeof(int32_t),
-                                 device_cmp);
+                       || !lfind(&node->card_profile_device, route->devices,
+                                 &(size_t){route->n_devices}, sizeof(int32_t), int32_cmp);
         if (skip) {
+            continue;
+        }
+
+        if (route->active && !active_candidate) {
+            active_candidate = route;
+        }
+
+        const bool has_profile = lfind(&node->device_profile, route->profiles,
+                                       &(size_t){route->n_profiles}, sizeof(int32_t), int32_cmp);
+        if (!has_profile) {
             continue;
         }
 
@@ -328,26 +340,37 @@ static void on_device_routes(struct device *dev,
             .description = xstrdup(route->description),
             .active = route->active,
         };
-
-        if (new_route->active && !node->active_route) {
-            node->active_route = new_route;
-
-            const struct param_props *props = &route->props;
-            process_param_props(node, props->mute, props->n_channels,
-                                props->channel_names, props->channel_volumes);
-        }
     }
-
-    if (!node->active_route) {
-        WARN("no active route was found on node %u", node->id);
+    if (active_candidate) {
+        const struct param_props *props = &active_candidate->props;
+        process_param_props(node, props->mute, props->n_channels,
+                            props->channel_names, props->channel_volumes);
     }
 
     emit_routes(node, NULL);
     node->has_routes = true;
 }
 
+static void on_device_profiles(struct device *dev,
+                               const struct param_profile profiles[], unsigned profiles_count,
+                               void *data) {
+    struct node *node = data;
+
+    node->device_profile = -1;
+    for (unsigned i = 0; i < profiles_count; i++) {
+        const struct param_profile *profile = &profiles[i];
+        if (profile->active) {
+            node->device_profile = profile->index;
+            return;
+        }
+    }
+
+    ERROR("didn't find an active profile on device %u for node %u", dev->id, node->id);
+}
+
 static const struct device_events device_events = {
     .routes = on_device_routes,
+    .profiles = on_device_profiles,
 };
 
 static void on_node_info(void *data, const struct pw_node_info *info) {

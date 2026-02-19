@@ -409,14 +409,13 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
                               || (param->id == SPA_PARAM_Route)
                               || (param->id == SPA_PARAM_EnumRoute);
             if (matches) {
-                /* TODO: more granular updates? */
                 changed = true;
                 break;
             }
         }
 
         if (changed) {
-            /* in this exact order! */
+            /* IN THIS EXACT ORDER! */
             static const int ids[] = {
                 SPA_PARAM_EnumProfile, SPA_PARAM_Profile, SPA_PARAM_EnumRoute, SPA_PARAM_Route
             };
@@ -453,10 +452,10 @@ static void on_proxy_roundtrip_done(void *data, int _) {
     VEC_CLEAR(&dev->profiles);
     VEC_EXCHANGE(&dev->profiles, &dev->staging.profiles);
 
-    emit_routes(dev, NULL);
-    dev->has_routes = true;
     emit_profiles(dev, NULL);
     dev->has_profiles = true;
+    emit_routes(dev, NULL);
+    dev->has_routes = true;
 }
 
 static void on_proxy_removed(void *data) {

@@ -52,8 +52,8 @@ struct node {
     struct device *device;
     struct event_hook device_hook;
 
-    int32_t card_profile_device;
-    struct param_route *routes, *active_route;
+    int32_t card_profile_device, device_profile;
+    struct param_route *routes;
     unsigned n_routes;
 
     struct event_emitter *emitter;
