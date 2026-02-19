@@ -133,7 +133,6 @@ static enum spa_direction media_class_to_direction(enum media_class class) {
 }
 
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
-    /* TODO: check media_class? */
     if (!node->device_id) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else if (!node->device) {
@@ -262,6 +261,37 @@ static int device_cmp(const void *a, const void *b) {
     return (*(int32_t *)a != *(int32_t *)b);
 }
 
+static void process_param_props(struct node *node, bool mute, unsigned n_channels,
+                                const char *names[], const float volumes[]) {
+    struct param_props *props = &node->param_props;
+
+    if (props->n_channels != n_channels || !node->has_param_props) {
+        props->channel_names = xreallocarray(props->channel_names,
+                                             n_channels,
+                                             sizeof(props->channel_names[0]));
+        props->channel_volumes = xreallocarray(props->channel_volumes,
+                                               n_channels,
+                                               sizeof(props->channel_volumes[0]));
+        props->n_channels = n_channels;
+
+        INFO("node %u n_channels %d", node->id, n_channels);
+        emit_channels(node, NULL);
+    }
+
+    memcpy(props->channel_names, names, sizeof(names[0]) * n_channels);
+    memcpy(props->channel_volumes, volumes, sizeof(volumes[0]) * n_channels);
+
+    emit_volume(node, NULL);
+
+    if (mute != props->mute || !node->has_param_props) {
+        props->mute = mute;
+        INFO("node %u mute %d", node->id, mute);
+        emit_mute(node, NULL);
+    }
+
+    node->has_param_props = true;
+}
+
 static void on_device_routes(struct device *dev,
                              const struct param_route *routes, unsigned len, void *data) {
     struct node *node = data;
@@ -272,6 +302,7 @@ static void on_device_routes(struct device *dev,
     }
 
     node->routes = xreallocarray(node->routes, len, sizeof(node->routes[0]));
+    node->active_route = NULL;
     node->n_routes = 0;
 
     for (unsigned i = 0; i < len; i++) {
@@ -288,7 +319,8 @@ static void on_device_routes(struct device *dev,
         DEBUG("node %d route: idx=%d dev=%d dir=%d act=%d",
               node->id, route->index, route->device, route->direction, route->active);
 
-        node->routes[node->n_routes++] = (struct param_route){
+        struct param_route *new_route = &node->routes[node->n_routes++];
+        *new_route = (struct param_route){
             .index = route->index,
             .device = route->device,
             .direction = route->direction,
@@ -296,6 +328,18 @@ static void on_device_routes(struct device *dev,
             .description = xstrdup(route->description),
             .active = route->active,
         };
+
+        if (new_route->active && !node->active_route) {
+            node->active_route = new_route;
+
+            const struct param_props *props = &route->props;
+            process_param_props(node, props->mute, props->n_channels,
+                                props->channel_names, props->channel_volumes);
+        }
+    }
+
+    if (!node->active_route) {
+        WARN("no active route was found on node %u", node->id);
     }
 
     emit_routes(node, NULL);
@@ -306,7 +350,7 @@ static const struct device_events device_events = {
     .routes = on_device_routes,
 };
 
-void on_node_info(void *data, const struct pw_node_info *info) {
+static void on_node_info(void *data, const struct pw_node_info *info) {
     struct node *node = data;
 
     DEBUG("node %d info: state=%d n_params=%d change=0x%lx",
@@ -341,10 +385,9 @@ void on_node_info(void *data, const struct pw_node_info *info) {
             }
         }
 
-        if (first_props) {
+        if (first_props && !node->device_id) {
             pw_node_subscribe_params(node->pw_node, (uint32_t[]){SPA_PARAM_Props}, 1);
-        }
-        if (node->device_id && !node->device) {
+        } else if (node->device_id && !node->device) {
             struct device *dev = device_lookup(node->device_id);
             if (!dev) {
                 WARN("got device.id=%d on node %d but no device with this id was found",
@@ -360,14 +403,11 @@ void on_node_info(void *data, const struct pw_node_info *info) {
     }
 }
 
-void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
-                   uint32_t next, const struct spa_pod *param) {
+static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
+                          uint32_t next, const struct spa_pod *param) {
     struct node *node = data;
 
     DEBUG("node %d param: id=%d seq=%d index=%d next=%d", node->id, id, seq, index, next);
-
-    struct spa_pod_parser p;
-    spa_pod_parser_pod(&p, param);
 
     bool mute;
 
@@ -377,6 +417,8 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     uint32_t vol_csize, vol_ctype, vol_nvals;
     const float *vol_vals;
 
+    struct spa_pod_parser p;
+    spa_pod_parser_pod(&p, param);
     const int n =
         spa_pod_parser_get_object(&p,
                                   SPA_TYPE_OBJECT_Props, &(pw_id_t){},
@@ -396,35 +438,17 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         return;
     }
 
-    struct param_props *props = &node->param_props;
-
-    if (props->n_channels != map_nvals || !node->has_param_props) {
-        props->channel_names =
-            xreallocarray(props->channel_names, map_nvals, sizeof(props->channel_names[0]));
-        props->channel_volumes =
-            xreallocarray(props->channel_volumes, map_nvals, sizeof(props->channel_volumes[0]));
-        props->n_channels = map_nvals;
-
-        emit_channels(node, NULL);
-    }
-
+    static const char *names[SPA_AUDIO_MAX_CHANNELS];
+    static float volumes[SPA_AUDIO_MAX_CHANNELS];
     for (unsigned i = 0; i < map_nvals; i++) {
         const enum spa_audio_channel chan = map_vals[i];
         const float volume = vol_vals[i];
 
-        props->channel_names[i] = channel_name_from_enum(chan);
-        props->channel_volumes[i] = cbrtf(volume);
+        names[i] = channel_name_from_enum(chan);
+        volumes[i] = cbrtf(volume);
     }
 
-    emit_volume(node, NULL);
-
-    if (mute != props->mute || !node->has_param_props) {
-        INFO("node %u mute %d", node->id, mute);
-        props->mute = mute;
-        emit_mute(node, NULL);
-    }
-
-    node->has_param_props = true;
+    process_param_props(node, mute, map_nvals, names, volumes);
 }
 
 static const struct pw_node_events node_events = {
@@ -459,7 +483,6 @@ struct node *node_create(struct pw_node *pw_node, uint32_t id, enum media_class 
 
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
     pw_proxy_add_listener(node->pw_proxy, &node->proxy_listener, &proxy_events, node);
-    pw_proxy_sync(node->pw_proxy, 0xB00B1E5);
 
     TRACE("node_create(%p): id=%u", (void *)node, node->id);
 
