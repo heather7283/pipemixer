@@ -56,7 +56,7 @@ struct node {
     struct event_hook device_hook;
 
     int32_t card_profile_device;
-    struct route *routes;
+    struct param_route *routes;
     unsigned n_routes;
 
     struct event_emitter *emitter;
@@ -77,15 +77,21 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
 void node_set_route(const struct node *node, uint32_t route_index);
 void node_set_default(const struct node *node);
 
-const struct route *node_get_active_route(const struct node *node);
-size_t node_get_available_routes(const struct node *node, const struct route *const **proutes);
+const struct param_route *node_get_active_route(const struct node *node);
+size_t node_get_available_routes(const struct node *node, const struct param_route *const **proutes);
 
 struct node_events {
     void (*removed)(struct node *node, void *data);
-    void (*routes)(struct node *node, const struct route routes[], unsigned count, void *data);
+    void (*routes)(struct node *node,
+                   const struct param_route routes[], unsigned routes_count,
+                   void *data);
     void (*props)(struct node *node, const struct node_props *props, void *data);
-    void (*channels)(struct node *node, const char *channels[], unsigned count, void *data);
-    void (*volume)(struct node *node, const float channels[], unsigned count, void *data);
+    void (*channels)(struct node *node,
+                     const char *channel_names[], unsigned channel_count,
+                     void *data);
+    void (*volume)(struct node *node,
+                   const float channel_volumes[], unsigned channel_count,
+                   void *data);
     void (*mute)(struct node *node, bool mute, void *data);
     void (*default_)(struct node *node, bool is_default, void *data);
 };

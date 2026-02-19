@@ -260,19 +260,19 @@ static int device_cmp(const void *a, const void *b) {
 }
 
 static void on_device_routes(struct device *dev,
-                             const struct route *routes, unsigned len, void *data) {
+                             const struct param_route *routes, unsigned len, void *data) {
     struct node *node = data;
 
     for (unsigned i = 0; i < node->n_routes; i++) {
-        struct route *route = &node->routes[i];
-        route_free_contents(route);
+        struct param_route *route = &node->routes[i];
+        param_route_free_contents(route);
     }
 
     node->routes = xreallocarray(node->routes, len, sizeof(node->routes[0]));
     node->n_routes = 0;
 
     for (unsigned i = 0; i < len; i++) {
-        const struct route *route = &routes[i];
+        const struct param_route *route = &routes[i];
 
         const bool skip = route->direction != media_class_to_direction(node->media_class)
                        || !lfind(&node->card_profile_device,
@@ -285,7 +285,7 @@ static void on_device_routes(struct device *dev,
         DEBUG("node %d route: idx=%d dev=%d dir=%d act=%d",
               node->id, route->index, route->device, route->direction, route->active);
 
-        node->routes[node->n_routes++] = (struct route){
+        node->routes[node->n_routes++] = (struct param_route){
             .index = route->index,
             .device = route->device,
             .direction = route->direction,
@@ -487,8 +487,8 @@ static void node_destroy(struct node *node) {
     free(node->channel_volumes);
     free(node->channel_names);
     for (unsigned i = 0; i < node->n_routes; i++) {
-        struct route *route = &node->routes[i];
-        route_free_contents(route);
+        struct param_route *route = &node->routes[i];
+        param_route_free_contents(route);
     }
 
     event_hook_remove(&node->default_listener);

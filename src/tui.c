@@ -215,10 +215,10 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             mvwaddnstr(win, routes_line_pos, 1 + written, buf, usable_width - written);
             written = (written + chars > usable_width) ? usable_width : (written + chars);
 
-            const struct route *routes = node->routes;
+            const struct param_route *routes = node->routes;
             const size_t nroutes = node->n_routes;
 
-            const struct route *active_route = NULL;
+            const struct param_route *active_route = NULL;
             for (unsigned i = 0; i < nroutes; i++) {
                 if (routes[i].active) {
                     active_route = &routes[i];
@@ -235,7 +235,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
 
                 wattron(win, A_DIM);
                 for (size_t i = 0; i < nroutes; i++) {
-                    const struct route *route = &routes[i];
+                    const struct param_route *route = &routes[i];
                     if (active_route != NULL && route->index == active_route->index) {
                         continue;
                     }
@@ -248,7 +248,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             } else if (nroutes > 0) {
                 wattron(win, A_DIM);
                 for (size_t i = 0; i < nroutes; i++) {
-                    const struct route *route = &routes[i];
+                    const struct param_route *route = &routes[i];
                     if (i == 0) {
                         chars = snprintf(buf, usable_width - written, "%s",
                                          route->description);
@@ -358,10 +358,10 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
         mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
         written = (written + chars > usable_width) ? usable_width : (written + chars);
 
-        const struct profile *profiles = dev->profiles.data;
+        const struct param_profile *profiles = dev->profiles.data;
         const size_t nprofiles = dev->profiles.size;
 
-        const struct profile *active_profile = NULL;
+        const struct param_profile *active_profile = NULL;
         for (unsigned i = 0; i < nprofiles; i++) {
             if (profiles[i].active) {
                 active_profile = &profiles[i];
@@ -378,7 +378,7 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
 
             wattron(win, A_DIM);
             for (size_t i = 0; i < nprofiles; i++) {
-                const struct profile *const profile = &profiles[i];
+                const struct param_profile *const profile = &profiles[i];
                 if (active_profile != NULL && profile->index == active_profile->index) {
                     continue;
                 }
@@ -391,7 +391,7 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
         } else if (nprofiles > 0) {
             wattron(win, A_DIM);
             for (size_t i = 0; i < nprofiles; i++) {
-                const struct profile *const profile = &profiles[i];
+                const struct param_profile *const profile = &profiles[i];
                 if (i == 0) {
                     chars = snprintf(buf, usable_width - written, "%s",
                                      profile->description);
@@ -849,10 +849,10 @@ void tui_bind_select_profile(union tui_bind_data data) {
     }
 
     const struct device *device = focused->as.device.dev;
-    const struct profile *profiles = device->profiles.data;
+    const struct param_profile *profiles = device->profiles.data;
     const size_t nprofiles = device->profiles.size;
 
-    const struct profile *active_profile = NULL;
+    const struct param_profile *active_profile = NULL;
     for (unsigned i = 0; i < nprofiles; i++) {
         if (profiles[i].active) {
             active_profile = &profiles[i];
@@ -873,7 +873,7 @@ void tui_bind_select_profile(union tui_bind_data data) {
     xasprintf(&tui.menu->header, "Select profile for %s", device->props.description);
 
     for (size_t i = 0; i < nprofiles; i++) {
-        const struct profile *const profile = &profiles[i];
+        const struct param_profile *const profile = &profiles[i];
         struct tui_menu_item *const item = &tui.menu->items[i];
         xasprintf(&item->str, "%d. %s (%s)", profile->index, profile->description, profile->name);
         item->data.uint = profile->index;
@@ -911,10 +911,10 @@ void tui_bind_select_route(union tui_bind_data data) {
     }
 
     const struct node *node = focused->as.node.node;
-    const struct route *routes = node->routes;
+    const struct param_route *routes = node->routes;
     const size_t nroutes = node->n_routes;
 
-    const struct route *active_route = NULL;
+    const struct param_route *active_route = NULL;
     for (unsigned i = 0; i < nroutes; i++) {
         if (routes[i].active) {
             active_route = &routes[i];
@@ -934,7 +934,7 @@ void tui_bind_select_route(union tui_bind_data data) {
 
     xasprintf(&tui.menu->header, "Select route for %s", node->props.node_name);
     for (size_t i = 0; i < nroutes; i++) {
-        const struct route *route = &routes[i];
+        const struct param_route *route = &routes[i];
         struct tui_menu_item *item = &tui.menu->items[i];
         xasprintf(&item->str, "%d. %s (%s)", route->index, route->description, route->name);
         item->data.uint = route->index;
@@ -1080,7 +1080,7 @@ static void tui_tab_item_resize(struct tui_tab_item *item, int new_height) {
 }
 
 static void on_device_profiles(struct device *dev,
-                               const struct profile *_, unsigned _,
+                               const struct param_profile *_, unsigned _,
                                void *data) {
     struct tui_tab_item *item = data;
 
@@ -1136,7 +1136,7 @@ static void on_node_mute(struct node *node, bool _, void *data) {
     trigger_update();
 }
 
-static void on_node_routes(struct node *node, const struct route *_, unsigned _, void *data) {
+static void on_node_routes(struct node *node, const struct param_route *_, unsigned _, void *data) {
     struct tui_tab_item *item = data;
 
     tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_ROUTES);

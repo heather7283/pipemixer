@@ -92,7 +92,7 @@ void device_add_listener(struct device *dev, struct event_hook *hook,
 void device_set_props(const struct device *dev, const struct spa_pod *props,
                       enum spa_direction direction, int32_t card_profile_device) {
     bool found = false;
-    struct route *route = NULL;
+    struct param_route *route = NULL;
     VEC_FOREACH(&dev->routes, i) {
         route = &dev->routes.data[i];
         if (!route->active) {
@@ -167,9 +167,9 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
         return;
     }
 
-    struct route *active = NULL;
+    struct param_route *active = NULL;
     VEC_FOREACH(&dev->staging.routes, i) {
-        struct route *route = &dev->staging.routes.data[i];
+        struct param_route *route = &dev->staging.routes.data[i];
 
         if (route->index == index) {
             active = route;
@@ -221,8 +221,8 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
         return;
     }
 
-    struct route *new_route = VEC_EMPLACE_BACK(&dev->staging.routes);
-    *new_route = (struct route){
+    struct param_route *new_route = VEC_EMPLACE_BACK(&dev->staging.routes);
+    *new_route = (struct param_route){
         .index = index,
         .direction = direction,
         .name = xstrdup(name),
@@ -255,8 +255,8 @@ static void on_device_param_enum_profile(struct device *dev, const struct spa_po
         return;
     }
 
-    struct profile *new_profile = VEC_EMPLACE_BACK(&dev->staging.profiles);
-    *new_profile = (struct profile){
+    struct param_profile *new_profile = VEC_EMPLACE_BACK(&dev->staging.profiles);
+    *new_profile = (struct param_profile){
         .index = index,
         .description = xstrdup(description),
         .name = xstrdup(name),
@@ -281,9 +281,9 @@ static void on_device_param_profile(struct device *dev, const struct spa_pod *pa
         return;
     }
 
-    struct profile *active = NULL;
+    struct param_profile *active = NULL;
     VEC_FOREACH(&dev->staging.profiles, i) {
-        struct profile *prof = &dev->staging.profiles.data[i];
+        struct param_profile *prof = &dev->staging.profiles.data[i];
 
         if (prof->active) {
             WARN("BUG: got a Profile (%d) after active Profile has already been found (%d)!",
@@ -399,15 +399,15 @@ static void on_proxy_roundtrip_done(void *data, int _) {
     struct device *dev = data;
 
     VEC_FOREACH(&dev->routes, i) {
-        struct route *route = &dev->routes.data[i];
-        route_free_contents(route);
+        struct param_route *route = &dev->routes.data[i];
+        param_route_free_contents(route);
     }
     VEC_CLEAR(&dev->routes);
     VEC_EXCHANGE(&dev->routes, &dev->staging.routes);
 
     VEC_FOREACH(&dev->profiles, i) {
-        struct profile *profile = &dev->profiles.data[i];
-        profile_free_contents(profile);
+        struct param_profile *profile = &dev->profiles.data[i];
+        param_profile_free_contents(profile);
     }
     VEC_CLEAR(&dev->profiles);
     VEC_EXCHANGE(&dev->profiles, &dev->staging.profiles);
@@ -458,27 +458,27 @@ static void device_destroy(struct device *device) {
     free(device->props.description);
 
     VEC_FOREACH(&device->routes, i) {
-        struct route *route = &device->routes.data[i];
-        route_free_contents(route);
+        struct param_route *route = &device->routes.data[i];
+        param_route_free_contents(route);
     }
     VEC_FREE(&device->routes);
 
     VEC_FOREACH(&device->profiles, i) {
-        struct profile *profile = &device->profiles.data[i];
-        profile_free_contents(profile);
+        struct param_profile *profile = &device->profiles.data[i];
+        param_profile_free_contents(profile);
     }
     VEC_FREE(&device->profiles);
 
     /* staging */
     VEC_FOREACH(&device->staging.routes, i) {
-        struct route *route = &device->staging.routes.data[i];
-        route_free_contents(route);
+        struct param_route *route = &device->staging.routes.data[i];
+        param_route_free_contents(route);
     }
     VEC_FREE(&device->staging.routes);
 
     VEC_FOREACH(&device->staging.profiles, i) {
-        struct profile *profile = &device->staging.profiles.data[i];
-        profile_free_contents(profile);
+        struct param_profile *profile = &device->staging.profiles.data[i];
+        param_profile_free_contents(profile);
     }
     VEC_FREE(&device->staging.profiles);
 

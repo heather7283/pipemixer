@@ -2,7 +2,7 @@
 
 #include "pw/types.h"
 
-void route_free_contents(struct route *route) {
+void param_route_free_contents(struct param_route *route) {
     if (route) {
         free(route->description);
         free(route->name);
@@ -11,7 +11,7 @@ void route_free_contents(struct route *route) {
     }
 }
 
-void profile_free_contents(struct profile *profile) {
+void param_profile_free_contents(struct param_profile *profile) {
     if (profile) {
         free(profile->name);
         free(profile->description);

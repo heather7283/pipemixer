@@ -22,13 +22,13 @@ struct device {
     uint32_t id;
     struct device_props props;
 
-    VEC(struct route) routes;
-    VEC(struct profile) profiles;
+    VEC(struct param_route) routes;
+    VEC(struct param_profile) profiles;
 
     /* needed to atomically update routes and profiles */
     struct {
-        VEC(struct route) routes;
-        VEC(struct profile) profiles;
+        VEC(struct param_route) routes;
+        VEC(struct param_profile) profiles;
     } staging;
 
     struct event_emitter *emitter;
@@ -52,8 +52,12 @@ void device_set_profile(const struct device *dev, int32_t index);
 struct device_events {
     void (*removed)(struct device *dev, void *data);
     void (*props)(struct device *dev, const struct device_props *props, void *data);
-    void (*routes)(struct device *dev, const struct route *routes, unsigned len, void *data);
-    void (*profiles)(struct device *dev, const struct profile *profiles, unsigned len, void *data);
+    void (*routes)(struct device *dev,
+                   const struct param_route routes[], unsigned routes_count,
+                   void *data);
+    void (*profiles)(struct device *dev,
+                     const struct param_profile profiles[], unsigned profiles_count,
+                     void *data);
 };
 
 void device_add_listener(struct device *dev, struct event_hook *hook,
