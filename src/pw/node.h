@@ -43,10 +43,7 @@ struct node {
     enum media_class media_class;
     struct node_props props;
 
-    bool mute;
-    unsigned n_channels;
-    const char **channel_names;
-    float *channel_volumes;
+    struct param_props param_props;
 
     bool is_default;
     struct event_hook default_listener;

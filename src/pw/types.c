@@ -2,6 +2,13 @@
 
 #include "pw/types.h"
 
+void param_props_free_contents(struct param_props *props) {
+    if (props) {
+        free(props->channel_names);
+        free(props->channel_volumes);
+    }
+}
+
 void param_route_free_contents(struct param_route *route) {
     if (route) {
         free(route->description);

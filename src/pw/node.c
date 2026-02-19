@@ -41,16 +41,16 @@ static void node_event_dispatcher(uint64_t id, union event_data data, struct eve
         break;
     case NODE_EVENT_CHANNELS:
         EVENT_DISPATCH(table->channels, node,
-                       node->channel_names, node->n_channels,
+                       node->param_props.channel_names, node->param_props.n_channels,
                        hook->callbacks_data);
         break;
     case NODE_EVENT_VOLUME:
         EVENT_DISPATCH(table->volume, node,
-                       node->channel_volumes, node->n_channels,
+                       node->param_props.channel_volumes, node->param_props.n_channels,
                        hook->callbacks_data);
         break;
     case NODE_EVENT_MUTE:
-        EVENT_DISPATCH(table->mute, node, node->mute, hook->callbacks_data);
+        EVENT_DISPATCH(table->mute, node, node->param_props.mute, hook->callbacks_data);
         break;
     case NODE_EVENT_DEFAULT:
         EVENT_DISPATCH(table->default_, node, node->is_default, hook->callbacks_data);
@@ -160,10 +160,10 @@ void node_change_volume(const struct node *node, bool absolute, float volume, ui
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));
 
-    float cubed_volumes[node->n_channels];
-    for (uint32_t i = 0; i < node->n_channels; i++) {
+    float cubed_volumes[node->param_props.n_channels];
+    for (uint32_t i = 0; i < node->param_props.n_channels; i++) {
         float new_volume;
-        const float old_volume = node->channel_volumes[i];
+        const float old_volume = node->param_props.channel_volumes[i];
 
         if (channel == ALL_CHANNELS || i == channel) {
             if (absolute) {
@@ -383,12 +383,14 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         return;
     }
 
-    if (node->n_channels != map_nvals) {
-        node->channel_names =
-            xreallocarray(node->channel_names, map_nvals, sizeof(node->channel_names[0]));
-        node->channel_volumes =
-            xreallocarray(node->channel_volumes, map_nvals, sizeof(node->channel_volumes[0]));
-        node->n_channels = map_nvals;
+    struct param_props *props = &node->param_props;
+
+    if (props->n_channels != map_nvals) {
+        props->channel_names =
+            xreallocarray(props->channel_names, map_nvals, sizeof(props->channel_names[0]));
+        props->channel_volumes =
+            xreallocarray(props->channel_volumes, map_nvals, sizeof(props->channel_volumes[0]));
+        props->n_channels = map_nvals;
 
         if (!node->new) {
             emit_channels(node, NULL);
@@ -399,17 +401,17 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         const enum spa_audio_channel chan = map_vals[i];
         const float volume = vol_vals[i];
 
-        node->channel_names[i] = channel_name_from_enum(chan);
-        node->channel_volumes[i] = cbrtf(volume);
+        props->channel_names[i] = channel_name_from_enum(chan);
+        props->channel_volumes[i] = cbrtf(volume);
     }
 
     if (!node->new) {
         emit_volume(node, NULL);
     }
 
-    if (mute != node->mute) {
+    if (mute != props->mute) {
         INFO("node %u mute %d", node->id, mute);
-        node->mute = mute;
+        props->mute = mute;
 
         if (!node->new) {
             emit_mute(node, NULL);
@@ -484,8 +486,7 @@ static void node_destroy(struct node *node) {
     free(node->props.media_name);
     free(node->props.node_name);
     free(node->props.node_description);
-    free(node->channel_volumes);
-    free(node->channel_names);
+    param_props_free_contents(&node->param_props);
     for (unsigned i = 0; i < node->n_routes; i++) {
         struct param_route *route = &node->routes[i];
         param_route_free_contents(route);

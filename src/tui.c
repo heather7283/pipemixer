@@ -85,7 +85,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     const int volume_bar_start = volume_area_start + 12; /* minus two decorations at the end */
 
     const bool focused = item->focused;
-    const bool muted = node->mute;
+    const bool muted = node->param_props.mute;
 
     TRACE("tui_draw_node: id %d mask "BYTE_BINARY_FORMAT, node->id, BYTE_BINARY_ARGS(mask));
 
@@ -135,12 +135,13 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             wattron(win, A_DIM);
         }
 
-        for (uint32_t i = 0; i < node->n_channels; i++) {
+        for (uint32_t i = 0; i < node->param_props.n_channels; i++) {
             const int pos = item->pos + i + 2;
 
-            const int vol_int = (int)roundf(node->channel_volumes[i] * 100);
+            const int vol_int = (int)roundf(node->param_props.channel_volumes[i] * 100);
 
-            mvwprintw(win, pos, volume_area_start, "%5s %-3d ", node->channel_names[i], vol_int);
+            mvwprintw(win, pos, volume_area_start, "%5s %-3d ",
+                      node->param_props.channel_names[i], vol_int);
 
             /* draw volume bar */
             int pair = DEFAULT;
@@ -148,7 +149,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             const int thresh = vol_int * volume_bar_width / 150;
             for (int j = 0; j < volume_bar_width; j++) {
                 cchar_t cc;
-                if (j % step == 0 && !node->mute) {
+                if (j % step == 0 && !node->param_props.mute) {
                     pair += 1;
                 }
                 setcchar(&cc, (j < thresh) ? config.bar_full_char : config.bar_empty_char,
@@ -165,19 +166,19 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             wattron(win, A_DIM);
         }
 
-        for (uint32_t i = 0; i < node->n_channels; i++) {
+        for (uint32_t i = 0; i < node->param_props.n_channels; i++) {
             const int pos = item->pos + i + 2;
 
             const wchar_t *wchar_left, *wchar_right;
             cchar_t cchar_left, cchar_right;
 
-            if (node->n_channels == 1) {
+            if (node->param_props.n_channels == 1) {
                 wchar_left = config.volume_frame.ml;
                 wchar_right = config.volume_frame.mr;
             } else if (i == 0) {
                 wchar_left = config.volume_frame.tl;
                 wchar_right = config.volume_frame.tr;
-            } else if (i == node->n_channels - 1) {
+            } else if (i == node->param_props.n_channels - 1) {
                 wchar_left = config.volume_frame.bl;
                 wchar_right = config.volume_frame.br;
             } else {
@@ -722,7 +723,7 @@ void tui_bind_change_mute(union tui_bind_data data) {
         node_set_mute(node, false);
         break;
     case TOGGLE:
-        node_set_mute(node, !node->mute);
+        node_set_mute(node, !node->param_props.mute);
         break;
     }
 }
@@ -1153,8 +1154,8 @@ static void on_node_volume(struct node *node, const float *_, unsigned _, void *
 static void on_node_channels(struct node *node, const char **_, unsigned _, void *data) {
     struct tui_tab_item *item = data;
 
-    item->as.node.n_channels = node->n_channels;
-    tui_tab_item_resize(item, node->n_channels + 3 + (bool)node->device_id);
+    item->as.node.n_channels = node->param_props.n_channels;
+    tui_tab_item_resize(item, node->param_props.n_channels + 3 + (bool)node->device_id);
 
     if (item->tab_index == tui.tab_index) {
         redraw_current_tab();
