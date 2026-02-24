@@ -24,9 +24,9 @@ struct tui_menu *tui_menu_create(unsigned int n_items) {
 
 void tui_menu_free(struct tui_menu *menu) {
     for (unsigned int i = 0; i < menu->n_items; i++) {
-        free(menu->items[i].str);
+        wstring_free(&menu->items[i].wstr);
     }
-    free(menu->header);
+    wstring_free(&menu->header);
     free(menu);
 }
 
@@ -81,13 +81,13 @@ void tui_menu_draw(const struct tui_menu *const menu) {
         waddwstr(win, config.borders.rs);
     }
 
-    mvwaddnstr(win, 0, 1, menu->header, menu->w - 2);
+    mvwaddnwstr(win, 0, 1, menu->header.data, menu->w - 2);
     for (unsigned int i = 0; i < menu->n_items; i++) {
         if (i == menu->selected) {
             wattron(win, A_BOLD);
         }
 
-        mvwaddnstr(win, 1 + i, 1, menu->items[i].str, menu->w - 2);
+        mvwaddnwstr(win, 1 + i, 1, menu->items[i].wstr.data, menu->w - 2);
 
         wattroff(win, A_BOLD);
     }

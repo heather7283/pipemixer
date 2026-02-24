@@ -38,6 +38,7 @@ pipemixer_sources = [
   'src/events.c',
   'src/collections/vec.c',
   'src/collections/map.c',
+  'src/collections/wstring.c',
   'src/pw/common.c',
   'src/pw/types.c',
   'src/pw/device.c',

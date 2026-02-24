@@ -2,13 +2,15 @@
 
 #include <ncurses.h>
 
+#include "collections/wstring.h"
+
 struct tui_menu;
 struct tui_menu_item;
 
 typedef void (*tui_menu_callback_t)(struct tui_menu *menu, struct tui_menu_item *pick);
 
 struct tui_menu_item {
-    char *str;
+    struct wstring wstr;
 
     union {
         void *ptr;
@@ -19,7 +21,7 @@ struct tui_menu_item {
 struct tui_menu {
     WINDOW *win;
     int x, y, w, h;
-    char *header;
+    struct wstring header;
     tui_menu_callback_t callback;
 
     union {

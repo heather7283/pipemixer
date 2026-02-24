@@ -871,15 +871,16 @@ void tui_bind_select_profile(union tui_bind_data data) {
 
     tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
 
-    xasprintf(&tui.menu->header, "Select profile for %s", device->props.description);
+    wstring_printf(&tui.menu->header, L"Select profile for %s", device->props.description);
 
     for (size_t i = 0; i < nprofiles; i++) {
-        const struct param_profile *const profile = &profiles[i];
-        struct tui_menu_item *const item = &tui.menu->items[i];
-        xasprintf(&item->str, "%d. %s (%s)", profile->index, profile->description, profile->name);
-        item->data.uint = profile->index;
+        const struct param_profile *p = &profiles[i];
+        struct tui_menu_item *item = &tui.menu->items[i];
 
-        if (active_profile != NULL && profile->index == active_profile->index) {
+        wstring_printf(&item->wstr, L"%d. %s (%s)", p->index, p->description, p->name);
+        item->data.uint = p->index;
+
+        if (active_profile != NULL && p->index == active_profile->index) {
             tui.menu->selected = i;
         }
     }
@@ -933,14 +934,14 @@ void tui_bind_select_route(union tui_bind_data data) {
 
     tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
 
-    xasprintf(&tui.menu->header, "Select route for %s", node->props.node_name);
+    wstring_printf(&tui.menu->header, L"Select route for %s", node->props.node_name);
     for (size_t i = 0; i < nroutes; i++) {
-        const struct param_route *route = &routes[i];
+        const struct param_route *r = &routes[i];
         struct tui_menu_item *item = &tui.menu->items[i];
-        xasprintf(&item->str, "%d. %s (%s)", route->index, route->description, route->name);
-        item->data.uint = route->index;
+        wstring_printf(&item->wstr, L"%d. %s (%s)", r->index, r->description, r->name);
+        item->data.uint = r->index;
 
-        if (active_route != NULL && route->index == active_route->index) {
+        if (active_route != NULL && r->index == active_route->index) {
             tui.menu->selected = i;
         }
     }
