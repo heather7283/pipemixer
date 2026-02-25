@@ -146,28 +146,38 @@ bool key_code_from_key_name(const char *name, wint_t *keycode) {
         return true;
     } else if (name[2] == '\0' || name[3] == '\0' || name[4] == '\0') {
         /* a single utf-8 char */
-        mbtowc(NULL, NULL, 0); /* reset state */
         wchar_t res;
-        int ret = mbtowc(&res, name, 4);
+        int ret = mbrtowc(&res, name, 4, &(mbstate_t){0});
         if (ret > 0 && name[ret] == '\0' && iswgraph(res)) {
             *keycode = res;
             return true;
         }
     }
 
-    if (STREQ(name, "up")) { *keycode = KEY_UP; return true; };
-    if (STREQ(name, "down")) { *keycode = KEY_DOWN; return true; };
-    if (STREQ(name, "left")) { *keycode = KEY_LEFT; return true; };
-    if (STREQ(name, "right")) { *keycode = KEY_RIGHT; return true; };
-    if (STREQ(name, "enter")) { *keycode = '\n'; return true; };
-    if (STREQ(name, "tab")) { *keycode = '\t'; return true; };
-    if (STREQ(name, "backtab")) { *keycode = KEY_BTAB; return true; };
-    if (STREQ(name, "space")) { *keycode = ' '; return true; };
-    if (STREQ(name, "backspace")) { *keycode = KEY_BACKSPACE; return true; };
-    if (STREQ(name, "escape")) { *keycode = '\e'; return true; };
+    static const struct {
+        const char *name;
+        wint_t keycode;
+    } names[] = {
+        {        "up", KEY_UP        },
+        {      "down", KEY_DOWN      },
+        {      "left", KEY_LEFT      },
+        {     "right", KEY_RIGHT     },
+        {     "enter", '\n'          },
+        {       "tab", '\t'          },
+        {   "backtab", KEY_BTAB      },
+        {     "space", ' '           },
+        { "backspace", KEY_BACKSPACE },
+        {    "escape", '\e'          },
+    };
+    for (unsigned i = 0; i < SIZEOF_ARRAY(names); i++) {
+        if (streq(name, names[i].name)) {
+            *keycode = names[i].keycode;
+            return true;
+        }
+    }
 
-    const char *prefix;
-    if (prefix = "code:", STRSTARTSWITH(name, prefix)) {
+    const char prefix[] = "code:";
+    if (STRSTARTSWITH(name, prefix)) {
         const char *num = name + strlen(prefix);
         uint32_t code;
         if (spa_atou32(num, &code, 10) && code < INT_MAX) {
