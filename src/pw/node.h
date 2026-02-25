@@ -46,11 +46,11 @@ struct node {
     struct param_props param_props;
 
     bool is_default;
-    struct event_hook default_listener;
+    struct event_hook *default_hook;
 
     uint32_t device_id;
     struct device *device;
-    struct event_hook device_hook;
+    struct event_hook *device_hook;
 
     int32_t card_profile_device, device_profile;
     struct param_route *routes;
@@ -98,6 +98,7 @@ struct node_events {
     void (*default_)(struct node *node, bool is_default, void *data);
 };
 
-void node_add_listener(struct node *node, struct event_hook *hook,
-                       const struct node_events *events, void *data);
+struct event_hook *node_add_listener(struct node *node,
+                                     const struct node_events *event,
+                                     void *data);
 

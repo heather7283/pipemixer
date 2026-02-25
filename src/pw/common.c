@@ -44,28 +44,30 @@ enum pipewire_event_types {
     PIPEWIRE_EVENT_DEFAULT,
 };
 
-static void pipewire_event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
-    const struct pipewire_events *table = hook->callbacks;
+static void pipewire_event_dispatcher(uint64_t id, union event_data data,
+                                      const void *callbacks, void *callbacks_data,
+                                      void *_) {
+    const struct pipewire_events *table = callbacks;
 
     switch ((enum pipewire_event_types)id) {
     case PIPEWIRE_EVENT_NODE: {
         struct node *node = node_lookup(data.u);
         if (node) {
-            EVENT_DISPATCH(table->node, node, hook->callbacks_data);
+            EVENT_DISPATCH(table->node, node, callbacks_data);
         }
         break;
     }
     case PIPEWIRE_EVENT_DEVICE: {
         struct device *dev = device_lookup(data.u);
         if (dev) {
-            EVENT_DISPATCH(table->device, dev, hook->callbacks_data);
+            EVENT_DISPATCH(table->device, dev, callbacks_data);
         }
         break;
     }
     case PIPEWIRE_EVENT_DEFAULT: {
         enum default_metadata_key key = data.u;
         struct default_metadata *md = &pw.default_metadata;
-        EVENT_DISPATCH(table->default_, key, md->properties[key], hook->callbacks_data);
+        EVENT_DISPATCH(table->default_, key, md->properties[key], callbacks_data);
         break;
     }
     default:
@@ -73,34 +75,29 @@ static void pipewire_event_dispatcher(uint64_t id, union event_data data, struct
     }
 }
 
-static void emit_node(uint32_t id, struct event_hook *hook) {
-    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_NODE, 'u', id);
+static void emit_node(struct node *node, struct event_hook *hook) {
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_NODE, 'u', node->id);
 }
 
-static void emit_device(uint32_t id, struct event_hook *hook) {
-    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', id);
+static void emit_device(struct device *dev, struct event_hook *hook) {
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', dev->id);
 }
 
 static void emit_default(enum default_metadata_key key, struct event_hook *hook) {
     event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEFAULT, 'u', key);
 }
 
-void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events *ev, void *data) {
-    *hook = (struct event_hook){
-        .callbacks = ev,
-        .callbacks_data = data,
-        .private_data = &pw,
-    };
-    event_emitter_add_hook(pw.emitter, hook);
+struct event_hook *pipewire_add_listener(const struct pipewire_events *events, void *data) {
+    struct event_hook *hook = event_emitter_add_hook(pw.emitter, events, data, NULL, NULL);
 
     struct node *node;
     MAP_FOREACH(&pw.nodes, &node) {
-        emit_node(node->id, hook);
+        emit_node(node, hook);
     }
 
     struct device *device;
     MAP_FOREACH(&pw.devices, &device) {
-        emit_device(device->id, hook);
+        emit_device(device, hook);
     }
 
     if (pw.default_metadata.pw_metadata) {
@@ -108,6 +105,8 @@ void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events
             emit_default(i, hook);
         }
     }
+
+    return hook;
 }
 
 struct node *node_lookup(uint32_t id) {
@@ -221,7 +220,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         struct pw_node *pw_node = pw_registry_bind(pw.registry, id, type, PW_VERSION_NODE, 0);
         struct node *node = node_create(pw_node, id, media_class_value);
         map_insert(&pw.nodes, id, node);
-        emit_node(id, NULL);
+        emit_node(node, NULL);
     } else if (streq(type, PW_TYPE_INTERFACE_Device)) {
         const char *media_class = spa_dict_lookup(props, "media.class");
         if (media_class == NULL) {
@@ -237,7 +236,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         struct pw_device *pw_device = pw_registry_bind(pw.registry, id, type, PW_VERSION_DEVICE, 0);
         struct device *device = device_create(pw_device, id);
         map_insert(&pw.devices, id, device);
-        emit_device(id, NULL);
+        emit_device(device, NULL);
     } else if (streq(type, PW_TYPE_INTERFACE_Metadata)) {
         if (!streq(spa_dict_lookup(props, "metadata.name"), "default")) {
             return;

@@ -44,7 +44,7 @@ struct tui {
     bool resize_triggered;
     struct spa_source *resize_source;
 
-    struct event_hook pipewire_hook;
+    struct event_hook *pipewire_hook;
 };
 
 enum tui_tab_item_draw_mask {
@@ -83,7 +83,7 @@ struct tui_tab_item {
         } device;
     } as;
 
-    struct event_hook listener;
+    struct event_hook *hook;
 
     int tab_index;
     struct list link;

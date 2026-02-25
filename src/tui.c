@@ -1102,7 +1102,7 @@ static void on_device_removed(struct device *dev, void *data) {
 
     TRACE("tui_on_device_removed: id %d", dev->id);
 
-    event_hook_remove(&item->listener);
+    event_hook_release(item->hook);
     device_unref(&item->as.device.dev);
 
     tui_tab_item_resize(item, 0);
@@ -1176,7 +1176,7 @@ static void on_node_removed(struct node *node, void *data) {
 
     TRACE("tui_on_node_removed: id %d", node->id);
 
-    event_hook_remove(&item->listener);
+    event_hook_release(item->hook);
     node_unref(&item->as.node.node);
 
     tui_tab_item_resize(item, 0);
@@ -1214,7 +1214,7 @@ static void on_pipewire_device(struct device *dev, void *_) {
         .as.device.dev = device_ref(dev),
     };
 
-    device_add_listener(dev, &new_item->listener, &device_events, new_item);
+    new_item->hook = device_add_listener(dev, &device_events, new_item);
 
     const int new_item_height = 4;
     list_insert_after(&tui.tabs[tab_index].items, &new_item->link);
@@ -1240,7 +1240,7 @@ static void on_pipewire_node(struct node *node, void *_) {
         .as.node.node = node_ref(node),
     };
 
-    node_add_listener(node, &new_item->listener, &node_events, new_item);
+    new_item->hook = node_add_listener(node, &node_events, new_item);
 
     int new_item_height = new_item->as.node.n_channels + 3;
     if (node->device_id != 0) {
@@ -1370,7 +1370,7 @@ bool tui_init(void) {
     tui.update_source = pw_loop_add_event(event_loop, on_update_triggered, event_loop);
     tui.update_triggered = false;
 
-    pipewire_add_listener(&tui.pipewire_hook, &pipewire_events, &tui);
+    tui.pipewire_hook = pipewire_add_listener(&pipewire_events, &tui);
 
     tui.tab_index = config.tab_map_enum_to_index[config.default_tab];
 

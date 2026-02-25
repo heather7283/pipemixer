@@ -1,153 +1,237 @@
 #include <sys/eventfd.h>
 #include <unistd.h>
-#include <assert.h>
+#include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <inttypes.h>
 
 #include "events.h"
-#include "collections/vec.h"
-#include "eventloop.h"
-#include "xmalloc.h"
+#include "collections/list.h"
 #include "macros.h"
+#include "xmalloc.h"
 
-struct event_emitter {
-    struct list hooks;
+struct event_hook {
+    const void *callbacks_table;
+    void *callbacks_data;
 
-    VEC(struct event {
-        uint64_t id;
-        union event_data data;
-        struct event_hook *hook;
-    }) events;
-    event_dispatcher_t *dispatcher;
+    void (*remove)(void *private_data);
+    void *private_data;
+
+    /* hook should never see events that fired before its creation */
+    uint64_t birth_seq;
+
+    /* hook holds a reference to emitter */
+    struct event_emitter *emitter;
+
+    /* hook is freed when released == true && refcnt == 0 */
+    bool released;
+    int refcnt;
 
     struct list link;
-
-    bool in_callback;
-    bool released;
 };
 
-static struct spa_source *event_source = NULL;
+struct event_emitter {
+    event_dispatcher_t *dispatcher;
+    struct list hooks;
 
-static struct list pending_emitters = { &pending_emitters, &pending_emitters };
+    /* emitter is freed when released == true && refcnt == 0 */
+    bool released;
+    int refcnt;
+};
 
-static void event_emitter_free(struct event_emitter *e);
+struct event {
+    uint64_t id;
+    union event_data data;
+    uint64_t seq;
 
-static void event_emitter_dispatch_events(struct event_emitter *emitter) {
-    VEC_FOREACH(&emitter->events, i) {
-        struct event *event = &emitter->events.data[i];
+    struct event_emitter *emitter;
+    /* hook == NULL => broadcast
+     * hook != NULL => unicast */
+    struct event_hook *hook;
 
-        if (event->hook) {
-            emitter->dispatcher(event->id, event->data, event->hook);
-        } else {
+    struct list link;
+};
+
+/* global state */
+static struct {
+    int efd;
+    bool efd_triggered;
+
+    uint64_t seq;
+
+    struct list event_queue;
+} g = {
+    .efd = -1,
+    .event_queue = { &g.event_queue, &g.event_queue },
+};
+
+static void hook_free(struct event_hook *hook) {
+    free(hook);
+}
+
+static void hook_unref(struct event_hook *hook) {
+    if (--hook->refcnt == 0 && hook->released) {
+        hook_free(hook);
+    }
+}
+
+static struct event_hook *hook_ref(struct event_hook *hook) {
+    hook->refcnt += 1;
+    return hook;
+}
+
+static void emitter_free(struct event_emitter *emitter) {
+    free(emitter);
+}
+
+static void emitter_unref(struct event_emitter *emitter) {
+    if (--emitter->refcnt == 0 && emitter->released) {
+        emitter_free(emitter);
+    }
+}
+
+static struct event_emitter *emitter_ref(struct event_emitter *emitter) {
+    emitter->refcnt += 1;
+    return emitter;
+}
+
+int events_global_init(void) {
+    g.efd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+    return g.efd;
+}
+
+void events_dispatch(void) {
+    eventfd_read(g.efd, &(uint64_t){});
+    g.efd_triggered = false;
+
+    while (!list_is_empty(&g.event_queue)) {
+        /* pop from the beginning */
+        struct event *event = CONTAINER_OF(list_remove(g.event_queue.next), struct event, link);
+        struct event_emitter *emitter = event->emitter;
+
+        if (!event->hook) {
+            /* broadcast */
             LIST_FOREACH(elem, &emitter->hooks) {
                 struct event_hook *hook = CONTAINER_OF(elem, struct event_hook, link);
-                emitter->dispatcher(event->id, event->data, hook);
+                if (!hook->released && hook->birth_seq < event->seq) {
+                    emitter->dispatcher(event->id, event->data,
+                                        hook->callbacks_table, hook->callbacks_data,
+                                        hook->private_data);
+                }
             }
+        } else {
+            /* unicast */
+            struct event_hook *hook = event->hook;
+            if (!hook->released) {
+                emitter->dispatcher(event->id, event->data,
+                                    hook->callbacks_table, hook->callbacks_data,
+                                    hook->private_data);
+            }
+            hook_unref(hook);
         }
+
+        emitter_unref(emitter);
+        free(event);
     }
-    VEC_CLEAR(&emitter->events);
-}
-
-static void dispatch_events(void *_, uint64_t _) {
-    while (!list_is_empty(&pending_emitters)) {
-        struct event_emitter *emitter = CONTAINER_OF(list_remove(pending_emitters.next),
-                                                     struct event_emitter, link);
-
-        emitter->in_callback = true;
-        event_emitter_dispatch_events(emitter);
-        emitter->in_callback = false;
-
-        if (emitter->released) {
-            event_emitter_free(emitter);
-        }
-    }
-}
-
-bool events_global_init(void) {
-    event_source = pw_loop_add_event(event_loop, dispatch_events, NULL);
-    return event_source != NULL;
 }
 
 struct event_emitter *event_emitter_create(event_dispatcher_t *dispatcher) {
-    struct event_emitter *e = xmalloc(sizeof(*e));
-
-    *e = (struct event_emitter){
+    struct event_emitter *emitter = xmalloc(sizeof(*emitter));
+    *emitter = (struct event_emitter){
         .dispatcher = dispatcher,
-        .hooks = list_init(&e->hooks),
-        .link = list_init(&e->link),
+        .hooks = { &emitter->hooks, &emitter->hooks },
     };
 
-    return e;
+    return emitter;
 }
 
-static void event_emitter_free(struct event_emitter *e) {
-    LIST_FOREACH(elem, &e->hooks) {
-        struct event_hook *hook = CONTAINER_OF(elem, struct event_hook, link);
-        event_hook_remove(hook);
+void event_emitter_release(struct event_emitter *emitter) {
+    if (!emitter) {
+        return;
     }
-    VEC_FREE(&e->events);
-    list_remove(&e->link);
-    free(e);
-}
 
-void event_emitter_release(struct event_emitter *e) {
-    if (e->in_callback) {
-        e->released = true;
-    } else {
-        event_emitter_free(e);
+    emitter->released = true;
+    if (emitter->refcnt == 0) {
+        emitter_free(emitter);
     }
 }
 
-void event_emitter_add_hook(struct event_emitter *emitter, struct event_hook *hook) {
-    list_insert_before(&emitter->hooks, &hook->link);
+struct event_hook *event_emitter_add_hook(struct event_emitter *emitter,
+                                          const void *callbacks_table, void *callbacks_data,
+                                          void (*remove)(void *private_data), void *private_data) {
+    struct event_hook *hook = xmalloc(sizeof(*hook));
+    *hook = (struct event_hook){
+        .callbacks_table = callbacks_table,
+        .callbacks_data = callbacks_data,
+        .remove = remove,
+        .private_data = private_data,
+        .birth_seq = g.seq,
+        .emitter = emitter,
+    };
+
+    /* prepend to emitter's hook list */
+    list_insert_after(&emitter->hooks, &hook->link);
+
+    return hook;
 }
 
-void event_hook_remove(struct event_hook *hook) {
-    if (hook->link.next) {
-        list_remove(&hook->link);
-        if (hook->remove) {
-            hook->remove(hook);
-        }
-        *hook = (struct event_hook){0};
+void event_hook_release(struct event_hook *hook) {
+    if (!hook) {
+        return;
+    }
+
+    /* remove from emitter's hook list */
+    list_remove(&hook->link);
+
+    /* since no events will be delivered for this hook anymore, it's safe to
+     * call remove right now and not wait for hook to actually be destroyed */
+    if (hook->remove) {
+        hook->remove(hook->private_data);
+    }
+
+    hook->released = true;
+    if (hook->refcnt == 0) {
+        hook_free(hook);
     }
 }
 
-static void event_emit_internal(struct event_emitter *emitter, struct event_hook *hook,
+static void event_emit_internal(struct event_emitter *emitter,
+                                struct event_hook *hook,
                                 uint64_t id, union event_data data) {
-    struct event *ev = VEC_EMPLACE_BACK(&emitter->events);
-    *ev = (struct event){
+    struct event *event = xmalloc(sizeof(*event));
+    *event = (struct event) {
         .id = id,
         .data = data,
-        .hook = hook,
+        .seq = ++g.seq,
+        .emitter = emitter_ref(emitter),
+        .hook = hook ? hook_ref(hook) : NULL,
     };
 
-    if (list_is_empty(&emitter->link)) {
-        const bool first = list_is_empty(&pending_emitters);
+    /* append to the end (it's important to not mess up ordering here!) */
+    list_insert_before(&g.event_queue, &event->link);
 
-        list_insert_before(&pending_emitters, &emitter->link);
-
-        if (first) {
-            pw_loop_signal_event(event_loop, event_source);
-        }
+    if (!g.efd_triggered) {
+        eventfd_write(g.efd, 1);
+        g.efd_triggered = true;
     }
 }
 
-void event_emit(struct event_emitter *emitter, struct event_hook *hook,
+void event_emit(struct event_emitter *emitter,
+                struct event_hook *hook,
                 uint64_t id, int type, ...) {
-    va_list arg;
-    va_start(arg, type);
+    union event_data data;
 
-    union event_data data = {0};
+    va_list ap;
+    va_start(ap, type);
     switch (type) {
-    case 'p': data.p = va_arg(arg, void *); break;
-    case 'u': data.u = va_arg(arg, uint64_t); break;
-    case 'i': data.i = va_arg(arg, int64_t); break;
-    case 'd': data.d = va_arg(arg, double); break;
-    case 'b': data.b = va_arg(arg, int); break;
-    case '0': /* special case - empty data */ break;
-    default: assert(0 && "invalid type passed to event_emit");
+    case 'p': data.p = va_arg(ap, void *); break;
+    case 'u': data.u = va_arg(ap, uint64_t); break;
+    case 'i': data.i = va_arg(ap, int64_t); break;
+    case 'd': data.d = va_arg(ap, double); break;
+    case 'b': data.b = va_arg(ap, int); break;
+    default:  data.u = 0; break;
     }
-
-    va_end(arg);
+    va_end(ap);
 
     event_emit_internal(emitter, hook, id, data);
 }

@@ -25,35 +25,37 @@ enum node_event_types {
     NODE_EVENT_DEFAULT,
 };
 
-static void node_event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
-    const struct node_events *table = hook->callbacks;
-    struct node *node = hook->private_data;
+static void node_event_dispatcher(uint64_t id, union event_data data,
+                                  const void *callbacks, void *callbacks_data,
+                                  void *private_data) {
+    const struct node_events *table = callbacks;
+    struct node *node = private_data;
 
     switch ((enum node_event_types)id) {
     case NODE_EVENT_REMOVED:
-        EVENT_DISPATCH(table->removed, node, hook->callbacks_data);
+        EVENT_DISPATCH(table->removed, node, callbacks_data);
         break;
     case NODE_EVENT_ROUTES:
-        EVENT_DISPATCH(table->routes, node, node->routes, node->n_routes, hook->callbacks_data);
+        EVENT_DISPATCH(table->routes, node, node->routes, node->n_routes, callbacks_data);
         break;
     case NODE_EVENT_PROPS:
-        EVENT_DISPATCH(table->props, node, &node->props, hook->callbacks_data);
+        EVENT_DISPATCH(table->props, node, &node->props, callbacks_data);
         break;
     case NODE_EVENT_CHANNELS:
         EVENT_DISPATCH(table->channels, node,
                        node->param_props.channel_names, node->param_props.n_channels,
-                       hook->callbacks_data);
+                       callbacks_data);
         break;
     case NODE_EVENT_VOLUME:
         EVENT_DISPATCH(table->volume, node,
                        node->param_props.channel_volumes, node->param_props.n_channels,
-                       hook->callbacks_data);
+                       callbacks_data);
         break;
     case NODE_EVENT_MUTE:
-        EVENT_DISPATCH(table->mute, node, node->param_props.mute, hook->callbacks_data);
+        EVENT_DISPATCH(table->mute, node, node->param_props.mute, callbacks_data);
         break;
     case NODE_EVENT_DEFAULT:
-        EVENT_DISPATCH(table->default_, node, node->is_default, hook->callbacks_data);
+        EVENT_DISPATCH(table->default_, node, node->is_default, callbacks_data);
         break;
     default:
         ERROR("unexpected node event id %"PRIu64, id);
@@ -89,20 +91,14 @@ static void emit_default(struct node *node, struct event_hook *hook) {
     event_emit(node->emitter, hook, NODE_EVENT_DEFAULT, '0');
 }
 
-static void hook_remove(struct event_hook *hook) {
-    node_unref((struct node **)&hook->private_data);
+static void hook_remove(void *private_data) {
+    struct node *node = private_data;
+    node_unref(&node);
 }
 
-void node_add_listener(struct node *node, struct event_hook *hook,
-                       const struct node_events *ev, void *data) {
-    *hook = (struct event_hook){
-        .callbacks = ev,
-        .callbacks_data = data,
-        .private_data = node_ref(node),
-        .remove = hook_remove,
-    };
-    event_emitter_add_hook(node->emitter, hook);
-
+struct event_hook *node_add_listener(struct node *node, const struct node_events *ev, void *data) {
+    struct event_hook *hook = event_emitter_add_hook(node->emitter, ev, data,
+                                                     hook_remove, node_ref(node));
     if (node->has_props) {
         emit_props(node, hook);
     }
@@ -117,6 +113,8 @@ void node_add_listener(struct node *node, struct event_hook *hook,
     if (node->has_default) {
         emit_default(node, hook);
     }
+
+    return hook;
 }
 
 static enum spa_direction media_class_to_direction(enum media_class class) {
@@ -396,7 +394,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
 
                 /* now we can start checking for default */
                 if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
-                    pipewire_add_listener(&node->default_listener, &pipewire_events, node);
+                    node->default_hook = pipewire_add_listener(&pipewire_events, node);
                 }
             } else if (streq(k, "node.description")) {
                 free(node->props.node_description);
@@ -417,7 +415,7 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
                      node->device_id, node->id);
             } else {
                 node->device = device_ref(dev);
-                device_add_listener(node->device, &node->device_hook, &device_events, node);
+                node->device_hook = device_add_listener(node->device, &device_events, node);
             }
         }
 
@@ -526,12 +524,13 @@ static void node_destroy(struct node *node) {
         param_route_free_contents(route);
     }
 
-    event_hook_remove(&node->default_listener);
+    event_hook_release(node->default_hook);
 
     event_emitter_release(node->emitter);
 
     if (node->device) {
         device_unref(&node->device);
+        event_hook_release(node->device_hook);
     }
 
     free(node);

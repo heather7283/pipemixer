@@ -31,5 +31,5 @@ struct pipewire_events {
     void (*default_)(enum default_metadata_key key, const char *val, void *data);
 };
 
-void pipewire_add_listener(struct event_hook *hook, const struct pipewire_events *ev, void *data);
+struct event_hook *pipewire_add_listener(const struct pipewire_events *events, void *data);
 

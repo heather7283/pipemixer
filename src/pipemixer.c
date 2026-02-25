@@ -13,6 +13,10 @@
 struct pw_main_loop *main_loop = NULL;
 struct pw_loop *event_loop = NULL;
 
+static void events_fd_handler(void *_, int _, uint32_t _) {
+    events_dispatch();
+}
+
 static void bad_signal_handler(int sig) {
     /* restore terminal state before crashing */
     endwin();
@@ -137,7 +141,8 @@ int main(int argc, char **argv) {
     }
     event_loop = pw_main_loop_get_loop(main_loop);
 
-    events_global_init();
+    int events_fd = events_global_init();
+    pw_loop_add_io(event_loop, events_fd, POLL_IN, false, events_fd_handler, NULL);
 
     /* naming is unfortunate */
     if (!pipewire_init()) {

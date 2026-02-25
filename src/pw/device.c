@@ -15,29 +15,31 @@ enum device_event_types {
     DEVICE_EVENT_PROFILES,
 };
 
-static void device_event_dispatcher(uint64_t id, union event_data data, struct event_hook *hook) {
-    const struct device_events *table = hook->callbacks;
-    struct device *dev = hook->private_data;
+static void device_event_dispatcher(uint64_t id, union event_data data,
+                                    const void *callbacks, void *callbacks_data,
+                                    void *private_data) {
+    const struct device_events *table = callbacks;
+    struct device *dev = private_data;
 
     switch ((enum device_event_types)id) {
     case DEVICE_EVENT_REMOVED: {
-        EVENT_DISPATCH(table->removed, dev, hook->callbacks_data);
+        EVENT_DISPATCH(table->removed, dev, callbacks_data);
         break;
     }
     case DEVICE_EVENT_PROPS: {
-        EVENT_DISPATCH(table->props, dev, &dev->props, hook->callbacks_data);
+        EVENT_DISPATCH(table->props, dev, &dev->props, callbacks_data);
         break;
     }
     case DEVICE_EVENT_ROUTES: {
         EVENT_DISPATCH(table->routes, dev,
                        dev->routes.data, dev->routes.size,
-                       hook->callbacks_data);
+                       callbacks_data);
         break;
     }
     case DEVICE_EVENT_PROFILES: {
         EVENT_DISPATCH(table->profiles, dev,
                        dev->profiles.data, dev->profiles.size,
-                       hook->callbacks_data);
+                       callbacks_data);
         break;
     }
     default:
@@ -61,19 +63,16 @@ static void emit_profiles(struct device *dev, struct event_hook *hook) {
     event_emit(dev->emitter, hook, DEVICE_EVENT_PROFILES, '0');
 }
 
-static void hook_remove(struct event_hook *hook) {
-    device_unref((struct device **)&hook->private_data);
+static void hook_remove(void *private_data) {
+    struct device *dev = private_data;
+    device_unref(&dev);
 }
 
-void device_add_listener(struct device *dev, struct event_hook *hook,
-                         const struct device_events *ev, void *data) {
-    *hook = (struct event_hook){
-        .callbacks = ev,
-        .callbacks_data = data,
-        .private_data = device_ref(dev),
-        .remove = hook_remove,
-    };
-    event_emitter_add_hook(dev->emitter, hook);
+struct event_hook *device_add_listener(struct device *dev,
+                                       const struct device_events *events,
+                                       void *data) {
+    struct event_hook *hook = event_emitter_add_hook(dev->emitter, events, data,
+                                                     hook_remove, device_ref(dev));
 
     if (dev->has_props) {
         emit_props(dev, hook);
@@ -84,6 +83,8 @@ void device_add_listener(struct device *dev, struct event_hook *hook,
     if (dev->has_profiles) {
         emit_profiles(dev, hook);
     }
+
+    return hook;
 }
 
 void device_set_props(const struct device *dev, const struct spa_pod *props,

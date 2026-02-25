@@ -64,6 +64,7 @@ struct device_events {
                      void *data);
 };
 
-void device_add_listener(struct device *dev, struct event_hook *hook,
-                         const struct device_events *ev, void *data);
+struct event_hook *device_add_listener(struct device *dev,
+                                       const struct device_events *events,
+                                       void *data);
 
