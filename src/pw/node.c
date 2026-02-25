@@ -5,6 +5,7 @@
 #include <spa/pod/builder.h>
 #include <spa/pod/parser.h>
 #include <spa/param/props.h>
+#include <spa/param/audio/raw-types.h>
 
 #include "pw/node.h"
 #include "pw/device.h"
@@ -501,7 +502,7 @@ static void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         const enum spa_audio_channel chan = map_vals[i];
         const float volume = vol_vals[i];
 
-        names[i] = channel_name_from_enum(chan);
+        names[i] = spa_type_audio_channel_to_short_name(chan);
         volumes[i] = cbrtf(volume);
     }
 

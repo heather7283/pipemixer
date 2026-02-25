@@ -1,6 +1,7 @@
 #include <spa/pod/builder.h>
 #include <spa/pod/parser.h>
 #include <spa/param/props.h>
+#include <spa/param/audio/raw-types.h>
 
 #include "pw/device.h"
 #include "collections/vec.h"
@@ -257,7 +258,7 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
     props->channel_names = xmalloc(map_nvals * sizeof(props->channel_names[0]));
     props->channel_volumes = xmalloc(map_nvals * sizeof(props->channel_volumes[0]));
     for (unsigned i = 0; i < map_nvals; i++) {
-        props->channel_names[i] = channel_name_from_enum(map_vals[i]);
+        props->channel_names[i] = spa_type_audio_channel_to_short_name(map_vals[i]);
         props->channel_volumes[i] = cbrtf(vol_vals[i]);
     }
 
