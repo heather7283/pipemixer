@@ -519,10 +519,12 @@ static void node_destroy(struct node *node) {
     free(node->props.node_name);
     free(node->props.node_description);
     param_props_free_contents(&node->param_props);
+
     for (unsigned i = 0; i < node->n_routes; i++) {
         struct param_route *route = &node->routes[i];
         param_route_free_contents(route);
     }
+    free(node->routes);
 
     event_hook_release(node->default_hook);
 
