@@ -436,9 +436,9 @@ static void on_node_info(void *data, const struct pw_node_info *info) {
                 free(node->props.node_description);
                 node->props.node_description = xstrdup(v);
             } else if (streq(k, "card.profile.device")) {
-                str_to_i32(v, &node->card_profile_device);
+                spa_atoi32(v, &node->card_profile_device, 10);
             } else if (streq(k, "device.id") && !node->device) {
-                str_to_u32(v, &node->device_id);
+                spa_atou32(v, &node->device_id, 10);
             }
         }
 

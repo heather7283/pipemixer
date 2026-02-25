@@ -1,6 +1,8 @@
 #include <unistd.h>
 #include <getopt.h>
+
 #include <ncurses.h>
+#include <spa/utils/string.h>
 
 #include "log.h"
 #include "tui.h"
@@ -90,7 +92,7 @@ int main(int argc, char **argv) {
             config_path = optarg;
             break;
         case 'L':
-            if (!str_to_i32(optarg, &log_fd)) {
+            if (!spa_atoi32(optarg, &log_fd, 10)) {
                 fprintf(stderr, "failed to convert %s to integer\n", optarg);
                 exit(1);
             }

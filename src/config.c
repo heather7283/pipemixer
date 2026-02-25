@@ -6,6 +6,7 @@
 #include <limits.h>
 
 #include <ini.h>
+#include <spa/utils/string.h>
 
 #include "xmalloc.h"
 #include "tui.h"
@@ -94,9 +95,9 @@ static bool get_first_wchar(const char *str, wchar_t *res) {
 }
 
 static bool get_percentage(const char *str, float *res) {
-    unsigned long tmp;
+    uint32_t tmp;
 
-    if (!str_to_ulong(str, &tmp)) {
+    if (!spa_atou32(str, &tmp, 10)) {
         return false;
     }
 
@@ -266,8 +267,8 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                 }
             } else if (prefix = "volume-set-", STRSTARTSWITH(k, prefix)) {
                 const char *vol_str = k + strlen(prefix);
-                unsigned long vol;
-                if (!str_to_ulong(vol_str, &vol)) {
+                uint32_t vol;
+                if (!spa_atou32(vol_str, &vol, 10)) {
                     CONFIG_LOG("%s is not a valid integer", vol_str);
                 } else {
                     ADD_BIND(keycode, tui_bind_set_volume, volume, (float)vol * 0.01);
@@ -315,7 +316,7 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                     ADD_BIND(keycode, tui_bind_set_tab, tab, OUTPUT_DEVICES);
                 } else {
                     uint32_t index;
-                    if (str_to_u32(k + strlen(prefix), &index)
+                    if (spa_atou32(k + strlen(prefix), &index, 10)
                         && index >= 1 && index <= TUI_TAB_COUNT) {
                         ADD_BIND(keycode, tui_bind_set_tab_index, index, index - 1);
                     } else {

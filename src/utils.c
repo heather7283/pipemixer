@@ -3,8 +3,10 @@
 #include <string.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <curses.h>
 #include <limits.h>
+
+#include <ncurses.h>
+#include <spa/utils/string.h>
 
 #include "utils.h"
 #include "macros.h"
@@ -203,71 +205,14 @@ bool key_code_from_key_name(const char *name, wint_t *keycode) {
     const char *prefix;
     if (prefix = "code:", STRSTARTSWITH(name, prefix)) {
         const char *num = name + strlen(prefix);
-        unsigned long code;
-        if (str_to_ulong(num, &code) && code < INT_MAX) {
+        uint32_t code;
+        if (spa_atou32(num, &code, 10) && code < INT_MAX) {
             *keycode = code;
             return true;
         }
     }
 
     return false;
-}
-
-bool str_to_long(const char *str, long *res) {
-    char *endptr = NULL;
-    int base = 10;
-
-    if (str[0] == '0' && str[1] == 'x') {
-        base = 16;
-    }
-
-    errno = 0;
-    long res_tmp = strtol(str, &endptr, base);
-    if (errno == 0 && *endptr == '\0') {
-        *res = res_tmp;
-        return true;
-    }
-
-    return false;
-}
-
-
-bool str_to_ulong(const char *str, unsigned long *res) {
-    char *endptr = NULL;
-    int base = 10;
-
-    if (str[0] == '0' && str[1] == 'x') {
-        base = 16;
-    }
-
-    errno = 0;
-    unsigned long res_tmp = strtoul(str, &endptr, base);
-    if (errno == 0 && *endptr == '\0') {
-        *res = res_tmp;
-        return true;
-    }
-
-    return false;
-}
-
-bool str_to_u32(const char *str, uint32_t *res) {
-    unsigned long res_tmp;
-    if (!str_to_ulong(str, &res_tmp) || res_tmp > UINT32_MAX) {
-        return false;
-    } else {
-        *res = res_tmp;
-        return true;
-    }
-}
-
-bool str_to_i32(const char *str, int32_t *res) {
-    long res_tmp;
-    if (!str_to_long(str, &res_tmp) || res_tmp > INT32_MAX || res_tmp < INT32_MIN) {
-        return false;
-    } else {
-        *res = res_tmp;
-        return true;
-    }
 }
 
 char *read_string_from_fd(int fd, size_t *len) {
