@@ -1,4 +1,3 @@
-#include <errno.h>
 #include <ctype.h>
 #include <string.h>
 #include <unistd.h>
@@ -10,7 +9,6 @@
 
 #include "utils.h"
 #include "macros.h"
-#include "xmalloc.h"
 
 const char *channel_name_from_enum(enum spa_audio_channel chan) {
     switch (chan) {
@@ -213,43 +211,6 @@ bool key_code_from_key_name(const char *name, wint_t *keycode) {
     }
 
     return false;
-}
-
-char *read_string_from_fd(int fd, size_t *len) {
-    const size_t chunk_size = 1024;
-    size_t capacity = chunk_size;
-    size_t length = 0;
-    char *buffer = xmalloc(capacity + 1 /* terminator */);
-
-    while (1) {
-        if (length + chunk_size > capacity) {
-            capacity *= 2;
-            buffer = xrealloc(buffer, capacity + 1 /* terminator */);
-        }
-
-        ssize_t bytes_read = read(fd, buffer + length, chunk_size);
-        if (bytes_read < 0) {
-            goto err;
-        } else if (bytes_read == 0) {
-            /* EOF */
-            break;
-        } else {
-            length += bytes_read;
-        }
-    }
-
-    buffer[length] = '\0';
-
-    if (len != NULL) {
-        *len = length;
-    }
-    return buffer;
-
-err:
-    if (len != NULL) {
-        *len = 0;
-    }
-    return NULL;
 }
 
 bool streq(const char *a, const char *b) {

@@ -1,5 +1,4 @@
 #include <string.h>
-#include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -358,11 +357,7 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
     #undef CONFIG_LOG
 }
 
-static void parse_config(const char *config) {
-    ini_parse_string(config, key_value_handler, NULL);
-}
-
-static void add_default_config(void) {
+static void load_default_config(void) {
     static const char default_config[] =
         "[main]\n"
         "tab-order=playback,recording,output-devices,input-devices,cards\n"
@@ -396,41 +391,22 @@ static void add_default_config(void) {
         "quit=q\n"
     ;
 
-    parse_config(default_config);
+    ini_parse_string(default_config, key_value_handler, NULL);
 }
 
 void load_config(const char *config_path) {
-    int fd = -1;
-    char *config_str = NULL;
+    load_default_config();
 
-    add_default_config();
-
-    if (config_path == NULL) {
-        config_path = get_default_config_path();
-    }
-
-    if (config_path != NULL) {
-        fd = open(config_path, O_RDONLY);
-        if (fd < 0) {
-            fprintf(stderr, "config: failed to open %s: %s\n", config_path, strerror(errno));
-            goto out;
-        }
-
-        config_str = read_string_from_fd(fd, NULL);
-        if (config_str == NULL) {
-            fprintf(stderr, "config: failed to read config file: %s\n", strerror(errno));
-            goto out;
-        }
-
-        parse_config(config_str);
-    }
-
-out:
-    if (fd > 0) {
-        close(fd);
-    }
-    if (config_str != NULL) {
-        free(config_str);
+    config_path = config_path ?: get_default_config_path();
+    if (config_path) {
+        switch (ini_parse(config_path, key_value_handler, NULL)) {
+        case -1:
+            fprintf(stderr, "config: failed to open config file at %s", config_path);
+            break;
+        case -2:
+            fprintf(stderr, "config: memory allocation failure while parsing config");
+            break;
+        };
     }
 }
 
