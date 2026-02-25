@@ -35,6 +35,11 @@ bool wstring_init(struct wstring *ws) {
     return ws->stream;
 }
 
+void wstring_clear(struct wstring *ws) {
+    /* TODO: stop using cursed open_wmemstream and make this useful */
+    wstring_free(ws);
+}
+
 void wstring_free(struct wstring *ws) {
     if (ws->stream) {
         fclose(ws->stream);

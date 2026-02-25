@@ -4,6 +4,7 @@
 #include <poll.h>
 #include <math.h>
 #include <wchar.h>
+#include <stdio.h>
 
 #include "tui.h"
 #include "macros.h"
@@ -65,6 +66,37 @@ static void trigger_resize(void) {
             tui.resize_triggered = true;
         }
     }
+}
+
+static int print_with_ellipsis(WINDOW *win, int y, int x,
+                               const wchar_t string[], int string_len,
+                               int max_columns) {
+    if (max_columns <= 0 || string_len <= 0 || wmove(win, y, x) != OK) {
+        return 0;
+    }
+
+    int columns = 0;
+    for (int i = 0; i < string_len; i++) {
+        const wchar_t wc[2] = { string[i], L'\0' };
+        const int width = MAX(0, wcwidth(wc[0]));
+
+        const bool truncate = (i < string_len - 1 && columns + width >= max_columns)
+                           || (i == string_len - 1 && columns + width > max_columns);
+
+        cchar_t cc;
+        if (!truncate) {
+            setcchar(&cc, wc, 0, 0, NULL);
+            wadd_wch(win, &cc);
+            columns += width;
+        } else {
+            setcchar(&cc, L"…", 0, 0, NULL);
+            wadd_wch(win, &cc);
+            columns += 1;
+            break;
+        }
+    }
+
+    return columns;
 }
 
 static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
@@ -315,13 +347,15 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
                                      enum tui_tab_item_draw_mask mask) {
     #define DRAW(element) if (mask & TUI_TAB_ITEM_DRAW_##element)
 
+    const struct tui_tab_item_device_data *d = &item->as.device;
     const struct device *dev = item->as.device.dev;
 
     const int usable_width = tui.term_width - 2; /* account for box borders */
 
     const bool focused = item->focused;
 
-    TRACE("tui_draw_device: id %d mask "BYTE_BINARY_FORMAT, dev->id, BYTE_BINARY_ARGS(mask));
+    TRACE("tui_draw_device: id %d mask "BYTE_BINARY_FORMAT,
+          device_id(dev), BYTE_BINARY_ARGS(mask));
 
     WINDOW *const win = tui.pad_win;
 
@@ -337,85 +371,49 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
     }
 
     DRAW(DESCRIPTION) {
-        wchar_t line[usable_width];
-        wchar_t *lineptr = line;
-
-        if (config.display_ids) {
-            lineptr += swprintf(lineptr, usable_width - (lineptr - line), L"%d. ", dev->id);
-        }
-        swprintf(lineptr, usable_width - (lineptr - line), L"%s", dev->props.description);
-
-        mvwaddnwstr(win, item->pos + 1, 1, line, SIZEOF_ARRAY(line));
+        print_with_ellipsis(win, item->pos + 1, 1, d->info.data, d->info.len, usable_width);
         wclrtoeol(win);
     }
 
     DRAW(PROFILES) {
         /* draw profiles */
-        char buf[usable_width];
-        const int ports_line_pos = item->pos + item->height - 2;
+        const int profiles_line_pos = item->pos + item->height - 2;
 
-        int written = 0, chars;
-        chars = snprintf(buf, usable_width - written, "Profiles: ");
-        mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
-        written = (written + chars > usable_width) ? usable_width : (written + chars);
+        int cols = 0;
+        cols += print_with_ellipsis(win, profiles_line_pos, 1,
+                                    L"Profiles: ", wcslen(L"Profiles: "),
+                                    usable_width);
 
-        const struct param_profile *profiles = dev->profiles.data;
-        const size_t nprofiles = dev->profiles.size;
-
-        const struct param_profile *active_profile = NULL;
-        for (unsigned i = 0; i < nprofiles; i++) {
-            if (profiles[i].active) {
-                active_profile = &profiles[i];
-                break;
+        if (!d->n_profiles) {
+            wattron(win, A_DIM);
+            cols += print_with_ellipsis(win, profiles_line_pos, 1 + cols,
+                                        L"(none)", wcslen(L"(none)"),
+                                        usable_width - cols);
+        } else {
+            if (d->active_profile) {
+                /* draw active profile first */
+                cols += print_with_ellipsis(win, profiles_line_pos, 1 + cols,
+                                            d->active_profile->description.data,
+                                            d->active_profile->description.len,
+                                            usable_width - cols);
             }
-        }
-
-        if (active_profile != NULL) {
-            /* draw active profile first */
-            chars = snprintf(buf, usable_width - written, "%s",
-                             active_profile->description);
-            mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
-            written = (written + chars > usable_width) ? usable_width : (written + chars);
 
             wattron(win, A_DIM);
-            for (size_t i = 0; i < nprofiles; i++) {
-                const struct param_profile *const profile = &profiles[i];
-                if (active_profile != NULL && profile->index == active_profile->index) {
+            for (unsigned i = 0; i < d->n_profiles; i++) {
+                const struct profile_info *p = &d->profiles[i];
+                if (p == d->active_profile) {
                     continue;
                 }
 
-                chars = snprintf(buf, usable_width - written, "%s%s",
-                                 config.profiles_separator, profile->description);
-                mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
-                written = (written + chars > usable_width) ? usable_width : (written + chars);
-            }
-        } else if (nprofiles > 0) {
-            wattron(win, A_DIM);
-            for (size_t i = 0; i < nprofiles; i++) {
-                const struct param_profile *const profile = &profiles[i];
-                if (i == 0) {
-                    chars = snprintf(buf, usable_width - written, "%s",
-                                     profile->description);
-                } else {
-                    chars = snprintf(buf, usable_width - written, "%s%s",
-                                     config.profiles_separator, profile->description);
-                }
-                mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
-                written = (written + chars > usable_width) ? usable_width : (written + chars);
-            }
-        } else {
-            wattron(win, A_DIM);
-            chars = snprintf(buf, usable_width - written, "(none)");
-            mvwaddnstr(win, ports_line_pos, 1 + written, buf, usable_width - written);
-            written = (written + chars > usable_width) ? usable_width : (written + chars);
-        }
+                cols += print_with_ellipsis(win, profiles_line_pos, 1 + cols,
+                                            L", ", wcslen(L", "),
+                                            usable_width - cols);
 
-        if (written >= usable_width) {
-            cchar_t cc;
-            setcchar(&cc, L"…", 0, DEFAULT, NULL);
-            mvwadd_wch(win, ports_line_pos, usable_width, &cc);
-        } else {
-            mvwhline(win, ports_line_pos, written + 1, ' ', usable_width - written);
+                /* TODO: respect config.profile_separator */
+                cols += print_with_ellipsis(win, profiles_line_pos, 1 + cols,
+                                            p->description.data, p->description.len,
+                                            usable_width - cols);
+            }
         }
 
         wattroff(win, A_DIM);
@@ -843,44 +841,35 @@ static void on_profile_selection_done(struct tui_menu *menu, struct tui_menu_ite
 }
 
 void tui_bind_select_profile(union tui_bind_data data) {
-    struct tui_tab_item *const focused = tui.tabs[tui.tab_index].focused;
+    struct tui_tab_item *focused = tui.tabs[tui.tab_index].focused;
 
     if (focused == NULL || focused->type != TUI_TAB_ITEM_TYPE_DEVICE || tui.menu_active) {
         return;
     }
 
-    const struct device *device = focused->as.device.dev;
-    const struct param_profile *profiles = device->profiles.data;
-    const size_t nprofiles = device->profiles.size;
+    struct tui_tab_item_device_data *d = &focused->as.device;
 
-    const struct param_profile *active_profile = NULL;
-    for (unsigned i = 0; i < nprofiles; i++) {
-        if (profiles[i].active) {
-            active_profile = &profiles[i];
-            break;
-        }
-    }
-
-    if (nprofiles < 2) {
+    if (d->n_profiles < 2) {
         return;
     }
 
-    tui.menu = tui_menu_create(nprofiles);
+    tui.menu = tui_menu_create(d->n_profiles);
     tui.menu->callback = on_profile_selection_done;
-    tui.menu->data.uint = device->id;
+    tui.menu->data.uint = d->id;
 
     tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
 
-    wstring_printf(&tui.menu->header, L"Select profile for %s", device->props.description);
+    wstring_printf(&tui.menu->header, L"Select profile for %ls", d->description.data);
 
-    for (size_t i = 0; i < nprofiles; i++) {
-        const struct param_profile *p = &profiles[i];
+    for (size_t i = 0; i < d->n_profiles; i++) {
+        const struct profile_info *p = &d->profiles[i];
         struct tui_menu_item *item = &tui.menu->items[i];
 
-        wstring_printf(&item->wstr, L"%d. %s (%s)", p->index, p->description, p->name);
+        wstring_printf(&item->wstr, L"%d. %ls (%ls)",
+                       p->index, p->description.data, p->name.data);
         item->data.uint = p->index;
 
-        if (active_profile != NULL && p->index == active_profile->index) {
+        if (p == d->active_profile) {
             tui.menu->selected = i;
         }
     }
@@ -1082,16 +1071,57 @@ static void tui_tab_item_resize(struct tui_tab_item *item, int new_height) {
 }
 
 static void on_device_profiles(struct device *dev,
-                               const struct param_profile *_, unsigned _,
+                               const struct param_profile *profiles, unsigned n_profiles,
                                void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_device_data *d = &item->as.device;
+
+    for (unsigned i = 0; i < d->n_profiles; i++) {
+        struct profile_info *oldp = &d->profiles[i];
+        wstring_free(&oldp->name);
+        wstring_free(&oldp->description);
+    }
+
+    d->n_profiles = n_profiles;
+    d->profiles = xreallocarray(d->profiles, d->n_profiles, sizeof(d->profiles[0]));
+    d->active_profile = NULL;
+
+    for (unsigned i = 0; i < d->n_profiles; i++) {
+        struct profile_info *pi = &d->profiles[i];
+        const struct param_profile *pp = &profiles[i];
+
+        wstring_init(&pi->name);
+        wstring_init(&pi->description);
+
+        pi->index = pp->index;
+
+        wstring_printf(&pi->name, L"%s", pp->name);
+        wstring_printf(&pi->description, L"%s", pp->description);
+
+        if (pp->active) {
+            d->active_profile = pi;
+        }
+    }
 
     tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_PROFILES);
     trigger_update();
 }
 
-static void on_device_props(struct device *dev, const struct device_props *_, void *data) {
+static void on_device_props(struct device *dev, const struct device_props *props, void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_device_data *d = &item->as.device;
+
+    wstring_clear(&d->info);
+    if (d->is_default) {
+        wstring_printf(&d->info, L"[*] ", d->id);
+    }
+    if (config.display_ids) {
+        wstring_printf(&d->info, L"%u. ", d->id);
+    }
+    wstring_printf(&d->info, L"%s", props->description);
+
+    wstring_clear(&d->description);
+    wstring_printf(&d->description, L"%s", props->description);
 
     tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_DESCRIPTION);
     trigger_update();
@@ -1099,8 +1129,9 @@ static void on_device_props(struct device *dev, const struct device_props *_, vo
 
 static void on_device_removed(struct device *dev, void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_device_data *d = &item->as.device;
 
-    TRACE("tui_on_device_removed: id %d", dev->id);
+    TRACE("on_device_removed: id %d", item->as.device.id);
 
     event_hook_release(item->hook);
     device_unref(&item->as.device.dev);
@@ -1114,6 +1145,14 @@ static void on_device_removed(struct device *dev, void *data) {
         redraw_current_tab();
         trigger_update();
     }
+
+    wstring_free(&d->description);
+    wstring_free(&d->info);
+    for (unsigned i = 0; i < d->n_profiles; i++) {
+        wstring_free(&d->profiles[i].name);
+        wstring_free(&d->profiles[i].description);
+    }
+    free(d->profiles);
 
     free(item);
 }
@@ -1203,7 +1242,7 @@ static const struct node_events node_events = {
 };
 
 static void on_pipewire_device(struct device *dev, void *_) {
-    TRACE("tui_on_device_added: id %d", dev->id);
+    TRACE("on_pipewire_device: id %d", device_id(dev));
 
     const int tab_index = config.tab_map_enum_to_index[CARDS];
 
@@ -1211,7 +1250,10 @@ static void on_pipewire_device(struct device *dev, void *_) {
     *new_item = (struct tui_tab_item){
         .tab_index = tab_index,
         .type = TUI_TAB_ITEM_TYPE_DEVICE,
-        .as.device.dev = device_ref(dev),
+        .as.device = {
+            .id = device_id(dev),
+            .dev = device_ref(dev),
+        },
     };
 
     new_item->hook = device_add_listener(dev, &device_events, new_item);

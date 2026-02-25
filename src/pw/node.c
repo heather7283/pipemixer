@@ -363,7 +363,7 @@ static void on_device_profiles(struct device *dev,
         }
     }
 
-    ERROR("didn't find an active profile on device %u for node %u", dev->id, node->id);
+    ERROR("didn't find an active profile on device %u for node %u", device_id(dev), node->id);
 }
 
 static const struct device_events device_events = {

@@ -80,7 +80,7 @@ static void emit_node(struct node *node, struct event_hook *hook) {
 }
 
 static void emit_device(struct device *dev, struct event_hook *hook) {
-    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', dev->id);
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', device_id(dev));
 }
 
 static void emit_default(enum default_metadata_key key, struct event_hook *hook) {

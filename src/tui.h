@@ -4,6 +4,7 @@
 #include <ncurses.h>
 
 #include "collections/list.h"
+#include "collections/wstring.h"
 #include "events.h"
 #include "menu.h"
 
@@ -78,8 +79,20 @@ struct tui_tab_item {
             bool unlocked_channels;
             uint32_t focused_channel;
         } node;
-        struct {
+        struct tui_tab_item_device_data {
+            uint32_t id;
             struct device *dev;
+
+            struct wstring info, description;
+
+            bool is_default;
+
+            unsigned n_profiles;
+            struct profile_info {
+                int32_t index;
+                struct wstring name, description;
+            } *profiles;
+            struct profile_info *active_profile;
         } device;
     } as;
 
