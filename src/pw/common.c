@@ -76,7 +76,7 @@ static void pipewire_event_dispatcher(uint64_t id, union event_data data,
 }
 
 static void emit_node(struct node *node, struct event_hook *hook) {
-    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_NODE, 'u', node->id);
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_NODE, 'u', node_id(node));
 }
 
 static void emit_device(struct device *dev, struct event_hook *hook) {

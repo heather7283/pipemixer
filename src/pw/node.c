@@ -15,6 +15,42 @@
 #include "config.h"
 #include "utils.h"
 
+struct node {
+    union {
+        struct pw_node *pw_node;
+        struct pw_proxy *pw_proxy;
+    };
+    struct spa_hook listener;
+    struct spa_hook proxy_listener;
+
+    uint32_t id;
+    enum media_class media_class;
+    struct node_props props;
+
+    struct param_props param_props;
+
+    bool is_default;
+    struct event_hook *default_hook;
+
+    uint32_t device_id;
+    struct device *device;
+    struct event_hook *device_hook;
+
+    int32_t card_profile_device, device_profile;
+    struct param_route *routes;
+    unsigned n_routes;
+
+    struct event_emitter *emitter;
+
+    bool has_props;
+    bool has_routes;
+    bool has_param_props;
+    bool has_default;
+
+    bool new;
+    unsigned refcnt;
+};
+
 enum node_event_types {
     NODE_EVENT_REMOVED,
     NODE_EVENT_ROUTES,
@@ -556,5 +592,13 @@ void node_unref(struct node **pnode) {
         node_destroy(node);
     }
     *pnode = NULL;
+}
+
+uint32_t node_id(const struct node *node) {
+    return node->id;
+}
+
+enum media_class node_media_class(const struct node *node) {
+    return node->media_class;
 }
 

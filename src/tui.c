@@ -103,7 +103,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
                                    enum tui_tab_item_draw_mask mask) {
     #define DRAW(element) if (mask & TUI_TAB_ITEM_DRAW_##element)
 
-    const struct node *node = item->as.node.node;
+    const struct tui_tab_item_node_data *d = &item->as.node;
 
     const int usable_width = tui.term_width - 2; /* account for box borders */
     const int two_thirds_usable_width = usable_width / 3 * 2;
@@ -117,9 +117,9 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     const int volume_bar_start = volume_area_start + 12; /* minus two decorations at the end */
 
     const bool focused = item->focused;
-    const bool muted = node->param_props.mute;
+    const bool muted = d->muted;
 
-    TRACE("tui_draw_node: id %d mask "BYTE_BINARY_FORMAT, node->id, BYTE_BINARY_ARGS(mask));
+    TRACE("tui_draw_node: id %d mask "BYTE_BINARY_FORMAT, d->id, BYTE_BINARY_ARGS(mask));
 
     WINDOW *const win = tui.pad_win;
 
@@ -136,30 +136,14 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     }
 
     DRAW(DESCRIPTION) {
-        wchar_t line[usable_width];
-        wchar_t *lineptr = line;
-
-        const char *name_str = "NULL";
-        if (node->props.node_description != NULL) {
-            name_str = node->props.node_description;
-        } else if (node->props.node_name != NULL) {
-            name_str = node->props.node_name;
+        int cols = 0;
+        if (d->is_default) {
+            cols += print_with_ellipsis(win, item->pos + 1, info_area_start,
+                                        L"[*] ", wcslen(L"[*] "), usable_width);
         }
-
-        if (node->is_default) {
-            lineptr += swprintf(lineptr, usable_width - (lineptr - line), L"[*] ");
-        }
-        if (config.display_ids) {
-            lineptr += swprintf(lineptr, usable_width - (lineptr - line), L"%d. ", node->id);
-        }
-        swprintf(lineptr, usable_width - (lineptr - line), L"%s%s%s%-*s",
-                 name_str,
-                 (node->props.media_name == NULL) ? "" : ": ",
-                 (node->props.media_name == NULL) ? "" : node->props.media_name,
-                 usable_width, "");
-
-        wcstrimcols(line, usable_width);
-        mvwaddnwstr(win, item->pos + 1, info_area_start, line, usable_width);
+        print_with_ellipsis(win, item->pos + 1, info_area_start + cols,
+                            d->info.data, d->info.len, usable_width - cols);
+        wclrtoeol(win);
     }
 
     DRAW(CHANNELS) {
@@ -167,13 +151,14 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             wattron(win, A_DIM);
         }
 
-        for (uint32_t i = 0; i < node->param_props.n_channels; i++) {
+        for (unsigned i = 0; i < d->n_channels; i++) {
+            const struct channel_info *c = &d->channels[i];
+
             const int pos = item->pos + i + 2;
 
-            const int vol_int = (int)roundf(node->param_props.channel_volumes[i] * 100);
+            const int vol_int = (int)roundf(c->volume * 100);
 
-            mvwprintw(win, pos, volume_area_start, "%5s %-3d ",
-                      node->param_props.channel_names[i], vol_int);
+            mvwprintw(win, pos, volume_area_start, "%5s %-3d ", c->name, vol_int);
 
             /* draw volume bar */
             int pair = DEFAULT;
@@ -181,7 +166,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             const int thresh = vol_int * volume_bar_width / 150;
             for (int j = 0; j < volume_bar_width; j++) {
                 cchar_t cc;
-                if (j % step == 0 && !node->param_props.mute) {
+                if (j % step == 0 && !muted) {
                     pair += 1;
                 }
                 setcchar(&cc, (j < thresh) ? config.bar_full_char : config.bar_empty_char,
@@ -198,19 +183,19 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             wattron(win, A_DIM);
         }
 
-        for (uint32_t i = 0; i < node->param_props.n_channels; i++) {
+        for (unsigned i = 0; i < d->n_channels; i++) {
             const int pos = item->pos + i + 2;
 
             const wchar_t *wchar_left, *wchar_right;
             cchar_t cchar_left, cchar_right;
 
-            if (node->param_props.n_channels == 1) {
+            if (d->n_channels == 1) {
                 wchar_left = config.volume_frame.ml;
                 wchar_right = config.volume_frame.mr;
             } else if (i == 0) {
                 wchar_left = config.volume_frame.tl;
                 wchar_right = config.volume_frame.tr;
-            } else if (i == node->param_props.n_channels - 1) {
+            } else if (i == d->n_channels - 1) {
                 wchar_left = config.volume_frame.bl;
                 wchar_right = config.volume_frame.br;
             } else {
@@ -239,77 +224,52 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     }
 
     DRAW(ROUTES) {
-        char buf[usable_width];
+        if (!d->routes) {
+            goto routes_end;
+        }
+
         const int routes_line_pos = item->pos + item->height - 2;
 
-        if (node->device_id != 0) {
-            int written = 0, chars;
-            chars = snprintf(buf, usable_width - written, "Routes: ");
-            mvwaddnstr(win, routes_line_pos, 1 + written, buf, usable_width - written);
-            written = (written + chars > usable_width) ? usable_width : (written + chars);
+        int cols = 0;
+        cols += print_with_ellipsis(win, routes_line_pos, 1,
+                                    L"Routes: ", wcslen(L"Routes: "),
+                                    usable_width);
 
-            const struct param_route *routes = node->routes;
-            const size_t nroutes = node->n_routes;
-
-            const struct param_route *active_route = NULL;
-            for (unsigned i = 0; i < nroutes; i++) {
-                if (routes[i].active) {
-                    active_route = &routes[i];
-                    break;
-                }
-            }
-
-            if (active_route != NULL) {
+        if (!d->n_routes) {
+            wattron(win, A_DIM);
+            cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
+                                        L"(none)", wcslen(L"(none)"),
+                                        usable_width - cols);
+        } else {
+            if (d->active_route) {
                 /* draw active route first */
-                chars = snprintf(buf, usable_width - written, "%s",
-                                 active_route->description);
-                mvwaddnstr(win, routes_line_pos, 1 + written, buf, usable_width - written);
-                written = (written + chars > usable_width) ? usable_width : (written + chars);
-
-                wattron(win, A_DIM);
-                for (size_t i = 0; i < nroutes; i++) {
-                    const struct param_route *route = &routes[i];
-                    if (active_route != NULL && route->index == active_route->index) {
-                        continue;
-                    }
-
-                    chars = snprintf(buf, usable_width - written, "%s%s",
-                                     config.routes_separator, route->description);
-                    mvwaddnstr(win, routes_line_pos, 1 + written, buf, usable_width - written);
-                    written = (written + chars > usable_width) ? usable_width : (written + chars);
-                }
-            } else if (nroutes > 0) {
-                wattron(win, A_DIM);
-                for (size_t i = 0; i < nroutes; i++) {
-                    const struct param_route *route = &routes[i];
-                    if (i == 0) {
-                        chars = snprintf(buf, usable_width - written, "%s",
-                                         route->description);
-                    } else {
-                        chars = snprintf(buf, usable_width - written, "%s%s",
-                                         config.routes_separator, route->description);
-                    }
-                    mvwaddnstr(win, routes_line_pos, 1 + written, buf, usable_width - written);
-                    written = (written + chars > usable_width) ? usable_width : (written + chars);
-                }
-            } else {
-                wattron(win, A_DIM);
-                chars = snprintf(buf, usable_width - written, "(none)");
-                mvwaddnstr(win, routes_line_pos, 1 + written, buf, usable_width - written);
-                written = (written + chars > usable_width) ? usable_width : (written + chars);
+                cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
+                                            d->active_route->description.data,
+                                            d->active_route->description.len,
+                                            usable_width - cols);
             }
 
-            if (written >= usable_width) {
-                cchar_t cc;
-                setcchar(&cc, L"…", 0, DEFAULT, NULL);
-                mvwadd_wch(win, routes_line_pos, usable_width, &cc);
-            } else {
-                mvwhline(win, routes_line_pos, written + 1, ' ', usable_width - written);
-            }
+            wattron(win, A_DIM);
+            for (unsigned i = 0; i < d->n_routes; i++) {
+                const struct route_info *p = &d->routes[i];
+                if (p == d->active_route) {
+                    continue;
+                }
 
-            wattroff(win, A_DIM);
+                cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
+                                            L", ", wcslen(L", "),
+                                            usable_width - cols);
+
+                /* TODO: respect config.route_separator */
+                cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
+                                            p->description.data, p->description.len,
+                                            usable_width - cols);
+            }
         }
+
+        wattroff(win, A_DIM);
     }
+routes_end:
 
     DRAW(BORDERS) {
         /* box */
@@ -712,6 +672,8 @@ void tui_bind_change_mute(union tui_bind_data data) {
         return;
     }
 
+    const struct tui_tab_item_node_data *d = &focused->as.node;
+
     const struct node *node = focused->as.node.node;
     switch (mode) {
     case ENABLE:
@@ -721,7 +683,7 @@ void tui_bind_change_mute(union tui_bind_data data) {
         node_set_mute(node, false);
         break;
     case TOGGLE:
-        node_set_mute(node, !node->param_props.mute);
+        node_set_mute(node, !d->muted);
         break;
     }
 }
@@ -901,36 +863,29 @@ void tui_bind_select_route(union tui_bind_data data) {
         return;
     }
 
-    const struct node *node = focused->as.node.node;
-    const struct param_route *routes = node->routes;
-    const size_t nroutes = node->n_routes;
+    struct tui_tab_item_node_data *d = &focused->as.node;
 
-    const struct param_route *active_route = NULL;
-    for (unsigned i = 0; i < nroutes; i++) {
-        if (routes[i].active) {
-            active_route = &routes[i];
-            break;
-        }
-    }
-
-    if (nroutes < 2) {
+    if (d->n_routes < 2) {
         return;
     }
 
-    tui.menu = tui_menu_create(nroutes);
+    tui.menu = tui_menu_create(d->n_routes);
     tui.menu->callback = on_route_selection_done;
-    tui.menu->data.uint = node->id;
+    tui.menu->data.uint = d->id;
 
     tui_menu_resize(tui.menu, tui.term_width, tui.term_height);
 
-    wstring_printf(&tui.menu->header, L"Select route for %s", node->props.node_name);
-    for (size_t i = 0; i < nroutes; i++) {
-        const struct param_route *r = &routes[i];
-        struct tui_menu_item *item = &tui.menu->items[i];
-        wstring_printf(&item->wstr, L"%d. %s (%s)", r->index, r->description, r->name);
-        item->data.uint = r->index;
+    wstring_printf(&tui.menu->header, L"Select route for %ls", d->description.data);
 
-        if (active_route != NULL && r->index == active_route->index) {
+    for (size_t i = 0; i < d->n_routes; i++) {
+        const struct route_info *p = &d->routes[i];
+        struct tui_menu_item *item = &tui.menu->items[i];
+
+        wstring_printf(&item->wstr, L"%d. %ls (%ls)",
+                       p->index, p->description.data, p->name.data);
+        item->data.uint = p->index;
+
+        if (p == d->active_route) {
             tui.menu->selected = i;
         }
     }
@@ -1160,39 +1115,104 @@ static const struct device_events device_events = {
     .removed = on_device_removed,
 };
 
-static void on_node_default(struct node *node, bool _, void *data) {
+static void on_node_default(struct node *node, bool is_default, void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_node_data *d = &item->as.node;
+
+    d->is_default = is_default;
 
     tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_DESCRIPTION);
     trigger_update();
 }
 
-static void on_node_mute(struct node *node, bool _, void *data) {
+static void on_node_mute(struct node *node, bool muted, void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_node_data *d = &item->as.node;
+
+    d->muted = muted;
 
     tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_CHANNELS | TUI_TAB_ITEM_DRAW_DECORATIONS);
     trigger_update();
 }
 
-static void on_node_routes(struct node *node, const struct param_route *_, unsigned _, void *data) {
+static void on_node_routes(struct node *node,
+                           const struct param_route routes[], unsigned routes_count,
+                           void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_node_data *d = &item->as.node;
 
-    tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_ROUTES);
+    for (unsigned i = 0; i < d->n_routes; i++) {
+        struct route_info *oldp = &d->routes[i];
+        wstring_free(&oldp->name);
+        wstring_free(&oldp->description);
+    }
+
+    const bool first = !d->routes;
+
+    d->n_routes = routes_count;
+    d->routes = xreallocarray(d->routes, d->n_routes, sizeof(d->routes[0]));
+    d->active_route = NULL;
+
+    for (unsigned i = 0; i < d->n_routes; i++) {
+        struct route_info *pi = &d->routes[i];
+        const struct param_route *pp = &routes[i];
+
+        wstring_init(&pi->name);
+        wstring_init(&pi->description);
+
+        pi->index = pp->index;
+
+        wstring_printf(&pi->name, L"%s", pp->name);
+        wstring_printf(&pi->description, L"%s", pp->description);
+
+        if (pp->active) {
+            d->active_route = pi;
+        }
+    }
+
+    if (first) {
+        tui_tab_item_resize(item, d->n_channels + 3 + 1);
+        if (item->tab_index == tui.tab_index) {
+            redraw_current_tab();
+        }
+    } else {
+        tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_ROUTES);
+    }
+
     trigger_update();
 }
 
-static void on_node_volume(struct node *node, const float *_, unsigned _, void *data) {
+static void on_node_volume(struct node *node,
+                           const float channel_volumes[], unsigned channel_count,
+                           void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_node_data *d = &item->as.node;
+
+    for (unsigned i = 0; i < channel_count; i++) {
+        d->channels[i].volume = channel_volumes[i];
+    }
 
     tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_CHANNELS);
     trigger_update();
 }
 
-static void on_node_channels(struct node *node, const char **_, unsigned _, void *data) {
+static void on_node_channels(struct node *node,
+                             const char *channel_names[], unsigned channel_count,
+                             void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_node_data *d = &item->as.node;
 
-    item->as.node.n_channels = node->param_props.n_channels;
-    tui_tab_item_resize(item, node->param_props.n_channels + 3 + (bool)node->device_id);
+    d->n_channels = channel_count;
+    d->channels = xreallocarray(d->channels, d->n_channels, sizeof(d->channels[0]));
+    if (d->focused_channel >= d->n_channels) {
+        d->focused_channel = d->n_channels - 1;
+    }
+
+    for (unsigned i = 0; i < channel_count; i++) {
+        d->channels[i].name = channel_names[i];
+    }
+
+    tui_tab_item_resize(item, d->n_channels + 3 + (bool)d->n_routes);
 
     if (item->tab_index == tui.tab_index) {
         redraw_current_tab();
@@ -1200,8 +1220,21 @@ static void on_node_channels(struct node *node, const char **_, unsigned _, void
     trigger_update();
 }
 
-static void on_node_props(struct node *node, const struct node_props *_, void *data) {
+static void on_node_props(struct node *node, const struct node_props *props, void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_node_data *d = &item->as.node;
+
+    wstring_clear(&d->info);
+    if (config.display_ids) {
+        wstring_printf(&d->info, L"%u. ", d->id);
+    }
+    wstring_printf(&d->info, L"%s", props->node_description ?: props->node_name);
+    if (props->media_name) {
+        wstring_printf(&d->info, L": %s", props->media_name);
+    }
+
+    wstring_clear(&d->description);
+    wstring_printf(&d->description, L"%s", props->node_description ?: props->node_name);
 
     tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_DESCRIPTION);
     trigger_update();
@@ -1209,8 +1242,9 @@ static void on_node_props(struct node *node, const struct node_props *_, void *d
 
 static void on_node_removed(struct node *node, void *data) {
     struct tui_tab_item *item = data;
+    struct tui_tab_item_node_data *d = &item->as.node;
 
-    TRACE("tui_on_node_removed: id %d", node->id);
+    TRACE("tui_on_node_removed: id %d", d->id);
 
     event_hook_release(item->hook);
     node_unref(&item->as.node.node);
@@ -1224,6 +1258,15 @@ static void on_node_removed(struct node *node, void *data) {
         redraw_current_tab();
         trigger_update();
     }
+
+    wstring_free(&d->description);
+    wstring_free(&d->info);
+    for (unsigned i = 0; i < d->n_routes; i++) {
+        wstring_free(&d->routes[i].name);
+        wstring_free(&d->routes[i].description);
+    }
+    free(d->routes);
+    free(d->channels);
 
     free(item);
 }
@@ -1268,23 +1311,24 @@ static void on_pipewire_device(struct device *dev, void *_) {
 }
 
 static void on_pipewire_node(struct node *node, void *_) {
-    TRACE("tui_on_node_added: id %d", node->id);
+    TRACE("tui_on_node_added: id %d", node_id(node));
 
-    const int tab_index = config.tab_map_enum_to_index[media_class_to_tui_tab(node->media_class)];
+    const int tab_index =
+        config.tab_map_enum_to_index[media_class_to_tui_tab(node_media_class(node))];
 
     struct tui_tab_item *new_item = xmalloc(sizeof(*new_item));
     *new_item = (struct tui_tab_item){
         .tab_index = tab_index,
         .type = TUI_TAB_ITEM_TYPE_NODE,
-        .as.node.node = node_ref(node),
+        .as.node = {
+            .id = node_id(node),
+            .node = node_ref(node),
+        }
     };
 
     new_item->hook = node_add_listener(node, &node_events, new_item);
 
     int new_item_height = new_item->as.node.n_channels + 3;
-    if (node->device_id != 0) {
-        new_item_height += 1;
-    }
     list_insert_after(&tui.tabs[tab_index].items, &new_item->link);
     tui_tab_item_resize(new_item, new_item_height);
 

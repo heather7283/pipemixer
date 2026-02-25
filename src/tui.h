@@ -72,12 +72,30 @@ struct tui_tab_item {
 
     enum tui_tab_item_type type;
     union {
-        struct {
+        struct tui_tab_item_node_data {
+            uint32_t id;
             struct node *node;
 
-            uint32_t n_channels;
+            bool is_default;
+
+            struct wstring info, description;
+
+            bool muted;
+
+            unsigned n_channels;
             bool unlocked_channels;
-            uint32_t focused_channel;
+            unsigned focused_channel;
+            struct channel_info {
+                const char *name;
+                float volume;
+            } *channels;
+
+            unsigned n_routes;
+            struct route_info {
+                int32_t index;
+                struct wstring name, description;
+            } *routes;
+            struct route_info *active_route;
         } node;
         struct tui_tab_item_device_data {
             uint32_t id;
