@@ -1112,9 +1112,6 @@ static void on_device_props(struct device *dev, const struct device_props *props
     struct tui_tab_item_device_data *d = &item->as.device;
 
     wstring_clear(&d->info);
-    if (d->is_default) {
-        wstring_printf(&d->info, L"[*] ", d->id);
-    }
     if (config.display_ids) {
         wstring_printf(&d->info, L"%u. ", d->id);
     }

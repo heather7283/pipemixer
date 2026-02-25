@@ -85,8 +85,6 @@ struct tui_tab_item {
 
             struct wstring info, description;
 
-            bool is_default;
-
             unsigned n_profiles;
             struct profile_info {
                 int32_t index;
