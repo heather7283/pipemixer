@@ -1,4 +1,4 @@
-#include "menu.h"
+#include "tui/menu.h"
 #include "xmalloc.h"
 #include "config.h"
 #include "log.h"

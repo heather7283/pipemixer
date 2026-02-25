@@ -3,7 +3,7 @@
 #include <curses.h>
 
 #include "collections/map.h"
-#include "tui.h"
+#include "tui/tui.h"
 
 struct pipemixer_config {
     float volume_step;

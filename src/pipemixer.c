@@ -5,11 +5,10 @@
 #include <spa/utils/string.h>
 
 #include "log.h"
-#include "tui.h"
 #include "config.h"
-#include "utils.h"
 #include "macros.h"
 #include "eventloop.h"
+#include "tui/tui.h"
 #include "pw/common.h"
 
 struct pw_main_loop *main_loop = NULL;

@@ -6,7 +6,7 @@
 #include <wchar.h>
 #include <stdio.h>
 
-#include "tui.h"
+#include "tui/tui.h"
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"

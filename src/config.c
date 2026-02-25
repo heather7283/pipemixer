@@ -8,7 +8,6 @@
 #include <spa/utils/string.h>
 
 #include "xmalloc.h"
-#include "tui.h"
 #include "config.h"
 #include "utils.h"
 #include "macros.h"

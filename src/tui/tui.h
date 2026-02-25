@@ -1,12 +1,11 @@
 #pragma once
 
-#include <pipewire/loop.h>
 #include <ncurses.h>
 
+#include "tui/menu.h"
 #include "collections/list.h"
 #include "collections/wstring.h"
 #include "events.h"
-#include "menu.h"
 
 enum tui_tab_type {
     PLAYBACK,
