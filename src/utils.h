@@ -15,9 +15,6 @@ bool str_to_long(const char *str, long *res);
 bool str_to_u32(const char *str, uint32_t *res);
 bool str_to_i32(const char *str, int32_t *res);
 
-/* modifies string in place! */
-size_t wcstrimcols(wchar_t *str, size_t col);
-
 char *read_string_from_fd(int fd, size_t *len);
 
 /* compares two strings, safely handles NULL (NULL is distinct from NULL) */

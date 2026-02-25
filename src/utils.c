@@ -9,7 +9,6 @@
 #include "utils.h"
 #include "macros.h"
 #include "xmalloc.h"
-#include "log.h"
 
 const char *channel_name_from_enum(enum spa_audio_channel chan) {
     switch (chan) {
@@ -269,24 +268,6 @@ bool str_to_i32(const char *str, int32_t *res) {
         *res = res_tmp;
         return true;
     }
-}
-
-size_t wcstrimcols(wchar_t *str, size_t col) {
-    size_t width = 0;
-    size_t n_chars = 0;
-
-    wchar_t *p = str;
-    wchar_t c;
-    while ((c = *p) != L'\0') {
-        if ((width += wcwidth(c)) > col) {
-            *p = L'\0';
-            break;
-        }
-        n_chars += 1;
-        p += 1;
-    }
-
-    return n_chars;
 }
 
 char *read_string_from_fd(int fd, size_t *len) {
