@@ -2,8 +2,6 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <stdio.h>
-#include <inttypes.h>
 
 #include "events.h"
 #include "collections/list.h"
@@ -19,9 +17,6 @@ struct event_hook {
 
     /* hook should never see events that fired before its creation */
     uint64_t birth_seq;
-
-    /* hook holds a reference to emitter */
-    struct event_emitter *emitter;
 
     /* hook is freed when released == true && refcnt == 0 */
     bool released;
@@ -44,12 +39,9 @@ struct event {
     union event_data data;
     uint64_t seq;
 
+    /* owned references */
     struct event_emitter *emitter;
-    /* hook == NULL => broadcast
-     * hook != NULL => unicast */
     struct event_hook *hook;
-
-    struct list link;
 };
 
 /* global state */
@@ -59,11 +51,60 @@ static struct {
 
     uint64_t seq;
 
-    struct list event_queue;
+    struct event_queue {
+        struct event *ring;
+        size_t size, write, read;
+    } queue;
 } g = {
     .efd = -1,
-    .event_queue = { &g.event_queue, &g.event_queue },
 };
+
+static bool queue_is_empty(const struct event_queue *queue) {
+    return queue->read == queue->write;
+}
+
+static bool queue_is_full(const struct event_queue *queue) {
+    return !queue->size || (queue->write + 1) % queue->size == queue->read;
+}
+
+static void queue_grow(struct event_queue *queue) {
+    const size_t new_size = queue->size ? queue->size * 2 : 16;
+    struct event *new_ring = xcalloc(new_size, sizeof(new_ring[0]));
+
+    size_t i;
+    for (i = 0; queue->read != queue->write; i++) {
+        new_ring[i] = queue->ring[queue->read];
+        queue->read = (queue->read + 1) % queue->size;
+    }
+
+    free(queue->ring);
+    queue->ring = new_ring;
+    queue->size = new_size;
+    queue->read = 0;
+    queue->write = i;
+}
+
+static struct event *queue_push(struct event_queue *queue) {
+    if (queue_is_full(queue)) {
+        queue_grow(queue);
+    }
+
+    struct event *event = &queue->ring[queue->write];
+    queue->write = (queue->write + 1) % queue->size;
+
+    return event;
+}
+
+static struct event *queue_pop(struct event_queue *queue) {
+    if (queue_is_empty(queue)) {
+        return NULL;
+    }
+
+    struct event *event = &queue->ring[queue->read];
+    queue->read = (queue->read + 1) % queue->size;
+
+    return event;
+}
 
 static void hook_free(struct event_hook *hook) {
     free(hook);
@@ -104,9 +145,8 @@ void events_dispatch(void) {
     eventfd_read(g.efd, &(uint64_t){});
     g.efd_triggered = false;
 
-    while (!list_is_empty(&g.event_queue)) {
-        /* pop from the beginning */
-        struct event *event = CONTAINER_OF(list_remove(g.event_queue.next), struct event, link);
+    struct event *event;
+    while ((event = queue_pop(&g.queue))) {
         struct event_emitter *emitter = event->emitter;
 
         if (!event->hook) {
@@ -131,7 +171,6 @@ void events_dispatch(void) {
         }
 
         emitter_unref(emitter);
-        free(event);
     }
 }
 
@@ -166,7 +205,6 @@ struct event_hook *event_emitter_add_hook(struct event_emitter *emitter,
         .remove = remove,
         .private_data = private_data,
         .birth_seq = g.seq,
-        .emitter = emitter,
     };
 
     /* prepend to emitter's hook list */
@@ -198,7 +236,7 @@ void event_hook_release(struct event_hook *hook) {
 static void event_emit_internal(struct event_emitter *emitter,
                                 struct event_hook *hook,
                                 uint64_t id, union event_data data) {
-    struct event *event = xmalloc(sizeof(*event));
+    struct event *event = queue_push(&g.queue);
     *event = (struct event) {
         .id = id,
         .data = data,
@@ -206,9 +244,6 @@ static void event_emit_internal(struct event_emitter *emitter,
         .emitter = emitter_ref(emitter),
         .hook = hook ? hook_ref(hook) : NULL,
     };
-
-    /* append to the end (it's important to not mess up ordering here!) */
-    list_insert_before(&g.event_queue, &event->link);
 
     if (!g.efd_triggered) {
         eventfd_write(g.efd, 1);
