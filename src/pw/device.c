@@ -119,27 +119,9 @@ struct event_hook *device_add_listener(struct device *dev,
     return hook;
 }
 
-void device_set_props(const struct device *dev, const struct spa_pod *props,
-                      enum spa_direction direction, int32_t card_profile_device) {
-    bool found = false;
-    struct param_route *route = NULL;
-    VEC_FOREACH(&dev->routes, i) {
-        route = &dev->routes.data[i];
-        if (!route->active) {
-            continue;
-        }
-
-        if (route->direction == direction && route->device == card_profile_device) {
-            found = true;
-            break;
-        }
-    }
-    if (!found) {
-        ERROR("could not set props on dev %d: route with device %d was not found",
-              dev->id, card_profile_device);
-        return;
-    }
-
+void device_set_props(const struct device *dev,
+                      const struct param_route *route,
+                      const struct spa_pod *props) {
     uint8_t buffer[4096];
     struct spa_pod_builder b;
     spa_pod_builder_init(&b, buffer, sizeof(buffer));

@@ -38,8 +38,8 @@ struct node {
     struct event_hook *device_hook;
 
     int32_t card_profile_device, device_profile;
-    struct param_route *routes;
     unsigned n_routes;
+    struct param_route *routes, *active_route;
 
     struct event_emitter *emitter;
 
@@ -168,14 +168,12 @@ static enum spa_direction media_class_to_direction(enum media_class class) {
 }
 
 static void node_set_props(const struct node *node, const struct spa_pod *props) {
-    /* TODO: check media_class? */
-    if (!node->device_id) {
+    if (!node->active_route) {
         pw_node_set_param(node->pw_node, SPA_PARAM_Props, 0, props);
     } else if (!node->device) {
         WARN("tried to set props of node %d with device, but no device was found", node->id);
     } else {
-        enum spa_direction direction = media_class_to_direction(node->media_class);
-        device_set_props(node->device, props, direction, node->card_profile_device);
+        device_set_props(node->device, node->active_route, props);
     }
 }
 
@@ -307,12 +305,12 @@ static void on_device_routes(struct device *dev,
     }
 
     node->routes = xreallocarray(node->routes, len, sizeof(node->routes[0]));
+    node->active_route = NULL;
     node->n_routes = 0;
 
     /* I wish I could explain what is happening here, but I don't even fully
      * understand it myself. Pipewire's surreal and incomprehensible nature
      * simply cannot be put into words. */
-    const struct param_route *active_candidate = NULL;
     for (unsigned i = 0; i < len; i++) {
         const struct param_route *route = &routes[i];
 
@@ -321,10 +319,6 @@ static void on_device_routes(struct device *dev,
                                  &(size_t){route->n_devices}, sizeof(int32_t), int32_cmp);
         if (skip) {
             continue;
-        }
-
-        if (route->active && !active_candidate) {
-            active_candidate = route;
         }
 
         const bool has_profile = lfind(&node->device_profile, route->profiles,
@@ -336,7 +330,7 @@ static void on_device_routes(struct device *dev,
         DEBUG("node %d route: idx=%d dev=%d dir=%d act=%d",
               node->id, route->index, route->device, route->direction, route->active);
 
-        node->routes[node->n_routes++] = (struct param_route){
+        node->routes[node->n_routes] = (struct param_route){
             .index = route->index,
             .device = route->device,
             .direction = route->direction,
@@ -344,6 +338,12 @@ static void on_device_routes(struct device *dev,
             .description = xstrdup(route->description),
             .active = route->active,
         };
+
+        if (route->active) {
+            node->active_route = &node->routes[node->n_routes];
+        }
+
+        node->n_routes += 1;
     }
 
     emit_routes(node, NULL);

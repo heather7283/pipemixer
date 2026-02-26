@@ -18,8 +18,9 @@ void device_unref(struct device **pdev);
 
 uint32_t device_id(const struct device *dev);
 
-void device_set_props(const struct device *dev, const struct spa_pod *props,
-                      enum spa_direction direction, int32_t card_profile_device);
+void device_set_props(const struct device *dev,
+                      const struct param_route *route,
+                      const struct spa_pod *props);
 void device_set_route(const struct device *dev, int32_t card_profile_device, int32_t index);
 
 void device_set_profile(const struct device *dev, int32_t index);
