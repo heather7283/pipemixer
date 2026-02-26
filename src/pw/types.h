@@ -29,8 +29,6 @@ struct param_route {
     char *description;
     char *name;
 
-    struct param_props props;
-
     bool active;
 };
 

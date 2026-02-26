@@ -15,7 +15,6 @@ void param_route_free_contents(struct param_route *route) {
         free(route->name);
         free(route->devices);
         free(route->profiles);
-        param_props_free_contents(&route->props);
     }
 }
 

@@ -182,56 +182,18 @@ void device_set_profile(const struct device *dev, int32_t index) {
 
 static void on_device_param_route(struct device *dev, const struct spa_pod *param) {
     pw_int_t index, device, profile;
-    struct spa_pod *props_pod;
 
-    bool mute;
-    uint32_t map_csize, map_ctype, map_nvals;
-    const pw_id_t *map_vals;
-
-    uint32_t vol_csize, vol_ctype, vol_nvals;
-    const float *vol_vals;
-
-    {
-        struct spa_pod_parser p;
-        spa_pod_parser_pod(&p, param);
-        const int n =
-            spa_pod_parser_get_object(&p,
-                                      SPA_TYPE_OBJECT_ParamRoute, &(pw_id_t){},
-                                      SPA_PARAM_ROUTE_index, SPA_POD_Int(&index),
-                                      SPA_PARAM_ROUTE_device, SPA_POD_Int(&device),
-                                      SPA_PARAM_ROUTE_profile, SPA_POD_Int(&profile),
-                                      SPA_PARAM_ROUTE_props, SPA_POD_PodObject(&props_pod));
-        if (n != 4) {
-            ERROR("failed to parse Route");
-            return;
-        }
-    }
-
-    {
-        struct spa_pod_parser p;
-        spa_pod_parser_pod(&p, props_pod);
-        const int n =
-            spa_pod_parser_get_object(&p,
-                                      SPA_TYPE_OBJECT_Props, &(pw_id_t){},
-                                      SPA_PROP_mute, SPA_POD_Bool(&mute),
-                                      SPA_PROP_channelMap, SPA_POD_Array(&map_csize,
-                                                                         &map_ctype,
-                                                                         &map_nvals,
-                                                                         &map_vals),
-                                      SPA_PROP_channelVolumes, SPA_POD_Array(&vol_csize,
-                                                                             &vol_ctype,
-                                                                             &vol_nvals,
-                                                                             &vol_vals));
-        if (n != 3) {
-            ERROR("failed to parse Props inside Route");
-            return;
-        } else if (vol_ctype != SPA_TYPE_Float || map_ctype != SPA_TYPE_Id) {
-            ERROR("unexpected array member type in pod");
-            return;
-        } else if (map_nvals != vol_nvals) {
-            ERROR("channelMap size != channelVolumes size");
-            return;
-        }
+    struct spa_pod_parser p;
+    spa_pod_parser_pod(&p, param);
+    const int n =
+        spa_pod_parser_get_object(&p,
+                                  SPA_TYPE_OBJECT_ParamRoute, &(pw_id_t){},
+                                  SPA_PARAM_ROUTE_index, SPA_POD_Int(&index),
+                                  SPA_PARAM_ROUTE_device, SPA_POD_Int(&device),
+                                  SPA_PARAM_ROUTE_profile, SPA_POD_Int(&profile));
+    if (n != 3) {
+        ERROR("failed to get index, device and profile from Route");
+        return;
     }
 
     struct param_route *active = NULL;
@@ -243,26 +205,15 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
             break;
         }
     }
+
     if (!active) {
-        ERROR("Route %d doesn't match any EnumRoute on dev %d", index, dev->id);
-        return;
+        WARN("Route %d doesn't match any EnumRoute on dev %d", index, dev->id);
+    } else {
+        active->active = true;
+        active->index = index;
+        active->device = device;
+        DEBUG("dev %d Route: index=%d", dev->id, active->index);
     }
-
-    active->active = true;
-    active->index = index;
-    active->device = device;
-
-    struct param_props *props = &active->props;
-    props->mute = mute;
-    props->n_channels = map_nvals;
-    props->channel_names = xmalloc(map_nvals * sizeof(props->channel_names[0]));
-    props->channel_volumes = xmalloc(map_nvals * sizeof(props->channel_volumes[0]));
-    for (unsigned i = 0; i < map_nvals; i++) {
-        props->channel_names[i] = spa_type_audio_channel_to_short_name(map_vals[i]);
-        props->channel_volumes[i] = cbrtf(vol_vals[i]);
-    }
-
-    DEBUG("dev %d Route: index=%d", dev->id, active->index);
 }
 
 static void on_device_param_enum_route(struct device *dev, const struct spa_pod *param) {
