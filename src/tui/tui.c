@@ -224,7 +224,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     }
 
     DRAW(ROUTES) {
-        if (!d->routes) {
+        if (!d->n_routes) {
             goto routes_end;
         }
 
@@ -256,9 +256,11 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
                     continue;
                 }
 
-                cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
-                                            L", ", wcslen(L", "),
-                                            usable_width - cols);
+                if (i > 0 || d->active_route) {
+                    cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
+                                                L", ", wcslen(L", "),
+                                                usable_width - cols);
+                }
 
                 /* TODO: respect config.route_separator */
                 cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
@@ -998,12 +1000,11 @@ static void tui_set_pad_size(enum tui_set_pad_size_policy y_policy, int y,
 
 /* Change size (height) of item to (new_height),
  * while also adjusting positions of other items in the same tab as needed.
- * DOES NOT DRAW ANYTHING BY ITSELF
- */
-static void tui_tab_item_resize(struct tui_tab_item *item, int new_height) {
+ * DOES NOT DRAW ANYTHING BY ITSELF */
+static bool tui_tab_item_resize(struct tui_tab_item *item, int new_height) {
     const int diff = new_height - item->height;
     if (diff == 0) {
-        return;
+        return false;
     }
 
     const struct tui_tab *const tab = &tui.tabs[item->tab_index];
@@ -1023,6 +1024,8 @@ static void tui_tab_item_resize(struct tui_tab_item *item, int new_height) {
               (void *)next, next->pos, next->pos + diff);
         next->pos += diff;
     }
+
+    return true;
 }
 
 static void on_device_profiles(struct device *dev,
@@ -1147,7 +1150,7 @@ static void on_node_routes(struct node *node,
         wstring_free(&oldp->description);
     }
 
-    const bool first = !d->routes;
+    const unsigned old_n_routes = d->n_routes;
 
     d->n_routes = routes_count;
     d->routes = xreallocarray(d->routes, d->n_routes, sizeof(d->routes[0]));
@@ -1170,8 +1173,8 @@ static void on_node_routes(struct node *node,
         }
     }
 
-    if (first) {
-        tui_tab_item_resize(item, d->n_channels + 3 + 1);
+    if ((old_n_routes && !d->n_routes) || (!old_n_routes && d->n_routes)) {
+        tui_tab_item_resize(item, d->n_channels + 3 + (bool)d->n_routes);
         if (item->tab_index == tui.tab_index) {
             redraw_current_tab();
         }
