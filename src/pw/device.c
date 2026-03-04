@@ -194,7 +194,7 @@ static void on_device_param_route(struct device *dev, const struct spa_pod *para
         active->active = true;
         active->index = index;
         active->device = device;
-        DEBUG("dev %d Route: index=%d", dev->id, active->index);
+        DEBUG("dev %d Route: index=%d device=%d", dev->id, active->index, active->device);
     }
 }
 
@@ -316,8 +316,6 @@ static void on_device_param_profile(struct device *dev, const struct spa_pod *pa
 static void on_device_param(void *data, int seq, uint32_t id, uint32_t index,
                             uint32_t next, const struct spa_pod *param) {
     struct device *device = data;
-
-    DEBUG("dev %d param: seq=%d id=%d index=%d next=%d", device->id, id, seq, index, next);
 
     switch (id) {
     case SPA_PARAM_Route:

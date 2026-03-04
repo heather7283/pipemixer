@@ -299,6 +299,8 @@ static void on_device_routes(struct device *dev,
                              const struct param_route *routes, unsigned len, void *data) {
     struct node *node = data;
 
+    DEBUG("node %u dev %u routes: count=%u", node->id, device_id(dev), len);
+
     for (unsigned i = 0; i < node->n_routes; i++) {
         struct param_route *route = &node->routes[i];
         param_route_free_contents(route);
@@ -314,21 +316,31 @@ static void on_device_routes(struct device *dev,
     for (unsigned i = 0; i < len; i++) {
         const struct param_route *route = &routes[i];
 
-        const bool skip = route->direction != media_class_to_direction(node->media_class)
-                       || !lfind(&node->card_profile_device, route->devices,
-                                 &(size_t){route->n_devices}, sizeof(int32_t), int32_cmp);
-        if (skip) {
+        const bool same_direction = route->direction == media_class_to_direction(node->media_class);
+        if (!same_direction) {
+            DEBUG("node %u dev %u routes: idx=%d dev=%d dir=%d act=%d: SKIP(direction)",
+                  node->id, device_id(dev),
+                  route->index, route->device, route->direction, route->active);
+            continue;
+        }
+
+        const bool has_device = lfind(&node->card_profile_device, route->devices,
+                                      &(size_t){route->n_devices}, sizeof(int32_t), int32_cmp);
+        if (!has_device) {
+            DEBUG("node %u dev %u routes: idx=%d dev=%d dir=%d act=%d: SKIP(devices)",
+                  node->id, device_id(dev),
+                  route->index, route->device, route->direction, route->active);
             continue;
         }
 
         const bool has_profile = lfind(&node->device_profile, route->profiles,
                                        &(size_t){route->n_profiles}, sizeof(int32_t), int32_cmp);
         if (!has_profile) {
+            DEBUG("node %u dev %u routes: idx=%d dev=%d dir=%d act=%d: SKIP(profiles)",
+                  node->id, device_id(dev),
+                  route->index, route->device, route->direction, route->active);
             continue;
         }
-
-        DEBUG("node %d route: idx=%d dev=%d dir=%d act=%d",
-              node->id, route->index, route->device, route->direction, route->active);
 
         node->routes[node->n_routes] = (struct param_route){
             .index = route->index,
@@ -340,10 +352,24 @@ static void on_device_routes(struct device *dev,
         };
 
         if (route->active) {
+            DEBUG("node %u dev %u routes: idx=%d dev=%d dir=%d act=%d: VALID,ACTIVE",
+                  node->id, device_id(dev),
+                  route->index, route->device, route->direction, route->active);
+
             node->active_route = &node->routes[node->n_routes];
+        } else {
+            DEBUG("node %u dev %u routes: idx=%d dev=%d dir=%d act=%d: VALID",
+                  node->id, device_id(dev),
+                  route->index, route->device, route->direction, route->active);
         }
 
         node->n_routes += 1;
+    }
+
+    if (!node->n_routes) {
+        WARN("node %u dev %u routes: no routes!", node->id, device_id(dev));
+    } else if (!node->active_route) {
+        WARN("node %u dev %u routes: no active!", node->id, device_id(dev));
     }
 
     emit_routes(node, NULL);
@@ -355,16 +381,23 @@ static void on_device_profiles(struct device *dev,
                                void *data) {
     struct node *node = data;
 
+    DEBUG("node %u dev %u profiles: count=%u", node->id, device_id(dev), profiles_count);
+
     node->device_profile = -1;
     for (unsigned i = 0; i < profiles_count; i++) {
         const struct param_profile *profile = &profiles[i];
-        if (profile->active) {
+
+        DEBUG("node %u dev %u profiles: idx=%d act=%d",
+              node->id, device_id(dev), profile->index, profile->active);
+
+        if (profile->active && node->device_profile < 0) {
             node->device_profile = profile->index;
-            return;
         }
     }
 
-    ERROR("didn't find an active profile on device %u for node %u", device_id(dev), node->id);
+    if (node->device_profile < 0) {
+        ERROR("node %u dev %u profiles: no active!", node->id, device_id(dev));
+    }
 }
 
 static const struct device_events device_events = {
@@ -430,8 +463,6 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
                    uint32_t next, const struct spa_pod *param) {
     struct node *node = data;
 
-    DEBUG("node %d param: id=%d seq=%d index=%d next=%d", node->id, id, seq, index, next);
-
     struct spa_pod_parser p;
     spa_pod_parser_pod(&p, param);
 
@@ -462,6 +493,8 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
         return;
     }
 
+    DEBUG("node %d Props: mute=%d n_channels=%u", node->id, mute, map_nvals);
+
     struct param_props *props = &node->param_props;
 
     if (props->n_channels != map_nvals || !node->has_param_props) {
@@ -485,7 +518,6 @@ void on_node_param(void *data, int seq, uint32_t id, uint32_t index,
     emit_volume(node, NULL);
 
     if (mute != props->mute || !node->has_param_props) {
-        INFO("node %u mute %d", node->id, mute);
         props->mute = mute;
         emit_mute(node, NULL);
     }
