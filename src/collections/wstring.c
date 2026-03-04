@@ -1,50 +1,47 @@
-#include <stdlib.h>
 #include <stdarg.h>
 
 #include "collections/wstring.h"
+#include "xmalloc.h"
+#include "macros.h"
 
-bool wstring_puts(struct wstring *ws, const wchar_t *str) {
-    if (!ws->stream) {
-        wstring_init(ws);
-    }
-
-    const int ret = fputws(str, ws->stream);
-    fflush(ws->stream);
-
-    return ret >= 0;
-}
-
-bool wstring_printf(struct wstring *ws, const wchar_t *fmt, ...) {
-    if (!ws->stream) {
-        wstring_init(ws);
-    }
+int wstring_printf(struct wstring *ws, const wchar_t *fmt, ...) {
+    /* fuck this shitty libc API */
+    static wchar_t buf[1024];
 
     va_list args;
-
     va_start(args, fmt);
-    const int ret = vfwprintf(ws->stream, fmt, args);
+    const int len = vswprintf(buf, SIZEOF_ARRAY(buf), fmt, args);
     va_end(args);
 
-    fflush(ws->stream);
+    if (len < 0) {
+        return -1;
+    }
 
-    return ret >= 0;
+    if (ws->cap < ws->len + len + 1) {
+        ws->cap = ws->len + len + 1;
+        ws->data = xreallocarray(ws->data, ws->cap, sizeof(ws->data[0]));
+    }
+
+    wmemcpy(&ws->data[ws->len], buf, len);
+    ws->len += len;
+    ws->data[ws->len] = L'\0';
+
+    return len;
 }
 
-bool wstring_init(struct wstring *ws) {
-    ws->stream = open_wmemstream(&ws->data, &ws->len);
-    return ws->stream;
+void wstring_init(struct wstring *ws) {
+    *ws = (struct wstring){0};
 }
 
 void wstring_clear(struct wstring *ws) {
-    /* TODO: stop using cursed open_wmemstream and make this useful */
-    wstring_free(ws);
+    ws->len = 0;
+    if (ws->data) {
+        ws->data[0] = L'\0';
+    }
 }
 
 void wstring_free(struct wstring *ws) {
-    if (ws->stream) {
-        fclose(ws->stream);
-    }
     free(ws->data);
-    *ws = (struct wstring){0};
+    wstring_init(ws);
 }
 
