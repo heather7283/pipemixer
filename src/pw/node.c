@@ -428,7 +428,9 @@ void on_node_info(void *data, const struct pw_node_info *info) {
 
                 /* now we can start checking for default */
                 if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
-                    node->default_hook = pipewire_add_listener(&pipewire_events, node);
+                    if (!node->default_hook) {
+                        node->default_hook = pipewire_add_listener(&pipewire_events, node);
+                    }
                 }
             } else if (streq(k, "node.description")) {
                 free(node->props.node_description);
