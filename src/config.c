@@ -12,16 +12,6 @@
 #include "utils.h"
 #include "macros.h"
 
-#define ADD_BIND(keycode, function, data_type, data_value) \
-    do { \
-        struct tui_bind *bind = xmalloc(sizeof(*bind)); \
-        *bind = (struct tui_bind){ \
-            .func = function, \
-            .data.data_type = data_value, \
-        }; \
-        map_insert(&config.binds, keycode, bind); \
-    } while (0)
-
 struct pipemixer_config config = {
     .volume_step = 0.01,
     .volume_min = 0.00,
@@ -58,6 +48,18 @@ struct pipemixer_config config = {
     .routes_separator = ", ",
     .profiles_separator = ", ",
 };
+
+static void add_bind(uint32_t keycode, struct tui_bind _bind) {
+    struct tui_bind *bind = xmalloc(sizeof(*bind));
+    *bind = _bind;
+    struct tui_bind *old_bind = map_insert(&config.binds, keycode, bind);
+    if (old_bind) {
+        free(old_bind);
+    }
+}
+
+#define ADD_BIND(keycode, function, type, value) \
+    add_bind((keycode), (struct tui_bind){ .func = (function), .data.type = (value) })
 
 static const char *get_default_config_path(void) {
     static char path[PATH_MAX];
