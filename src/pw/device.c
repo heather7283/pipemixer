@@ -109,11 +109,11 @@ struct event_hook *device_add_listener(struct device *dev,
     if (dev->has_props) {
         emit_props(dev, hook);
     }
-    if (dev->has_routes) {
-        emit_routes(dev, hook);
-    }
     if (dev->has_profiles) {
         emit_profiles(dev, hook);
+    }
+    if (dev->has_routes) {
+        emit_routes(dev, hook);
     }
 
     return hook;
