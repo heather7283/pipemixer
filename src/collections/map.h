@@ -13,7 +13,8 @@ struct map {
     uint32_t n_buckets, n_entries;
 };
 
-void map_insert(struct map *map, uint32_t key, void *val);
+/* If key is already present in the map, replaces val and returns old val */
+void *map_insert(struct map *map, uint32_t key, void *val);
 void *map_get(struct map *map, uint32_t key);
 void *map_remove(struct map *map, uint32_t key);
 void map_free(struct map *map);

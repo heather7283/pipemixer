@@ -33,14 +33,20 @@ static void resize(struct map *map) {
     free(old_buckets);
 }
 
-void map_insert(struct map *map, uint32_t key, void *val) {
+void *map_insert(struct map *map, uint32_t key, void *val) {
     if (!map->buckets || map->n_entries >= map->n_buckets) {
         resize(map);
     }
 
     struct map_entry **pentry;
     const uint32_t idx = get_index(key, map->n_buckets);
-    for (pentry = &map->buckets[idx]; *pentry; pentry = &(*pentry)->next);
+    for (pentry = &map->buckets[idx]; *pentry; pentry = &(*pentry)->next) {
+        if ((*pentry)->key == key) {
+            void *old_val = (*pentry)->val;
+            (*pentry)->val = val;
+            return old_val;
+        }
+    }
 
     *pentry = xmalloc(sizeof(**pentry));
     **pentry = (struct map_entry){
@@ -49,6 +55,8 @@ void map_insert(struct map *map, uint32_t key, void *val) {
     };
 
     map->n_entries += 1;
+
+    return NULL;
 }
 
 void *map_get(struct map *map, uint32_t key) {
