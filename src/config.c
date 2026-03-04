@@ -117,47 +117,45 @@ static bool get_bool(const char *str, bool *res) {
     }
 }
 
-static enum tui_tab_type tui_tab_from_name(const char *name) {
-    if (STRCASEEQ(name, "playback")) return PLAYBACK;
-    else if (STRCASEEQ(name, "recording")) return RECORDING;
-    else if (STRCASEEQ(name, "input-devices")) return INPUT_DEVICES;
-    else if (STRCASEEQ(name, "output-devices")) return OUTPUT_DEVICES;
-    else if (STRCASEEQ(name, "cards")) return CARDS;
-    else return TUI_TAB_INVALID;
+static bool tui_tab_type_from_name(const char *name, enum tui_tab_type *type) {
+    if (streq(name, "playback")) *type = PLAYBACK;
+    else if (streq(name, "recording")) *type = RECORDING;
+    else if (streq(name, "input-devices")) *type = INPUT_DEVICES;
+    else if (streq(name, "output-devices")) *type = OUTPUT_DEVICES;
+    else if (streq(name, "cards")) *type = CARDS;
+    else return false;
+
+    return true;
 }
 
 static bool get_tab_order(const char *_str) {
     char *str = xstrdup(_str);
+    enum tui_tab_type res[TUI_TAB_TYPE_COUNT];
     bool ret = true;
-    int map_index_to_enum[TUI_TAB_COUNT];
-    int map_enum_to_index[TUI_TAB_COUNT];
-    bool seen[TUI_TAB_COUNT];
 
-    memset(seen, false, sizeof(seen));
+    bool any = false;
+    bool seen[TUI_TAB_TYPE_COUNT];
+    memset(seen, '\0', sizeof(seen));
 
     int index = 0;
-    for (char *tok = strtok(str, ","); tok != NULL; tok = strtok(NULL, ",")) {
-        const enum tui_tab_type tab = tui_tab_from_name(tok);
-        if (tab == TUI_TAB_INVALID) {
+    for (char *tok = strtok(str, ","); tok; tok = strtok(NULL, ",")) {
+        enum tui_tab_type type;
+        if (!tui_tab_type_from_name(tok, &type) || seen[type]) {
             ret = false;
             goto out;
         }
 
-        seen[tab] = true;
-        map_index_to_enum[index] = tab;
-        map_enum_to_index[tab] = index;
-        index += 1;
+        any = true;
+        seen[type] = true;
+        res[index++] = type;
+    }
+    if (!any) {
+        ret = false;
+        goto out;
     }
 
-    for (int i = 0; i < TUI_TAB_COUNT; i++) {
-        if (!seen[i]) {
-            ret = false;
-            goto out;
-        }
-    }
-
-    memcpy(&config.tab_map_index_to_enum, map_index_to_enum, sizeof(config.tab_map_index_to_enum));
-    memcpy(&config.tab_map_enum_to_index, map_enum_to_index, sizeof(config.tab_map_enum_to_index));
+    memcpy(&config.tabs, &res, sizeof(res));
+    config.tabs_count = index;
 
 out:
     free(str);
@@ -191,11 +189,11 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
         } else if (STREQ(k, "tab-order")) {
             if (!get_tab_order(v)) CONFIG_LOG("invalid tab order string: %s", v);
         } else if (STREQ(k, "default-tab")) {
-            enum tui_tab_type tab = tui_tab_from_name(v);
-            if (tab == TUI_TAB_INVALID) {
+            enum tui_tab_type type;
+            if (!tui_tab_type_from_name(v, &type)) {
                 CONFIG_LOG("invalid tab name: %s", v);
             } else {
-                config.default_tab = tab;
+                config.default_tab = type;
             }
         } else {
             CONFIG_LOG("unknown key %s in section %s", k, s);
@@ -302,26 +300,18 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
                     CONFIG_LOG("unknown action: %s", k);
                 }
             } else if (prefix = "tab-", STRSTARTSWITH(k, prefix)) {
+                uint32_t tab_index;
+                enum tui_tab_type tab_type;
                 if (STREQ(k + strlen(prefix), "next")) {
                     ADD_BIND(keycode, tui_bind_change_tab, direction, UP);
                 } else if (STREQ(k + strlen(prefix), "prev")) {
                     ADD_BIND(keycode, tui_bind_change_tab, direction, DOWN);
-                } else if (STREQ(k + strlen(prefix), "playback")) {
-                    ADD_BIND(keycode, tui_bind_set_tab, tab, PLAYBACK);
-                } else if (STREQ(k + strlen(prefix), "recording")) {
-                    ADD_BIND(keycode, tui_bind_set_tab, tab, RECORDING);
-                } else if (STREQ(k + strlen(prefix), "input-devices")) {
-                    ADD_BIND(keycode, tui_bind_set_tab, tab, INPUT_DEVICES);
-                } else if (STREQ(k + strlen(prefix), "output-devices")) {
-                    ADD_BIND(keycode, tui_bind_set_tab, tab, OUTPUT_DEVICES);
+                } else if (tui_tab_type_from_name(k + strlen(prefix), &tab_type)) {
+                    ADD_BIND(keycode, tui_bind_set_tab, tab, tab_type);
+                } else if (spa_atou32(k + strlen(prefix), &tab_index, 10) && tab_index > 0) {
+                    ADD_BIND(keycode, tui_bind_set_tab_index, index, tab_index - 1);
                 } else {
-                    uint32_t index;
-                    if (spa_atou32(k + strlen(prefix), &index, 10)
-                        && index >= 1 && index <= TUI_TAB_COUNT) {
-                        ADD_BIND(keycode, tui_bind_set_tab_index, index, index - 1);
-                    } else {
-                        CONFIG_LOG("unknown action: %s", k);
-                    }
+                    CONFIG_LOG("unknown action: %s", k);
                 }
             } else if (STREQ(k, "set-default")) {
                 ADD_BIND(keycode, tui_bind_set_default, nothing, NOTHING);

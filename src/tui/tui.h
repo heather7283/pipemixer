@@ -14,12 +14,11 @@ enum tui_tab_type {
     OUTPUT_DEVICES,
     CARDS,
 
-    TUI_TAB_COUNT,
-
-    TUI_TAB_INVALID,
+    TUI_TAB_TYPE_COUNT,
 };
 
 struct tui_tab {
+    enum tui_tab_type type;
     struct list items;
     struct tui_tab_item *focused;
     int scroll_pos;
@@ -35,8 +34,8 @@ struct tui {
     bool menu_active;
     struct tui_menu *menu;
 
-    int tab_index;
-    struct tui_tab tabs[TUI_TAB_COUNT];
+    int tabs_count, tab_index;
+    struct tui_tab *tabs;
 
     struct spa_source *stdin_source;
     bool update_triggered;

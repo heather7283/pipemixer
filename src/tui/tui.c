@@ -16,7 +16,7 @@
 #include "eventloop.h"
 #include "pw/common.h"
 
-#define FOR_EACH_TAB(var) for (int var = 0; var < TUI_TAB_COUNT; var++)
+#define FOR_EACH_TAB(var) for (int var = 0; var < tui.tabs_count; var++)
 
 enum color_pair {
     DEFAULT = 0,
@@ -46,6 +46,16 @@ static const char *tui_tab_name(enum tui_tab_type tab) {
     case CARDS: return "Cards";
     default: assert(0 && "Invalid tab type passed to tui_tab_name");
     }
+}
+
+static int find_tab(enum tui_tab_type type) {
+    FOR_EACH_TAB(i) {
+        if (tui.tabs[i].type == type) {
+            return i;
+        }
+    }
+
+    return -1;
 }
 
 static void trigger_update(void) {
@@ -598,7 +608,7 @@ static void redraw_status_bar(void) {
         } else {
             wattron(tui.bar_win, A_BOLD);
         }
-        waddstr(tui.bar_win, tui_tab_name(config.tab_map_index_to_enum[tab_index]));
+        waddstr(tui.bar_win, tui_tab_name(tui.tabs[tab_index].type));
         if (tab_index != tui.tab_index) {
             wattroff(tui.bar_win, A_DIM);
         } else {
@@ -726,21 +736,24 @@ void tui_bind_change_channel_lock(union tui_bind_data data) {
 static void tui_set_tab_and_redraw(int new_tab_index) {
     if (tui.tab_index == new_tab_index) {
         return;
+    } else if (new_tab_index < 0 || new_tab_index > tui.tabs_count - 1) {
+        WARN("tui_set_tab_and_redraw: OOB new_tab_index %d", new_tab_index);
+        return;
     }
 
     tui.tab_index = new_tab_index;
     redraw_current_tab();
     redraw_status_bar();
 
-    TRACE("current tab is: index %d (enum %d)",
-          tui.tab_index, config.tab_map_index_to_enum[tui.tab_index]);
+    TRACE("current tab is: index %d (%s)",
+          tui.tab_index, tui_tab_name(tui.tabs[tui.tab_index].type));
 }
 
 void tui_bind_change_tab(union tui_bind_data data) {
     int new_tab_index;
     switch (data.direction) {
     case UP:
-        if (tui.tab_index == TUI_TAB_COUNT - 1) {
+        if (tui.tab_index == tui.tabs_count - 1) {
             new_tab_index = 0;
         } else {
             new_tab_index = tui.tab_index + 1;
@@ -748,7 +761,7 @@ void tui_bind_change_tab(union tui_bind_data data) {
         break;
     case DOWN:
         if (tui.tab_index == 0) {
-            new_tab_index = TUI_TAB_COUNT - 1;
+            new_tab_index = tui.tabs_count - 1;
         } else {
             new_tab_index = tui.tab_index - 1;
         }
@@ -761,9 +774,12 @@ void tui_bind_change_tab(union tui_bind_data data) {
 }
 
 void tui_bind_set_tab(union tui_bind_data data) {
-    tui_bind_set_tab_index((union tui_bind_data){
-        .index = config.tab_map_enum_to_index[data.tab]
-    });
+    int tab_index = find_tab(data.tab);
+    if (tab_index < 0) {
+        return;
+    }
+
+    tui_bind_set_tab_index((union tui_bind_data){ .index = tab_index });
 }
 
 void tui_bind_set_tab_index(union tui_bind_data data) {
@@ -1287,7 +1303,10 @@ static const struct node_events node_events = {
 static void on_pipewire_device(struct device *dev, void *_) {
     TRACE("on_pipewire_device: id %d", device_id(dev));
 
-    const int tab_index = config.tab_map_enum_to_index[CARDS];
+    int tab_index = find_tab(CARDS);
+    if (tab_index < 0) {
+        return;
+    }
 
     struct tui_tab_item *new_item = xmalloc(sizeof(*new_item));
     *new_item = (struct tui_tab_item){
@@ -1316,8 +1335,10 @@ static void on_pipewire_device(struct device *dev, void *_) {
 static void on_pipewire_node(struct node *node, void *_) {
     TRACE("tui_on_node_added: id %d", node_id(node));
 
-    const int tab_index =
-        config.tab_map_enum_to_index[media_class_to_tui_tab(node_media_class(node))];
+    int tab_index = find_tab(media_class_to_tui_tab(node_media_class(node)));
+    if (tab_index < 0) {
+        return;
+    }
 
     struct tui_tab_item *new_item = xmalloc(sizeof(*new_item));
     *new_item = (struct tui_tab_item){
@@ -1444,8 +1465,17 @@ bool tui_init(void) {
     init_pair(YELLOW, COLOR_YELLOW, -1);
     init_pair(RED, COLOR_RED, -1);
 
-    FOR_EACH_TAB(tab) {
-        list_init(&tui.tabs[tab].items);
+    tui.tabs_count = config.tabs_count;
+    tui.tabs = xcalloc(config.tabs_count, sizeof(tui.tabs[0]));
+    FOR_EACH_TAB(i) {
+        struct tui_tab *tab = &tui.tabs[i];
+
+        tab->type = config.tabs[i];
+        list_init(&tab->items);
+
+        if (tab->type == config.default_tab) {
+            tui.tab_index = i;
+        }
     }
 
     tui.stdin_source = pw_loop_add_io(event_loop, 0, POLLIN, false, on_stdin_ready, event_loop);
@@ -1457,8 +1487,6 @@ bool tui_init(void) {
     tui.update_triggered = false;
 
     tui.pipewire_hook = pipewire_add_listener(&pipewire_events, &tui);
-
-    tui.tab_index = config.tab_map_enum_to_index[config.default_tab];
 
     /* send SIGWINCH to self to pick up initial terminal size */
     raise(SIGWINCH);
