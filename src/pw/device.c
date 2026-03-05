@@ -36,7 +36,6 @@ struct device {
     bool has_routes;
     bool has_profiles;
 
-    bool new;
     unsigned refcnt;
 };
 
@@ -440,7 +439,6 @@ struct device *device_create(struct pw_device *pw_device, uint32_t id) {
     *dev = (struct device){
         .id = id,
         .pw_device = pw_device,
-        .new = true,
         .refcnt = 1,
     };
 

@@ -48,7 +48,6 @@ struct node {
     bool has_param_props;
     bool has_default;
 
-    bool new;
     unsigned refcnt;
 };
 
@@ -551,7 +550,6 @@ struct node *node_create(struct pw_node *pw_node, uint32_t id, enum media_class 
         .id = id,
         .pw_node = pw_node,
         .media_class = media_class,
-        .new = true,
         .refcnt = 1,
     };
 
