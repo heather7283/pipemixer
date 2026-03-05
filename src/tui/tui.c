@@ -7,6 +7,7 @@
 #include <stdio.h>
 
 #include "tui/tui.h"
+#include "tui/pad.h"
 #include "macros.h"
 #include "log.h"
 #include "xmalloc.h"
@@ -943,73 +944,6 @@ void tui_bind_quit(union tui_bind_data data) {
     pw_main_loop_quit(main_loop);
 }
 
-static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x, bool keep_contents) {
-    TRACE("tui_resize_pad: y %d x %d", y, x);
-
-    WINDOW *new_pad = newpad(y, x);
-
-    if (keep_contents && pad != NULL) {
-        copywin(pad, new_pad, 0, 0, 0, 0, y, x, FALSE);
-        delwin(pad);
-    }
-
-    return new_pad;
-}
-
-/* 0 to leave dimension as is */
-enum tui_set_pad_size_policy { EXACTLY, AT_LEAST };
-static void tui_set_pad_size(enum tui_set_pad_size_policy y_policy, int y,
-                             enum tui_set_pad_size_policy x_policy, int x,
-                             bool keep_contents) {
-    TRACE("tui_set_pad_size: y %s %d x %s %d",
-          y_policy == EXACTLY ? "exactly" : "at least", y,
-          x_policy == EXACTLY ? "exactly" : "at least", x);
-
-    if (tui.pad_win == NULL) {
-        tui.pad_win = tui_resize_pad(tui.pad_win, y, x, keep_contents);
-    } else {
-        bool need_resize = false;
-        int new_y, new_x;
-
-        int max_y = getmaxy(tui.pad_win);
-        int max_x = getmaxx(tui.pad_win);
-
-        switch (y_policy) {
-        case EXACTLY:
-            if (y != max_y) {
-                need_resize = true;
-            }
-            new_y = y;
-            break;
-        case AT_LEAST:
-            if (y > max_y) {
-                need_resize = true;
-            }
-            new_y = MAX(max_y, y);
-            break;
-        }
-
-        switch (x_policy) {
-        case EXACTLY:
-            if (x != max_x) {
-                need_resize = true;
-            }
-            new_x = x;
-            break;
-        case AT_LEAST:
-            if (x > max_x) {
-                need_resize = true;
-            }
-            new_x = MAX(max_x, x);
-            break;
-        }
-
-        if (need_resize) {
-            tui.pad_win = tui_resize_pad(tui.pad_win, new_y, new_x, keep_contents);
-        }
-    }
-}
-
 /* Change size (height) of item to (new_height),
  * while also adjusting positions of other items in the same tab as needed.
  * DOES NOT DRAW ANYTHING BY ITSELF */
@@ -1022,7 +956,9 @@ static bool tui_tab_item_resize(struct tui_tab_item *item, int new_height) {
     const struct tui_tab *const tab = &tui.tabs[item->tab_index];
 
     struct tui_tab_item *last = CONTAINER_OF(tab->items.prev, struct tui_tab_item, link);
-    tui_set_pad_size(AT_LEAST, last->pos + last->height + diff, AT_LEAST, tui.term_width, true);
+    tui.pad_win = tui_set_pad_size(tui.pad_win,
+                                   AT_LEAST, last->pos + last->height + diff,
+                                   AT_LEAST, tui.term_width);
 
     TRACE("tui_tab_item_resize: resizing item %p from %d to %d",
           (void *)item, item->height, item->height + diff);
@@ -1396,7 +1332,9 @@ static void on_resize_triggered(void *_, uint64_t _) {
     tui.term_width = getmaxx(stdscr);
     DEBUG("new window dimensions %d lines %d columns", tui.term_height, tui.term_width);
 
-    tui_set_pad_size(AT_LEAST, tui.term_height, EXACTLY, tui.term_width, false);
+    tui.pad_win = tui_set_pad_size(tui.pad_win,
+                                   AT_LEAST, tui.term_height,
+                                   EXACTLY, tui.term_width);
     if (tui.tabs[tui.tab_index].focused != NULL) {
         tui_tab_item_ensure_visible(tui.tabs[tui.tab_index].focused);
     }
