@@ -1424,8 +1424,8 @@ bool tui_init(void) {
 
     tui.pipewire_hook = pipewire_add_listener(&pipewire_events, &tui);
 
-    /* send SIGWINCH to self to pick up initial terminal size */
-    raise(SIGWINCH);
+    /* pick up initial terminal size */
+    on_resize_triggered(NULL, 0);
 
     return true;
 }
