@@ -948,10 +948,6 @@ static WINDOW *tui_resize_pad(WINDOW *pad, int y, int x, bool keep_contents) {
 
     WINDOW *new_pad = newpad(y, x);
 
-    /* TODO: not the best place to put those functions */
-    nodelay(new_pad, TRUE); /* getch() will fail instead of blocking waiting for input */
-    keypad(new_pad, TRUE);
-
     if (keep_contents && pad != NULL) {
         copywin(pad, new_pad, 0, 0, 0, 0, y, x, FALSE);
         delwin(pad);
@@ -1371,7 +1367,7 @@ static const struct pipewire_events pipewire_events = {
 
 static void on_stdin_ready(void *_, int _, uint32_t _) {
     wint_t ch;
-    while (errno = 0, wget_wch(tui.pad_win, &ch) != ERR || errno == EINTR) {
+    while (errno = 0, wget_wch(stdscr, &ch) != ERR || errno == EINTR) {
         if (ch == KEY_RESIZE) {
             WARN("KEY_RESIZE %s (%d)", key_name_from_key_code(ch), ch);
         }
@@ -1457,6 +1453,8 @@ bool tui_init(void) {
     cbreak();
     noecho();
     curs_set(0);
+    nodelay(stdscr, TRUE); /* getch() will fail instead of blocking waiting for input */
+    keypad(stdscr, TRUE);
     ESCDELAY = 50 /* ms */;
 
     start_color();
