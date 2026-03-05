@@ -15,8 +15,8 @@
     ((byte) & (1 << 1) ? '1' : '0'), \
     ((byte) & (1 << 0) ? '1' : '0')
 
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) ({ const TYPEOF(a) _a = (a), _b = (b); _a > _b ? _a : _b; })
+#define MIN(a, b) ({ const TYPEOF(a) _a = (a), _b = (b); _a < _b ? _a : _b; })
 
 #define TYPEOF(x) __typeof__(x)
 
