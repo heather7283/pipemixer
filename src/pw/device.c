@@ -232,7 +232,7 @@ static void on_device_param_enum_route(struct device *dev, const struct spa_pod 
         return;
     }
 
-    struct param_route *new_route = VEC_EMPLACE_BACK(&dev->staging.routes);
+    struct param_route *new_route = VEC_APPEND(&dev->staging.routes);
     *new_route = (struct param_route){
         .index = index,
         .direction = direction,
@@ -266,7 +266,7 @@ static void on_device_param_enum_profile(struct device *dev, const struct spa_po
         return;
     }
 
-    struct param_profile *new_profile = VEC_EMPLACE_BACK(&dev->staging.profiles);
+    struct param_profile *new_profile = VEC_APPEND(&dev->staging.profiles);
     *new_profile = (struct param_profile){
         .index = index,
         .description = xstrdup(description),
