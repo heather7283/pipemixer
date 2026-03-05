@@ -558,14 +558,10 @@ struct node *node_create(struct pw_node *pw_node, uint32_t id, enum media_class 
     pw_node_add_listener(node->pw_node, &node->listener, &node_events, node);
     pw_proxy_add_listener(node->pw_proxy, &node->proxy_listener, &proxy_events, node);
 
-    TRACE("node_create(%p): id=%u", (void *)node, node->id);
-
     return node;
 }
 
 static void node_destroy(struct node *node) {
-    TRACE("node_destroy(%p)", (void *)node);
-
     pw_proxy_destroy(node->pw_proxy);
 
     free(node->props.media_name);
@@ -594,16 +590,12 @@ static void node_destroy(struct node *node) {
 struct node *node_ref(struct node *node) {
     ASSERT(node->refcnt++ > 0);
 
-    TRACE("node_ref(%p): %u -> %u", (void *)node, node->refcnt - 1, node->refcnt);
-
     return node;
 }
 
 void node_unref(struct node **pnode) {
     struct node *node = *pnode;
     ASSERT(node->refcnt > 0);
-
-    TRACE("node_unref(%p): %u -> %u", (void *)node, node->refcnt, node->refcnt - 1);
 
     if (--node->refcnt == 0) {
         node_destroy(node);
