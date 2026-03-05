@@ -268,11 +268,11 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
 
                 if (i > 0 || d->active_route) {
                     cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
-                                                L", ", wcslen(L", "),
+                                                config.routes_separator,
+                                                wcslen(config.routes_separator),
                                                 usable_width - cols);
                 }
 
-                /* TODO: respect config.route_separator */
                 cols += print_with_ellipsis(win, routes_line_pos, 1 + cols,
                                             p->description.data, p->description.len,
                                             usable_width - cols);
@@ -378,10 +378,10 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
                 }
 
                 cols += print_with_ellipsis(win, profiles_line_pos, 1 + cols,
-                                            L", ", wcslen(L", "),
+                                            config.profiles_separator,
+                                            wcslen(config.profiles_separator),
                                             usable_width - cols);
 
-                /* TODO: respect config.profile_separator */
                 cols += print_with_ellipsis(win, profiles_line_pos, 1 + cols,
                                             p->description.data, p->description.len,
                                             usable_width - cols);

@@ -45,8 +45,8 @@ struct pipemixer_config config = {
         .bl = L"└",
         .br = L"┘",
     },
-    .routes_separator = ", ",
-    .profiles_separator = ", ",
+    .routes_separator = L", ",
+    .profiles_separator = L", ",
 };
 
 static void add_bind(uint32_t keycode, struct tui_bind _bind) {
@@ -79,6 +79,18 @@ static const char *get_default_config_path(void) {
                 "config: HOME and XDG_CONFIG_HOME are unset, cannot determine config path\n");
         return NULL;
     }
+}
+
+static bool get_wstring(const char *src, wchar_t **pres) {
+    const size_t wlen = mbsrtowcs(NULL, (const char **){&src}, 0, &(mbstate_t){0});
+    if (wlen < 1 || wlen == (size_t)-1) {
+        return false;
+    }
+
+    *pres = xmalloc((wlen + 1) * sizeof((*pres)[0]));
+    mbsrtowcs(*pres, &src, wlen + 1, &(mbstate_t){0});
+    (*pres)[wlen] = L'\0';
+    return true;
 }
 
 static bool get_first_wchar(const char *str, wchar_t *res) {
@@ -169,6 +181,9 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
     #define CONFIG_GET_WCHAR(dst) \
         if (!get_first_wchar(v, dst)) CONFIG_LOG("invalid or incomplete multibyte sequence")
 
+    #define CONFIG_GET_WSTRING(dst) \
+        if (!get_wstring(v, dst)) CONFIG_LOG("invalid or incomplete multibyte sequence")
+
     #define CONFIG_GET_PERCENTAGE(dst) \
         if (!get_percentage(v, dst)) CONFIG_LOG("invalid percentage value")
 
@@ -200,9 +215,9 @@ static int key_value_handler(void *data, const char *s, const char *k, const cha
         }
     } else if (STREQ(s, "interface")) {
         if (STREQ(k, "routes-separator")) {
-            config.routes_separator = xstrdup(v);
+            CONFIG_GET_WSTRING(&config.routes_separator);
         } else if (STREQ(k, "profiles-separator")) {
-            config.profiles_separator = xstrdup(v);
+            CONFIG_GET_WSTRING(&config.profiles_separator);
         } else if (STREQ(k, "border-left")) {
             CONFIG_GET_WCHAR(&config.borders.ls[0]);
         } else if (STREQ(k, "border-right")) {

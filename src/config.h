@@ -25,8 +25,8 @@ struct pipemixer_config {
         /* see curs_border(3x) */
         wchar_t ls[2], rs[2], ts[2], bs[2], tl[2], tr[2], bl[2], br[2];
     } borders;
-    char *routes_separator;
-    char *profiles_separator;
+    wchar_t *routes_separator;
+    wchar_t *profiles_separator;
 
     unsigned tabs_count;
     enum tui_tab_type tabs[TUI_TAB_TYPE_COUNT];
