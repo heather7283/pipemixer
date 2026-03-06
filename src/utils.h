@@ -10,3 +10,6 @@ bool key_code_from_key_name(const char *name, wint_t *keycode);
 bool streq(const char *a, const char *b);
 bool strneq(const char *a, const char *b, size_t len);
 
+/* returns true if str begins with prefix and puts the rest in suffix */
+bool cut_prefix(const char *str, const char *prefix, const char **suffix);
+

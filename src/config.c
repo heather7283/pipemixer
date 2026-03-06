@@ -81,54 +81,6 @@ static const char *get_default_config_path(void) {
     }
 }
 
-static bool get_wstring(const char *src, wchar_t **pres) {
-    const size_t wlen = mbsrtowcs(NULL, (const char **){&src}, 0, &(mbstate_t){0});
-    if (wlen < 1 || wlen == (size_t)-1) {
-        return false;
-    }
-
-    *pres = xmalloc((wlen + 1) * sizeof((*pres)[0]));
-    mbsrtowcs(*pres, &src, wlen + 1, &(mbstate_t){0});
-    (*pres)[wlen] = L'\0';
-    return true;
-}
-
-static bool get_first_wchar(const char *str, wchar_t *res) {
-    size_t len = strlen(str);
-    wchar_t res_tmp;
-
-    mbtowc(NULL, NULL, 0); /* reset mbtowc state */
-    if (mbtowc(&res_tmp, str, len) < 1) {
-        return false;
-    }
-
-    *res = res_tmp;
-    return true;
-}
-
-static bool get_percentage(const char *str, float *res) {
-    uint32_t tmp;
-
-    if (!spa_atou32(str, &tmp, 10)) {
-        return false;
-    }
-
-    *res = (float)tmp * 0.01;
-    return true;
-}
-
-static bool get_bool(const char *str, bool *res) {
-    if (STREQ(str, "1") || STRCASEEQ(str, "yes") || STRCASEEQ(str, "true")) {
-        *res = true;
-        return true;
-    } else if (STREQ(str, "0") || STRCASEEQ(str, "no") || STRCASEEQ(str, "false")) {
-        *res = false;
-        return true;
-    } else {
-        return false;
-    }
-}
-
 static bool tui_tab_type_from_name(const char *name, enum tui_tab_type *type) {
     if (streq(name, "playback")) *type = PLAYBACK;
     else if (streq(name, "recording")) *type = RECORDING;
@@ -140,8 +92,41 @@ static bool tui_tab_type_from_name(const char *name, enum tui_tab_type *type) {
     return true;
 }
 
-static bool get_tab_order(const char *_str) {
-    char *str = xstrdup(_str);
+struct parser_context {
+    const char *sect, *key, *val;
+};
+
+#define PARSER_ERROR(ctx, fmt, ...) \
+    fprintf(stderr, "config: (%s::%s) "fmt"\n", (ctx).sect, (ctx).key, ##__VA_ARGS__)
+
+static bool percentage_parser(struct parser_context ctx, void *_out) {
+    float *out = _out;
+
+    uint32_t val;
+    if (!spa_atou32(ctx.val, &val, 10)) {
+        PARSER_ERROR(ctx, "invalid integer");
+        return false;
+    }
+
+    *out = (float)val * 0.01;
+    return true;
+}
+
+static bool tab_parser(struct parser_context ctx, void *_out) {
+    enum tui_tab_type *out = _out;
+
+    if (!tui_tab_type_from_name(ctx.val, out)) {
+        PARSER_ERROR(ctx, "invalid tab name: %s", ctx.val);
+        return false;
+    }
+
+    return true;
+}
+
+static bool tab_order_parser(struct parser_context ctx, void *_out) {
+    enum tui_tab_type (*out)[TUI_TAB_TYPE_COUNT] = _out;
+
+    char *str = xstrdup(ctx.val);
     enum tui_tab_type res[TUI_TAB_TYPE_COUNT];
     bool ret = true;
 
@@ -152,7 +137,12 @@ static bool get_tab_order(const char *_str) {
     int index = 0;
     for (char *tok = strtok(str, ","); tok; tok = strtok(NULL, ",")) {
         enum tui_tab_type type;
-        if (!tui_tab_type_from_name(tok, &type) || seen[type]) {
+        if (!tui_tab_type_from_name(tok, &type)) {
+            PARSER_ERROR(ctx, "invalid tab name: %s", tok);
+            ret = false;
+            goto out;
+        } else if (seen[type]) {
+            PARSER_ERROR(ctx, "duplicate tab: %s", tok);
             ret = false;
             goto out;
         }
@@ -162,11 +152,12 @@ static bool get_tab_order(const char *_str) {
         res[index++] = type;
     }
     if (!any) {
+        PARSER_ERROR(ctx, "no tabs specified");
         ret = false;
         goto out;
     }
 
-    memcpy(&config.tabs, &res, sizeof(res));
+    memcpy(out, res, sizeof(res));
     config.tabs_count = index;
 
 out:
@@ -174,193 +165,241 @@ out:
     return ret;
 }
 
-static int key_value_handler(void *data, const char *s, const char *k, const char *v) {
-    #define CONFIG_LOG(fmt, ...) \
-        fprintf(stderr, "config: (%s::%s) "fmt"\n", s, k, ##__VA_ARGS__)
+static bool wstring_parser(struct parser_context ctx, void *_out) {
+    wchar_t **out = _out;
 
-    #define CONFIG_GET_WCHAR(dst) \
-        if (!get_first_wchar(v, dst)) CONFIG_LOG("invalid or incomplete multibyte sequence")
-
-    #define CONFIG_GET_WSTRING(dst) \
-        if (!get_wstring(v, dst)) CONFIG_LOG("invalid or incomplete multibyte sequence")
-
-    #define CONFIG_GET_PERCENTAGE(dst) \
-        if (!get_percentage(v, dst)) CONFIG_LOG("invalid percentage value")
-
-    #define CONFIG_GET_BOOL(dst) \
-        if (!get_bool(v, dst)) CONFIG_LOG("invalid boolean: %s", v)
-
-    if (STREQ(s, "main")) {
-        if (STREQ(k, "volume-step")) {
-            CONFIG_GET_PERCENTAGE(&config.volume_step);
-        } else if (STREQ(k, "volume-min")) {
-            CONFIG_GET_PERCENTAGE(&config.volume_min);
-        } else if (STREQ(k, "volume-max")) {
-            CONFIG_GET_PERCENTAGE(&config.volume_max);
-        } else if (STREQ(k, "wraparound")) {
-            CONFIG_GET_BOOL(&config.wraparound);
-        } else if (STREQ(k, "display-ids")) {
-            CONFIG_GET_BOOL(&config.display_ids);
-        } else if (STREQ(k, "tab-order")) {
-            if (!get_tab_order(v)) CONFIG_LOG("invalid tab order string: %s", v);
-        } else if (STREQ(k, "default-tab")) {
-            enum tui_tab_type type;
-            if (!tui_tab_type_from_name(v, &type)) {
-                CONFIG_LOG("invalid tab name: %s", v);
-            } else {
-                config.default_tab = type;
-            }
-        } else {
-            CONFIG_LOG("unknown key %s in section %s", k, s);
-        }
-    } else if (STREQ(s, "interface")) {
-        if (STREQ(k, "routes-separator")) {
-            CONFIG_GET_WSTRING(&config.routes_separator);
-        } else if (STREQ(k, "profiles-separator")) {
-            CONFIG_GET_WSTRING(&config.profiles_separator);
-        } else if (STREQ(k, "border-left")) {
-            CONFIG_GET_WCHAR(&config.borders.ls[0]);
-        } else if (STREQ(k, "border-right")) {
-            CONFIG_GET_WCHAR(&config.borders.rs[0]);
-        } else if (STREQ(k, "border-top")) {
-            CONFIG_GET_WCHAR(&config.borders.ts[0]);
-        } else if (STREQ(k, "border-bottom")) {
-            CONFIG_GET_WCHAR(&config.borders.bs[0]);
-        } else if (STREQ(k, "border-top-left")) {
-            CONFIG_GET_WCHAR(&config.borders.tl[0]);
-        } else if (STREQ(k, "border-top-right")) {
-            CONFIG_GET_WCHAR(&config.borders.tr[0]);
-        } else if (STREQ(k, "border-bottom-left")) {
-            CONFIG_GET_WCHAR(&config.borders.bl[0]);
-        } else if (STREQ(k, "border-bottom-right")) {
-            CONFIG_GET_WCHAR(&config.borders.br[0]);
-        } else if (STREQ(k, "volume-frame-center-left")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.cl[0]);
-        } else if (STREQ(k, "volume-frame-center-right")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.cr[0]);
-        } else if (STREQ(k, "volume-frame-top-left")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.tl[0]);
-        } else if (STREQ(k, "volume-frame-top-right")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.tr[0]);
-        } else if (STREQ(k, "volume-frame-bottom-left")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.bl[0]);
-        } else if (STREQ(k, "volume-frame-bottom-right")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.br[0]);
-        } else if (STREQ(k, "volume-frame-mono-left")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.ml[0]);
-        } else if (STREQ(k, "volume-frame-mono-right")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.mr[0]);
-        } else if (STREQ(k, "volume-frame-focus")) {
-            CONFIG_GET_WCHAR(&config.volume_frame.f[0]);
-        } else if (STREQ(k, "bar-full-char")) {
-            CONFIG_GET_WCHAR(&config.bar_full_char[0]);
-        } else if (STREQ(k, "bar-empty-char")) {
-            CONFIG_GET_WCHAR(&config.bar_empty_char[0]);
-        } else {
-            CONFIG_LOG("unknown key %s in section %s", k, s);
-        }
-    } else if (STREQ(s, "binds")) {
-        wint_t keycode;
-
-        if (!key_code_from_key_name(v, &keycode)) {
-            CONFIG_LOG("invalid keycode: %s", v);
-        } else {
-            const char *prefix = NULL;
-            if (prefix = "focus-", STRSTARTSWITH(k, prefix)) {
-                if (STREQ(k + strlen(prefix), "up")) {
-                    ADD_BIND(keycode, tui_bind_change_focus, direction, UP);
-                } else if (STREQ(k + strlen(prefix), "down")) {
-                    ADD_BIND(keycode, tui_bind_change_focus, direction, DOWN);
-                } else if (STREQ(k + strlen(prefix), "first")) {
-                    ADD_BIND(keycode, tui_bind_focus_first, nothing, NOTHING);
-                } else if (STREQ(k + strlen(prefix), "last")) {
-                    ADD_BIND(keycode, tui_bind_focus_last, nothing, NOTHING);
-                } else {
-                    CONFIG_LOG("unknown action: %s", k);
-                }
-            } else if (prefix = "volume-set-", STRSTARTSWITH(k, prefix)) {
-                const char *vol_str = k + strlen(prefix);
-                uint32_t vol;
-                if (!spa_atou32(vol_str, &vol, 10)) {
-                    CONFIG_LOG("%s is not a valid integer", vol_str);
-                } else {
-                    ADD_BIND(keycode, tui_bind_set_volume, volume, (float)vol * 0.01);
-                }
-            } else if (prefix = "volume-", STRSTARTSWITH(k, prefix)) {
-                if (STREQ(k + strlen(prefix), "up")) {
-                    ADD_BIND(keycode, tui_bind_change_volume, direction, UP);
-                } else if (STREQ(k + strlen(prefix), "down")) {
-                    ADD_BIND(keycode, tui_bind_change_volume, direction, DOWN);
-                } else {
-                    CONFIG_LOG("unknown action: %s", k);
-                }
-            } else if (prefix = "mute-", STRSTARTSWITH(k, prefix)) {
-                if (STREQ(k + strlen(prefix), "enable")) {
-                    ADD_BIND(keycode, tui_bind_change_mute, change_mode, ENABLE);
-                } else if (STREQ(k + strlen(prefix), "disable")) {
-                    ADD_BIND(keycode, tui_bind_change_mute, change_mode, DISABLE);
-                } else if (STREQ(k + strlen(prefix), "toggle")) {
-                    ADD_BIND(keycode, tui_bind_change_mute, change_mode, TOGGLE);
-                } else {
-                    CONFIG_LOG("unknown action: %s", k);
-                }
-            } else if (prefix = "channel-lock-", STRSTARTSWITH(k, prefix)) {
-                if (STREQ(k + strlen(prefix), "enable")) {
-                    ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, ENABLE);
-                } else if (STREQ(k + strlen(prefix), "disable")) {
-                    ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, DISABLE);
-                } else if (STREQ(k + strlen(prefix), "toggle")) {
-                    ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, TOGGLE);
-                } else {
-                    CONFIG_LOG("unknown action: %s", k);
-                }
-            } else if (prefix = "tab-", STRSTARTSWITH(k, prefix)) {
-                uint32_t tab_index;
-                enum tui_tab_type tab_type;
-                if (STREQ(k + strlen(prefix), "next")) {
-                    ADD_BIND(keycode, tui_bind_change_tab, direction, UP);
-                } else if (STREQ(k + strlen(prefix), "prev")) {
-                    ADD_BIND(keycode, tui_bind_change_tab, direction, DOWN);
-                } else if (tui_tab_type_from_name(k + strlen(prefix), &tab_type)) {
-                    ADD_BIND(keycode, tui_bind_set_tab, tab, tab_type);
-                } else if (spa_atou32(k + strlen(prefix), &tab_index, 10) && tab_index > 0) {
-                    ADD_BIND(keycode, tui_bind_set_tab_index, index, tab_index - 1);
-                } else {
-                    CONFIG_LOG("unknown action: %s", k);
-                }
-            } else if (STREQ(k, "set-default")) {
-                ADD_BIND(keycode, tui_bind_set_default, nothing, NOTHING);
-            } else if (STREQ(k, "select-route")) {
-                ADD_BIND(keycode, tui_bind_select_route, nothing, NOTHING);
-            } else if (STREQ(k, "select-profile")) {
-                ADD_BIND(keycode, tui_bind_select_profile, nothing, NOTHING);
-            } else if (STREQ(k, "confirm-selection")) {
-                ADD_BIND(keycode, tui_bind_confirm_selection, nothing, NOTHING);
-            } else if (STREQ(k, "cancel-selection")) {
-                ADD_BIND(keycode, tui_bind_cancel_selection, nothing, NOTHING);
-            } else if (STREQ(k, "quit-or-cancel-selection")) {
-                ADD_BIND(keycode, tui_bind_quit_or_cancel_selection, nothing, NOTHING);
-            } else if (STREQ(k, "quit")) {
-                ADD_BIND(keycode, tui_bind_quit, nothing, NOTHING);
-            } else if (STREQ(k, "unbind")) {
-                struct tui_bind *bind = map_remove(&config.binds, keycode);
-                if (bind) {
-                    free(bind);
-                }
-            } else {
-                CONFIG_LOG("unknown action: %s", k);
-            }
-        }
-    } else {
-        CONFIG_LOG("unknown section %s", s);
+    const size_t wlen = mbsrtowcs(NULL, (const char **){&ctx.val}, 0, &(mbstate_t){0});
+    if (wlen == (size_t)-1) {
+        PARSER_ERROR(ctx, "invalid string");
+        return false;
     }
 
-    return 0;
+    *out = xmalloc((wlen + 1) * sizeof((*out)[0]));
+    mbsrtowcs(*out, (const char **){&ctx.val}, wlen + 1, &(mbstate_t){0});
+    (*out)[wlen] = L'\0';
+    return true;
+}
 
-    #undef CONFIG_GET_BOOL
-    #undef CONFIG_GET_PERCENTAGE
-    #undef CONFIG_GET_WCHAR
-    #undef CONFIG_LOG
+static bool wchar_parser(struct parser_context ctx, void *_out) {
+    wchar_t *out = _out;
+
+    const size_t len = strlen(ctx.val);
+
+    const size_t ret = mbrtowc(out, ctx.val, len, &(mbstate_t){0});
+    if (ret == (size_t)-1 || ret == (size_t)-2) {
+        PARSER_ERROR(ctx, "invalid character");
+        return false;
+    } else if (len > ret) {
+        PARSER_ERROR(ctx, "too many characters");
+        return false;
+    }
+
+    return true;
+}
+
+static bool bool_parser(struct parser_context ctx, void *_out) {
+    bool *out = _out;
+
+    if (streq(ctx.val, "1") || streq(ctx.val, "yes") || streq(ctx.val, "true")) {
+        *out = true;
+        return true;
+    } else if (streq(ctx.val, "0") || streq(ctx.val, "no") || streq(ctx.val, "false")) {
+        *out = false;
+        return true;
+    } else {
+        PARSER_ERROR(ctx, "invalid boolean: %s", ctx.val);
+        return false;
+    }
+}
+
+struct key_handler {
+    const char *key;
+    bool (*parser)(struct parser_context ctx, void *out);
+    void *out;
+};
+
+struct section_handler {
+    const char *section;
+    const struct key_handler *key_handlers;
+};
+
+static const struct section_handler section_handlers[] = {
+    {
+        "main", (const struct key_handler[]){
+            { "volume-step", percentage_parser, &config.volume_step },
+            { "volume-min", percentage_parser, &config.volume_min },
+            { "volume-max", percentage_parser, &config.volume_max },
+            { "wraparound", bool_parser, &config.wraparound },
+            { "display-ids", bool_parser, &config.display_ids },
+            { "tab-order", tab_order_parser, &config.tabs },
+            { "default-tab", tab_parser, &config.default_tab },
+            { 0 }
+        }
+    },
+    {
+        "interface", (const struct key_handler[]){
+            { "routes-separator", wstring_parser, &config.routes_separator },
+            { "profiles-separator", wstring_parser, &config.profiles_separator },
+            { "border-left", wchar_parser, &config.borders.ls[0] },
+            { "border-right", wchar_parser, &config.borders.rs[0] },
+            { "border-top", wchar_parser, &config.borders.ts[0] },
+            { "border-bottom", wchar_parser, &config.borders.bs[0] },
+            { "border-top-left", wchar_parser, &config.borders.tl[0] },
+            { "border-top-right", wchar_parser, &config.borders.tr[0] },
+            { "border-bottom-left", wchar_parser, &config.borders.bl[0] },
+            { "border-bottom-right", wchar_parser, &config.borders.br[0] },
+            { "volume-frame-center-left", wchar_parser, &config.volume_frame.cl[0] },
+            { "volume-frame-center-right", wchar_parser, &config.volume_frame.cr[0] },
+            { "volume-frame-top-left", wchar_parser, &config.volume_frame.tl[0] },
+            { "volume-frame-top-right", wchar_parser, &config.volume_frame.tr[0] },
+            { "volume-frame-bottom-left", wchar_parser, &config.volume_frame.bl[0] },
+            { "volume-frame-bottom-right", wchar_parser, &config.volume_frame.br[0] },
+            { "volume-frame-mono-left", wchar_parser, &config.volume_frame.ml[0] },
+            { "volume-frame-mono-right", wchar_parser, &config.volume_frame.mr[0] },
+            { "volume-frame-focus", wchar_parser, &config.volume_frame.f[0] },
+            { "bar-full-char", wchar_parser, &config.bar_full_char[0] },
+            { "bar-empty-char", wchar_parser, &config.bar_empty_char[0] },
+            { 0 }
+        }
+    },
+};
+
+static bool parse_bind(struct parser_context ctx) {
+    wint_t keycode;
+    if (!key_code_from_key_name(ctx.val, &keycode)) {
+        PARSER_ERROR(ctx, "invalid key");
+        return false;
+    }
+
+    if (streq(ctx.key, "unbind")) {
+        struct tui_bind *bind = map_remove(&config.binds, keycode);
+        if (bind) {
+            free(bind);
+        }
+        return true;
+    }
+
+    const char *suffix;
+    if (cut_prefix(ctx.key, "focus-", &suffix)) {
+        if (streq(suffix, "up")) {
+            ADD_BIND(keycode, tui_bind_change_focus, direction, UP);
+        } else if (streq(suffix, "down")) {
+            ADD_BIND(keycode, tui_bind_change_focus, direction, DOWN);
+        } else if (streq(suffix, "first")) {
+            ADD_BIND(keycode, tui_bind_focus_first, nothing, NOTHING);
+        } else if (streq(suffix, "last")) {
+            ADD_BIND(keycode, tui_bind_focus_last, nothing, NOTHING);
+        } else {
+            goto bad;
+        }
+    } else if (cut_prefix(ctx.key, "volume-set-", &suffix)) {
+        uint32_t vol;
+        if (spa_atou32(suffix, &vol, 10)) {
+            ADD_BIND(keycode, tui_bind_set_volume, volume, (float)vol * 0.01);
+        } else {
+            goto bad;
+        }
+    } else if (cut_prefix(ctx.key, "volume-", &suffix)) {
+        if (streq(suffix, "up")) {
+            ADD_BIND(keycode, tui_bind_change_volume, direction, UP);
+        } else if (streq(suffix, "down")) {
+            ADD_BIND(keycode, tui_bind_change_volume, direction, DOWN);
+        } else {
+            goto bad;
+        }
+    } else if (cut_prefix(ctx.key, "mute-", &suffix)) {
+        if (streq(suffix, "enable")) {
+            ADD_BIND(keycode, tui_bind_change_mute, change_mode, ENABLE);
+        } else if (streq(suffix, "disable")) {
+            ADD_BIND(keycode, tui_bind_change_mute, change_mode, DISABLE);
+        } else if (streq(suffix, "toggle")) {
+            ADD_BIND(keycode, tui_bind_change_mute, change_mode, TOGGLE);
+        } else {
+            goto bad;
+        }
+    } else if (cut_prefix(ctx.key, "channel-lock-", &suffix)) {
+        if (streq(suffix, "enable")) {
+            ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, ENABLE);
+        } else if (streq(suffix, "disable")) {
+            ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, DISABLE);
+        } else if (streq(suffix, "toggle")) {
+            ADD_BIND(keycode, tui_bind_change_channel_lock, change_mode, TOGGLE);
+        } else {
+            goto bad;
+        }
+    } else if (cut_prefix(ctx.key, "tab-", &suffix)) {
+        uint32_t tab_index;
+        enum tui_tab_type tab_type;
+        if (streq(suffix, "next")) {
+            ADD_BIND(keycode, tui_bind_change_tab, direction, UP);
+        } else if (streq(suffix, "prev")) {
+            ADD_BIND(keycode, tui_bind_change_tab, direction, DOWN);
+        } else if (tui_tab_type_from_name(suffix, &tab_type)) {
+            ADD_BIND(keycode, tui_bind_set_tab, tab, tab_type);
+        } else if (spa_atou32(suffix, &tab_index, 10) && tab_index > 0) {
+            ADD_BIND(keycode, tui_bind_set_tab_index, index, tab_index - 1);
+        } else {
+            goto bad;
+        }
+    } else if (streq(ctx.key, "set-default")) {
+        ADD_BIND(keycode, tui_bind_set_default, nothing, NOTHING);
+    } else if (streq(ctx.key, "select-route")) {
+        ADD_BIND(keycode, tui_bind_select_route, nothing, NOTHING);
+    } else if (streq(ctx.key, "select-profile")) {
+        ADD_BIND(keycode, tui_bind_select_profile, nothing, NOTHING);
+    } else if (streq(ctx.key, "confirm-selection")) {
+        ADD_BIND(keycode, tui_bind_confirm_selection, nothing, NOTHING);
+    } else if (streq(ctx.key, "cancel-selection")) {
+        ADD_BIND(keycode, tui_bind_cancel_selection, nothing, NOTHING);
+    } else if (streq(ctx.key, "quit-or-cancel-selection")) {
+        ADD_BIND(keycode, tui_bind_quit_or_cancel_selection, nothing, NOTHING);
+    } else if (streq(ctx.key, "quit")) {
+        ADD_BIND(keycode, tui_bind_quit, nothing, NOTHING);
+    } else {
+        goto bad;
+    }
+
+    return true;
+
+bad:
+    PARSER_ERROR(ctx, "invalid action");
+    return false;
+}
+
+static bool parse(struct parser_context ctx) {
+    if (streq(ctx.sect, "binds")) {
+        return parse_bind(ctx);
+    }
+
+    const struct section_handler *section_handler = NULL;
+    for (unsigned i = 0; i < SIZEOF_ARRAY(section_handlers); i++) {
+        if (streq(ctx.sect, section_handlers[i].section)) {
+            section_handler = &section_handlers[i];
+            break;
+        }
+    }
+    if (!section_handler) {
+        PARSER_ERROR(ctx, "unknown section");
+        return false;
+    }
+
+    const struct key_handler *key_handler = NULL;
+    for (unsigned i = 0; section_handler->key_handlers[i].key; i++) {
+        if (streq(ctx.key, section_handler->key_handlers[i].key)) {
+            key_handler = &section_handler->key_handlers[i];
+            break;
+        }
+    }
+    if (!key_handler) {
+        PARSER_ERROR(ctx, "unknown key");
+        return false;
+    }
+
+    return key_handler->parser(ctx, key_handler->out);
+}
+
+static int key_value_handler(void *_, const char *s, const char *k, const char *v) {
+    return parse((struct parser_context){ s, k, v });
 }
 
 static void load_default_config(void) {

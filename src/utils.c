@@ -90,3 +90,14 @@ bool strneq(const char *a, const char *b, size_t len) {
     return strncmp(a, b, len) == 0;
 }
 
+bool cut_prefix(const char *str, const char *prefix, const char **suffix) {
+    const size_t prefix_len = strlen(prefix);
+
+    if (strncmp(str, prefix, prefix_len)) {
+        return false;
+    }
+
+    *suffix = str + prefix_len;
+    return true;
+}
+
