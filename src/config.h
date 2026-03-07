@@ -37,5 +37,6 @@ struct pipemixer_config {
 
 extern struct pipemixer_config config;
 
-void load_config(const char *config_path);
+/* returns false if any errors were encountered */
+bool load_config(const char *config_path);
 

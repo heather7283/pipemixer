@@ -439,18 +439,24 @@ static void load_default_config(void) {
     ini_parse_string(default_config, key_value_handler, NULL);
 }
 
-void load_config(const char *config_path) {
+bool load_config(const char *config_path) {
     load_default_config();
 
     config_path = config_path ?: get_default_config_path();
-    if (config_path) {
+    if (!config_path) {
+        return false;
+    } else {
         switch (ini_parse(config_path, key_value_handler, NULL)) {
+        case 0:
+            return true;
         case -1:
             fprintf(stderr, "config: failed to open config file at %s", config_path);
-            break;
+            return false;
         case -2:
             fprintf(stderr, "config: memory allocation failure while parsing config");
-            break;
+            return false;
+        default:
+            return false;
         };
     }
 }

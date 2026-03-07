@@ -38,6 +38,7 @@ void print_help_and_exit(FILE *stream, int exit_status) {
         "\n"
         "command line options:\n"
         "    -c, --config     path to configuration file\n"
+        "    -v, --validate   validate config file and exit 1 on errors\n"
         "    -l, --loglevel   one of TRACE, DEBUG, INFO, WARN, ERROR, QUIET\n"
         "    -L, --log-fd     write log to this fd (must be open for writing)\n"
         "    -C, --color      force logging with colors\n"
@@ -68,16 +69,18 @@ int main(int argc, char **argv) {
     int retcode = 0;
 
     const char *config_path = NULL;
+    bool validate_config = false;
     FILE *log_stream = NULL;
     int log_fd = -1;
     enum log_loglevel loglevel = LOG_DEBUG;
     bool log_force_colors = false;
 
-    static const char shortopts[] = "c:L:l:CVh";
+    static const char shortopts[] = "c:L:l:vCVh";
     static const struct option longopts[] = {
         { "config",      required_argument, NULL, 'c' },
         { "log-fd",      required_argument, NULL, 'L' },
         { "loglevel",    required_argument, NULL, 'l' },
+        { "validate",    no_argument,       NULL, 'v' },
         { "color",       no_argument,       NULL, 'C' },
         { "version",     no_argument,       NULL, 'V' },
         { "help",        no_argument,       NULL, 'h' },
@@ -89,6 +92,9 @@ int main(int argc, char **argv) {
         switch (c) {
         case 'c':
             config_path = optarg;
+            break;
+        case 'v':
+            validate_config = true;
             break;
         case 'L':
             if (!spa_atoi32(optarg, &log_fd, 10)) {
@@ -130,7 +136,11 @@ int main(int argc, char **argv) {
 
     /* needed for unicode support in ncurses and correct unicode handling in config */
     setlocale(LC_ALL, "");
-    load_config(config_path);
+
+    bool config_valid = load_config(config_path);
+    if (validate_config) {
+        return !config_valid;
+    }
 
     pw_init(NULL, NULL);
 
