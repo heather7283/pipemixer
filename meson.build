@@ -34,6 +34,7 @@ pipemixer_sources = [
   'src/log.c',
   'src/xmalloc.c',
   'src/utils.c',
+  'src/filter.c',
   'src/config.c',
   'src/signals.c',
   'src/eventloop.c',
