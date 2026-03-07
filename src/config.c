@@ -450,10 +450,10 @@ bool load_config(const char *config_path) {
         case 0:
             return true;
         case -1:
-            fprintf(stderr, "config: failed to open config file at %s", config_path);
+            fprintf(stderr, "config: failed to open config file at %s\n", config_path);
             return false;
         case -2:
-            fprintf(stderr, "config: memory allocation failure while parsing config");
+            fprintf(stderr, "config: memory allocation failure while parsing config\n");
             return false;
         default:
             return false;
