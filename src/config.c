@@ -12,6 +12,9 @@
 #include "utils.h"
 #include "macros.h"
 
+extern const char default_config[];
+extern const size_t default_config_len;
+
 struct pipemixer_config config = {
     .volume_step = 0.01,
     .volume_min = 0.00,
@@ -402,45 +405,8 @@ static int key_value_handler(void *_, const char *s, const char *k, const char *
     return parse((struct parser_context){ s, k, v });
 }
 
-static void load_default_config(void) {
-    static const char default_config[] =
-        "[main]\n"
-        "tab-order=playback,recording,output-devices,input-devices,cards\n"
-        "[binds]\n"
-        "focus-down=j\n"
-        "focus-down=down\n"
-        "focus-up=k\n"
-        "focus-up=up\n"
-        "focus-first=g\n"
-        "focus-last=G\n"
-        "volume-up=l\n"
-        "volume-up=right\n"
-        "volume-down=h\n"
-        "volume-down=left\n"
-        "tab-next=t\n"
-        "tab-next=tab\n"
-        "tab-prev=T\n"
-        "tab-prev=backtab\n"
-        "tab-1=1\n"
-        "tab-2=2\n"
-        "tab-3=3\n"
-        "tab-4=4\n"
-        "tab-5=5\n"
-        "mute-toggle=m\n"
-        "channel-lock-toggle=space\n"
-        "select-route=p\n"
-        "select-profile=P\n"
-        "set-default=D\n"
-        "confirm-selection=enter\n"
-        "quit-or-cancel-selection=escape\n"
-        "quit=q\n"
-    ;
-
-    ini_parse_string(default_config, key_value_handler, NULL);
-}
-
 bool load_config(const char *config_path) {
-    load_default_config();
+    ini_parse_string_length(default_config, default_config_len, key_value_handler, NULL);
 
     config_path = config_path ?: get_default_config_path();
     if (!config_path) {

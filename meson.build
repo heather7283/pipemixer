@@ -27,6 +27,16 @@ inih_dep = dependency('inih')
 cc = meson.get_compiler('c')
 m_dep = cc.find_library('m')
 
+# would preferably use #embed for this but it's a C23 feature
+default_config_source = custom_target(
+  'default_config.c',
+  input: 'assets/pipemixer.ini',
+  output: 'default_config.c',
+  feed: true,
+  capture: true,
+  command: [ find_program('awk'), '-f', files('assets/mkconfig.awk') ]
+)
+
 pipemixer_sources = [
   'src/pipemixer.c',
   'src/log.c',
@@ -44,6 +54,7 @@ pipemixer_sources = [
   'src/pw/types.c',
   'src/pw/device.c',
   'src/pw/node.c',
+  default_config_source
 ]
 
 include_dirs = [
