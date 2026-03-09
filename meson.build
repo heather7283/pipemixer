@@ -83,6 +83,6 @@ install_data(
 
 if get_option('shell-completions')
   zsh_install_dir = join_paths(get_option('datadir'), 'zsh', 'site-functions')
-  install_data('completion/_pipemixer', install_dir: zsh_install_dir)
+  install_data('completions/_pipemixer', install_dir: zsh_install_dir)
 endif
 
