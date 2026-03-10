@@ -16,17 +16,6 @@ extern const char default_config[];
 extern const size_t default_config_len;
 
 struct pipemixer_config config = {
-    .volume_step = 0.01,
-    .volume_min = 0.00,
-    .volume_max = 1.50,
-
-    .wraparound = false,
-    .display_ids = false,
-
-    .default_tab = PLAYBACK,
-
-    .bar_full_char = L"#",
-    .bar_empty_char = L"-",
     .volume_frame = {
         .tl = L"┌",
         .tr = L"┐",

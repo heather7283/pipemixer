@@ -204,13 +204,13 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         if (media_class == NULL) {
             DEBUG("empty media.class, not binding");
             return;
-        } else if (STREQ(media_class, "Audio/Source")) {
+        } else if (streq(media_class, "Audio/Source")) {
             media_class_value = AUDIO_SOURCE;
-        } else if (STREQ(media_class, "Audio/Sink")) {
+        } else if (streq(media_class, "Audio/Sink")) {
             media_class_value = AUDIO_SINK;
-        } else if (STREQ(media_class, "Stream/Input/Audio")) {
+        } else if (streq(media_class, "Stream/Input/Audio")) {
             media_class_value = STREAM_INPUT_AUDIO;
-        } else if (STREQ(media_class, "Stream/Output/Audio")) {
+        } else if (streq(media_class, "Stream/Output/Audio")) {
             media_class_value = STREAM_OUTPUT_AUDIO;
         } else {
             DEBUG("not interested in media.class %s, not binding", media_class);
@@ -226,7 +226,7 @@ static void on_registry_global(void *data, uint32_t id, uint32_t permissions,
         if (media_class == NULL) {
             DEBUG("empty media.class, not binding");
             return;
-        } else if (STREQ(media_class, "Audio/Device")) {
+        } else if (streq(media_class, "Audio/Device")) {
             /* no-op */
         } else {
             DEBUG("not interested in media.class %s, not binding", media_class);

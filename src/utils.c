@@ -62,11 +62,10 @@ bool key_code_from_key_name(const char *name, wint_t *keycode) {
         }
     }
 
-    const char prefix[] = "code:";
-    if (STRSTARTSWITH(name, prefix)) {
-        const char *num = name + strlen(prefix);
+    const char *suffix;
+    if (cut_prefix(name, "code:", &suffix)) {
         uint32_t code;
-        if (spa_atou32(num, &code, 10) && code < INT_MAX) {
+        if (spa_atou32(suffix, &code, 10)) {
             *keycode = code;
             return true;
         }

@@ -130,7 +130,7 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
     const bool focused = item->focused;
     const bool muted = d->muted;
 
-    TRACE("tui_draw_node: id %d mask "BYTE_BINARY_FORMAT, d->id, BYTE_BINARY_ARGS(mask));
+    TRACE("tui_draw_node: id %d mask %x", d->id, mask);
 
     WINDOW *const win = tui.pad_win;
 
@@ -330,8 +330,7 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
 
     const bool focused = item->focused;
 
-    TRACE("tui_draw_device: id %d mask "BYTE_BINARY_FORMAT,
-          device_id(dev), BYTE_BINARY_ARGS(mask));
+    TRACE("tui_draw_device: id %d mask %x", device_id(dev), mask);
 
     WINDOW *const win = tui.pad_win;
 
