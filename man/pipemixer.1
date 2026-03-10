@@ -1,4 +1,4 @@
-.TH pipemixer 1 "December 2025" "0.4.1" "User Commands"
+.TH pipemixer 1 "March 2026" "0.4.1" "User Commands"
 .SH NAME
 pipemixer \- audio mixer for pipewire
 
@@ -30,22 +30,13 @@ Display help message and exit.
 By default, pipemixer uses the following keybinds:
 .TP
 .B j, Down arrow
-Move down the node list.
+Move focus to the next item.
 .TP
 .B k, Up arrow
-Move up the node list.
+Move focus to the previous item.
 .TP
-.B t, Tab
-Switch to the next tab.
-.TP
-.B T, Shift+Tab
-Switch to the previous tab.
-.TP
-.B 1, 2, 3, 4
-Switch to the 1st, 2nd, 3rd, or 4th tab.
-.TP
-.B m
-Toggle mute for the selected node.
+.B g, G
+Move to the first or to the last item, respectively.
 .TP
 .B l, Right arrow
 Increase volume.
@@ -53,23 +44,35 @@ Increase volume.
 .B h, Left arrow
 Decrease volume.
 .TP
+.B t, Tab
+Switch to the next tab.
+.TP
+.B T, Shift+Tab
+Switch to the previous tab.
+.TP
+.B 1, 2, 3, 4, 5
+Switch to the 1st, 2nd, 3rd, 4th, or 5th tab.
+.TP
+.B m
+Toggle mute status.
+.TP
 .B Space
-Toggle channel lock for selected node (affects whether volume changes apply to all channels).
+Toggle channel lock (affects whether volume changes apply to all channels).
+.TP
+.B p
+Show route selection menu.
+.TP
+.B P
+Show profile selection menu.
 .TP
 .B D
 Set focused source or sink as default.
-.TP
-.B p
-Enter route selection mode on nodes that support it.
-.TP
-.B P
-Enter profile selection mode.
 .TP
 .B Enter
 Confirm selection.
 .TP
 .B Escape
-Cancel selection.
+Cancel selection or quit pipemixer if not in menu.
 .TP
 .B q
 Quit the application.
@@ -84,7 +87,7 @@ Provide backtrace with symbols if you experience a crash.
 .IP \(bu 4
 Describe steps necessary to reproduce the issue.
 .IP \(bu 4
-Attach output of pw-dump (note that it will contain currently playing media).
+Attach output of pw-dump (note that it might contain sensitive information).
 .PD
 
 .SH SEE ALSO
@@ -93,4 +96,4 @@ pulsemixer: https://github.com/GeorgeFilipkin/pulsemixer
 pwvucontrol: https://github.com/saivert/pwvucontrol
 .PP
 .BR pipemixer.ini (5),
-.BR pw-cli (1)
+.BR wpctl (1)

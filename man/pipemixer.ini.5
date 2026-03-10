@@ -1,4 +1,4 @@
-.TH pipemixer.ini 5 "December 2025" "0.4.1" "File Formats"
+.TH pipemixer.ini 5 "March 2026" "0.4.1" "File Formats"
 .SH NAME
 pipemixer.ini \- configuration file for \fBpipemixer\fR(1)
 
@@ -17,7 +17,7 @@ General options.
 .PP
 .B volume-step
 .RS 4
-Volume change step in percentage (1 means 1%). Default: 1.
+Volume change step as percentage (1 means 1%). Default: 1.
 .RE
 .PP
 .B volume-min, volume-max
@@ -32,7 +32,7 @@ Whether scrolling through nodes will continue at the top after reaching the bott
 .PP
 .B tab-order
 .RS 4
-Order of tabs in the UI. A comma-separated string of tab names. Default: playback,recording,output-devices,input-devices,cards
+Order of tabs in the UI. A comma-separated string of tab names to be shown. Duplicate names are not allowed. Default: playback,recording,output-devices,input-devices,cards
 .RE
 .PP
 .B default-tab
@@ -52,19 +52,13 @@ Special keys: up, down, left, right, enter, tab, backtab, space, backspace, esca
 Example: tab-prev=backtab
 .IP \(bu 4
 Arbitrary keycodes with code:N, where N is a decimal number.
-If N is prefixed with 0x, it is interpreted as hexadecimal instead.
 .br
 Example: quit=code:185
 
 .PP
-.B focus-down, focus-up
+.B focus-down, focus-up, focus-first, focus-last
 .RS 4
-Navigate node list.
-.RE
-.PP
-.B focus-first, focus-last
-.RS 4
-Focus first or last node.
+Navigate list of items in the current tab.
 .RE
 .PP
 .B volume-up, volume-down
@@ -72,12 +66,17 @@ Focus first or last node.
 Adjust volume.
 .RE
 .PP
+.B volume-set-N
+.RS 4
+Set volume of selected item to N%.
+.RE
+.PP
 .B tab-next, tab-prev
 .RS 4
 Cycle forward/backward through tabs.
 .RE
 .PP
-.B tab-playback, tab-recording, tab-input-devices, tab-output-devices
+.B tab-playback, tab-recording, tab-input-devices, tab-output-devices, tab-cards
 .RS 4
 Switch to specific tab.
 .RE
@@ -89,17 +88,12 @@ Switch to Nth tab (1-based).
 .PP
 .B mute-toggle, mute-enable, mute-disable
 .RS 4
-Set mute state for selected node.
+Set mute state for selected item.
 .RE
 .PP
 .B channel-lock-toggle, channel-lock-enable, channel-lock-disable
 .RS 4
-Set channel lock for selected node.
-.RE
-.PP
-.B volume-set-N
-.RS 4
-Set volume of selected node to N%.
+Set channel lock for selected item.
 .RE
 .PP
 .B set-default
@@ -109,22 +103,27 @@ Set focused source or sink as default.
 .PP
 .B select-route
 .RS 4
-Enter route selection menu on nodes that support it.
+Show route selection menu.
 .RE
 .PP
 .B select-profile
 .RS 4
-Enter profile selection menu.
+Show profile selection menu.
 .RE
 .PP
 .B confirm-selection, cancel-selection
 .RS 4
-Self-explanatory. Applies to menu selection mode.
+Confirm or cancel selection when in menu.
 .RE
 .PP
 .B quit
 .RS 4
 Exit application.
+.RE
+.PP
+.B quit-or-cancel-selection
+.RS 4
+Behaves like cancel-selection if menu is active or as quit otherwise.
 .RE
 .PP
 .B unbind
