@@ -56,7 +56,7 @@ executable('pipemixer', pipemixer_sources,
   install: true)
 
 install_data(
-  'io.github.heather7283.pipemixer.desktop',
+  'assets/io.github.heather7283.pipemixer.desktop',
   install_dir: join_paths(get_option('datadir'), 'applications'),
 )
 

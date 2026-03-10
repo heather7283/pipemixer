@@ -2,7 +2,7 @@
 This is a TUI volume control application for [pipewire] built with [ncurses].
 Heavily inspired by [pulsemixer] and [pwvucontrol].
 
-![Screenshot](screenshot.png)
+![Screenshot](assets/screenshot.png)
 
 ## Building
 ```
@@ -27,7 +27,7 @@ valgrind --leak-check=full --show-leak-kinds=all --track-fds=yes --log-fd=5 -- p
 
 ## Config
 pipemixer reads its config from `$XDG_CONFIG_HOME/pipemixer/pipemixer.ini`.
-See [example config](pipemixer.ini) and pipemixer.ini(5) for details.
+See [example config](assets/pipemixer.ini) and pipemixer.ini(5) for details.
 
 ## References
 - https://docs.pipewire.org
