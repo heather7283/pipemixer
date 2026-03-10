@@ -152,9 +152,12 @@ static void tui_tab_item_draw_node(const struct tui_tab_item *const item,
             cols += print_with_ellipsis(win, item->pos + 1, info_area_start,
                                         L"[*] ", wcslen(L"[*] "), usable_width);
         }
-        print_with_ellipsis(win, item->pos + 1, info_area_start + cols,
-                            d->info.data, d->info.len, usable_width - cols);
-        wclrtoeol(win);
+        cols += print_with_ellipsis(win, item->pos + 1, info_area_start + cols,
+                                    d->info.data, d->info.len, usable_width - cols);
+
+        for (int i = cols; i < usable_width; i++) {
+            waddch(win, ' ');
+        }
     }
 
     DRAW(CHANNELS) {
@@ -344,8 +347,12 @@ static void tui_tab_item_draw_device(const struct tui_tab_item *const item,
     }
 
     DRAW(DESCRIPTION) {
-        print_with_ellipsis(win, item->pos + 1, 1, d->info.data, d->info.len, usable_width);
-        wclrtoeol(win);
+        int cols = print_with_ellipsis(win, item->pos + 1, 1,
+                                       d->info.data, d->info.len, usable_width);
+
+        for (int i = cols; i < usable_width; i++) {
+            waddch(win, ' ');
+        }
     }
 
     DRAW(PROFILES) {
