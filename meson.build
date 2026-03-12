@@ -71,15 +71,18 @@ install_data(
   install_dir: join_paths(get_option('datadir'), 'applications'),
 )
 
-install_data(
-  'man/pipemixer.1',
-  install_dir: join_paths(get_option('mandir'), 'man1'),
-)
+conf_data = configuration_data()
+conf_data.set('VERSION', meson.project_version())
 
-install_data(
-  'man/pipemixer.ini.5',
-  install_dir: join_paths(get_option('mandir'), 'man5'),
-)
+foreach man: [ 'pipemixer.1', 'pipemixer.ini.5' ]
+  configure_file(
+    input: join_paths('man', '@0@.in'.format(man)),
+    configuration: conf_data,
+    output: man,
+    install: true,
+    install_dir: join_paths(get_option('mandir'), 'man@0@'.format(man.split('.')[-1])),
+  )
+endforeach
 
 if get_option('shell-completions')
   zsh_install_dir = join_paths(get_option('datadir'), 'zsh', 'site-functions')

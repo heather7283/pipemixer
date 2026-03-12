@@ -1,4 +1,4 @@
-.TH pipemixer 1 "March 2026" "0.4.1" "User Commands"
+.TH pipemixer 1 "March 2026" "@VERSION@" "User Commands"
 .SH NAME
 pipemixer \- audio mixer for pipewire
 
