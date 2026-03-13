@@ -79,19 +79,19 @@ static void device_event_dispatcher(uint64_t id, union event_data data,
 }
 
 static void emit_removed(struct device *dev, struct event_hook *hook) {
-    event_emit(dev->emitter, hook, DEVICE_EVENT_REMOVED, '0');
+    event_emit(dev->emitter, hook, DEVICE_EVENT_REMOVED, NULL, '0');
 }
 
 static void emit_props(struct device *dev, struct event_hook *hook) {
-    event_emit(dev->emitter, hook, DEVICE_EVENT_PROPS, '0');
+    event_emit(dev->emitter, hook, DEVICE_EVENT_PROPS, NULL, '0');
 }
 
 static void emit_routes(struct device *dev, struct event_hook *hook) {
-    event_emit(dev->emitter, hook, DEVICE_EVENT_ROUTES, '0');
+    event_emit(dev->emitter, hook, DEVICE_EVENT_ROUTES, NULL, '0');
 }
 
 static void emit_profiles(struct device *dev, struct event_hook *hook) {
-    event_emit(dev->emitter, hook, DEVICE_EVENT_PROFILES, '0');
+    event_emit(dev->emitter, hook, DEVICE_EVENT_PROFILES, NULL, '0');
 }
 
 static void hook_remove(void *private_data) {

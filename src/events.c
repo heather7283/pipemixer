@@ -38,6 +38,7 @@ struct event {
     uint64_t id;
     union event_data data;
     uint64_t seq;
+    void (*after)(union event_data);
 
     /* owned references */
     struct event_emitter *emitter;
@@ -170,6 +171,10 @@ void events_dispatch(void) {
             hook_unref(hook);
         }
 
+        if (event->after) {
+            event->after(event->data);
+        }
+
         emitter_unref(emitter);
     }
 }
@@ -233,14 +238,15 @@ void event_hook_release(struct event_hook *hook) {
     }
 }
 
-static void event_emit_internal(struct event_emitter *emitter,
-                                struct event_hook *hook,
-                                uint64_t id, union event_data data) {
+static void event_emit_internal(struct event_emitter *emitter, struct event_hook *hook,
+                                uint64_t id, void (*after)(union event_data data),
+                                union event_data data) {
     struct event *event = queue_push(&g.queue);
     *event = (struct event) {
         .id = id,
         .data = data,
         .seq = ++g.seq,
+        .after = after,
         .emitter = emitter_ref(emitter),
         .hook = hook ? hook_ref(hook) : NULL,
     };
@@ -251,9 +257,8 @@ static void event_emit_internal(struct event_emitter *emitter,
     }
 }
 
-void event_emit(struct event_emitter *emitter,
-                struct event_hook *hook,
-                uint64_t id, int type, ...) {
+void event_emit(struct event_emitter *emitter, struct event_hook *hook,
+                uint64_t id, void (*after)(union event_data data), int type, ...) {
     union event_data data;
 
     va_list ap;
@@ -268,6 +273,6 @@ void event_emit(struct event_emitter *emitter,
     }
     va_end(ap);
 
-    event_emit_internal(emitter, hook, id, data);
+    event_emit_internal(emitter, hook, id, after, data);
 }
 

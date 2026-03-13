@@ -51,17 +51,13 @@ static void pipewire_event_dispatcher(uint64_t id, union event_data data,
 
     switch ((enum pipewire_event_types)id) {
     case PIPEWIRE_EVENT_NODE: {
-        struct node *node = node_lookup(data.u);
-        if (node) {
-            EVENT_DISPATCH(table->node, node, callbacks_data);
-        }
+        struct node *node = data.p;
+        EVENT_DISPATCH(table->node, node, callbacks_data);
         break;
     }
     case PIPEWIRE_EVENT_DEVICE: {
-        struct device *dev = device_lookup(data.u);
-        if (dev) {
-            EVENT_DISPATCH(table->device, dev, callbacks_data);
-        }
+        struct device *dev = data.p;
+        EVENT_DISPATCH(table->device, dev, callbacks_data);
         break;
     }
     case PIPEWIRE_EVENT_DEFAULT: {
@@ -75,16 +71,24 @@ static void pipewire_event_dispatcher(uint64_t id, union event_data data,
     }
 }
 
+static void after_emit_node(union event_data data) {
+    node_unref((struct node **)&data.p);
+}
+
 static void emit_node(struct node *node, struct event_hook *hook) {
-    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_NODE, 'u', node_id(node));
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_NODE, after_emit_node, 'p', node_ref(node));
+}
+
+static void after_emit_device(union event_data data) {
+    device_unref((struct device **)&data.p);
 }
 
 static void emit_device(struct device *dev, struct event_hook *hook) {
-    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, 'u', device_id(dev));
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEVICE, after_emit_device, 'p', device_ref(dev));
 }
 
 static void emit_default(enum default_metadata_key key, struct event_hook *hook) {
-    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEFAULT, 'u', key);
+    event_emit(pw.emitter, hook, PIPEWIRE_EVENT_DEFAULT, NULL, 'u', key);
 }
 
 struct event_hook *pipewire_add_listener(const struct pipewire_events *events, void *data) {

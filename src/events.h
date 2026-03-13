@@ -32,7 +32,7 @@ struct event_hook *event_emitter_add_hook(struct event_emitter *emitter,
 void event_hook_release(struct event_hook *hook);
 
 /* type of one of p, u, i, d, b, or 0 for empty data */
-void event_emit(struct event_emitter *emitter,
-                struct event_hook *hook,
-                uint64_t id, int type, ...);
+void event_emit(struct event_emitter *emitter, struct event_hook *hook,
+                uint64_t id, void (*after)(union event_data data),
+                int type, ...);
 

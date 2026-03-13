@@ -100,31 +100,31 @@ static void node_event_dispatcher(uint64_t id, union event_data data,
 
 static void emit_removed(struct node *node, struct event_hook *hook) {
     TRACE("node emit_removed(%p)", node);
-    event_emit(node->emitter, hook, NODE_EVENT_REMOVED, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_REMOVED, NULL, '0');
 }
 
 static void emit_routes(struct node *node, struct event_hook *hook) {
-    event_emit(node->emitter, hook, NODE_EVENT_ROUTES, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_ROUTES, NULL, '0');
 }
 
 static void emit_props(struct node *node, struct event_hook *hook) {
-    event_emit(node->emitter, hook, NODE_EVENT_PROPS, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_PROPS, NULL, '0');
 }
 
 static void emit_channels(struct node *node, struct event_hook *hook) {
-    event_emit(node->emitter, hook, NODE_EVENT_CHANNELS, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_CHANNELS, NULL, '0');
 }
 
 static void emit_volume(struct node *node, struct event_hook *hook) {
-    event_emit(node->emitter, hook, NODE_EVENT_VOLUME, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_VOLUME, NULL, '0');
 }
 
 static void emit_mute(struct node *node, struct event_hook *hook) {
-    event_emit(node->emitter, hook, NODE_EVENT_MUTE, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_MUTE, NULL, '0');
 }
 
 static void emit_default(struct node *node, struct event_hook *hook) {
-    event_emit(node->emitter, hook, NODE_EVENT_DEFAULT, '0');
+    event_emit(node->emitter, hook, NODE_EVENT_DEFAULT, NULL, '0');
 }
 
 static void hook_remove(void *private_data) {
