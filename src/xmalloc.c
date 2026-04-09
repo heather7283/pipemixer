@@ -27,10 +27,18 @@ void *xcalloc(size_t n, size_t size) {
 }
 
 void *xrealloc(void *ptr, size_t size) {
+    if (!size) {
+        free(ptr);
+        return NULL;
+    }
     return check_alloc(realloc(ptr, size));
 }
 
 void *xreallocarray(void *ptr, size_t nmemb, size_t size) {
+    if (!nmemb || !size) {
+        free(ptr);
+        return NULL;
+    }
     return check_alloc(reallocarray(ptr, nmemb, size));
 }
 
