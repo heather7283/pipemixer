@@ -162,7 +162,7 @@ static enum spa_direction media_class_to_direction(enum media_class class) {
     case AUDIO_SOURCE:
         return SPA_DIRECTION_INPUT;
     default:
-        assert(0 && "Unexpected media_class value passed to media_class_to_direction");
+        ABORT("Unexpected media_class value passed to media_class_to_direction");
     }
 }
 

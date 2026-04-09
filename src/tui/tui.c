@@ -34,7 +34,7 @@ static enum tui_tab_type media_class_to_tui_tab(enum media_class class) {
     case STREAM_INPUT_AUDIO: return RECORDING;
     case AUDIO_SOURCE: return INPUT_DEVICES;
     case AUDIO_SINK: return OUTPUT_DEVICES;
-    default: assert(0 && "Invalid media class passed to media_class_to_tui_tab");
+    default: ABORT("Invalid media class passed to media_class_to_tui_tab");
     }
 }
 
@@ -45,7 +45,7 @@ static const char *tui_tab_name(enum tui_tab_type tab) {
     case OUTPUT_DEVICES: return "Output Devices";
     case INPUT_DEVICES: return "Input Devices";
     case CARDS: return "Cards";
-    default: assert(0 && "Invalid tab type passed to tui_tab_name");
+    default: ABORT("Invalid tab type passed to tui_tab_name");
     }
 }
 
