@@ -3,6 +3,7 @@
 #include <pipewire/pipewire.h>
 
 #include "pw/types.h"
+#include "collections/dict.h"
 #include "events.h"
 
 struct device_props {
@@ -27,7 +28,7 @@ void device_set_profile(const struct device *dev, int32_t index);
 
 struct device_events {
     void (*removed)(struct device *dev, void *data);
-    void (*props)(struct device *dev, const struct device_props *props, void *data);
+    void (*props)(struct device *dev, const struct dict *props, void *data);
     void (*routes)(struct device *dev,
                    const struct param_route routes[], unsigned routes_count,
                    void *data);

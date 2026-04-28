@@ -8,7 +8,6 @@
 #include "log.h"
 #include "xmalloc.h"
 #include "macros.h"
-#include "utils.h"
 
 struct device {
     union {
@@ -19,7 +18,7 @@ struct device {
     struct spa_hook proxy_listener;
 
     uint32_t id;
-    struct device_props props;
+    struct dict props;
 
     VEC(struct param_route) routes;
     VEC(struct param_profile) profiles;
@@ -341,15 +340,12 @@ static void on_device_info(void *data, const struct pw_device_info *info) {
 
     if (info->change_mask & PW_DEVICE_CHANGE_MASK_PROPS) {
         const struct spa_dict *props = info->props;
+
+        dict_clear(&dev->props);
+        dict_reserve(&dev->props, props->n_items);
         for (unsigned i = 0; i < props->n_items; i++) {
             const struct spa_dict_item *item = &props->items[i];
-            const char *k = item->key;
-            const char *v = item->value;
-
-            if (streq(k, "device.description")) {
-                free(dev->props.description);
-                dev->props.description = xstrdup(v);
-            }
+            dict_insert(&dev->props, item->key, item->value);
         }
 
         emit_props(dev, NULL);
@@ -453,7 +449,7 @@ struct device *device_create(struct pw_device *pw_device, uint32_t id) {
 static void device_destroy(struct device *device) {
     pw_proxy_destroy(device->pw_proxy);
 
-    free(device->props.description);
+    dict_free(&device->props);
 
     VEC_FOREACH(&device->routes, i) {
         struct param_route *route = &device->routes.data[i];

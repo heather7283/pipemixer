@@ -26,7 +26,7 @@ struct node {
 
     uint32_t id;
     enum media_class media_class;
-    struct node_props props;
+    struct dict props;
 
     struct param_props param_props;
 
@@ -254,7 +254,10 @@ void node_set_default(const struct node *node) {
         return;
     }
 
-    pipewire_set_default(key, node->props.node_name);
+    const char *node_name = dict_get(&node->props, "node.name");
+    if (node_name) {
+        pipewire_set_default(key, node_name);
+    }
 }
 
 static void on_default(enum default_metadata_key key, const char *val, void *data) {
@@ -277,7 +280,7 @@ static void on_default(enum default_metadata_key key, const char *val, void *dat
         return;
     }
 
-    const bool is_default = streq(node->props.node_name, val);
+    const bool is_default = streq(dict_get(&node->props, "node.name"), val);
     if (is_default != node->is_default || !node->has_default) {
         node->is_default = is_default;
         INFO("node %d default: %d", node->id, node->is_default);
@@ -413,31 +416,20 @@ void on_node_info(void *data, const struct pw_node_info *info) {
     if (info->change_mask & PW_NODE_CHANGE_MASK_PROPS) {
         const bool first_props = !node->has_props;
         const struct spa_dict *props = info->props;
+
+        dict_clear(&node->props);
+        dict_reserve(&node->props, props->n_items);
         for (unsigned i = 0; i < props->n_items; i++) {
             const struct spa_dict_item *item = &props->items[i];
-            const char *k = item->key;
-            const char *v = item->value;
+            dict_insert(&node->props, item->key, item->value);
 
-            if (streq(k, "media.name")) {
-                free(node->props.media_name);
-                node->props.media_name = xstrdup(v);
-            } else if (streq(k, "node.name")) {
-                free(node->props.node_name);
-                node->props.node_name = xstrdup(v);
-
+            if (streq(item->key, "node.name")) {
                 /* now we can start checking for default */
                 if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
                     if (!node->default_hook) {
                         node->default_hook = pipewire_add_listener(&pipewire_events, node);
                     }
                 }
-            } else if (streq(k, "node.description")) {
-                free(node->props.node_description);
-                node->props.node_description = xstrdup(v);
-            } else if (streq(k, "card.profile.device")) {
-                spa_atoi32(v, &node->card_profile_device, 10);
-            } else if (streq(k, "device.id") && !node->device) {
-                spa_atou32(v, &node->device_id, 10);
             }
         }
 
@@ -564,9 +556,7 @@ struct node *node_create(struct pw_node *pw_node, uint32_t id, enum media_class 
 static void node_destroy(struct node *node) {
     pw_proxy_destroy(node->pw_proxy);
 
-    free(node->props.media_name);
-    free(node->props.node_name);
-    free(node->props.node_description);
+    dict_free(&node->props);
     param_props_free_contents(&node->param_props);
 
     for (unsigned i = 0; i < node->n_routes; i++) {

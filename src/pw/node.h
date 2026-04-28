@@ -5,6 +5,7 @@
 
 #include "events.h"
 #include "pw/types.h"
+#include "collections/dict.h"
 
 enum media_class {
     MEDIA_CLASS_START,
@@ -41,7 +42,7 @@ struct node_events {
     void (*routes)(struct node *node,
                    const struct param_route routes[], unsigned routes_count,
                    void *data);
-    void (*props)(struct node *node, const struct node_props *props, void *data);
+    void (*props)(struct node *node, const struct dict *props, void *data);
     void (*channels)(struct node *node,
                      const char *channel_names[], unsigned channel_count,
                      void *data);
