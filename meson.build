@@ -44,6 +44,7 @@ pipemixer_sources = [
   'src/utils.c',
   'src/config.c',
   'src/events.c',
+  'src/format.c',
   'src/tui/tui.c',
   'src/tui/pad.c',
   'src/tui/menu.c',
