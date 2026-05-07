@@ -1,6 +1,7 @@
 #pragma once
 
 #include "collections/dict.h"
+#include "collections/string.h"
 #include "collections/wstring.h"
 
 /*
@@ -27,10 +28,10 @@ struct format_node {
     enum format_node_type type;
     union {
         struct {
-            char *str;
+            struct string str;
         } literal;
         struct {
-            char *key;
+            struct string key;
             /* both can be NULL (in which case value for key is substituted) */
             struct format_node *if_true, *if_false;
         } subst;

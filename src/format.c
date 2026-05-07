@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <setjmp.h>
+#include <stdbool.h>
 
 #include "format.h"
 #include "xmalloc.h"
@@ -18,21 +19,15 @@ struct parser {
 static struct format_node *parse_node(struct parser *p);
 static void format_node_free_contents(struct format_node *node);
 
-static char *parse_key(struct parser *p) {
-    size_t len = 0;
-    size_t bufsz = 32;
-    char *buf = xmalloc(bufsz);
+static struct string parse_key(struct parser *p) {
+    struct string s = {0};
 
     for (char c = *p->pos; (c >= 'a' && c <= 'z') || c == '.'; c = *(++p->pos)) {
-        if (len + 2 > bufsz) {
-            bufsz *= 2;
-            buf = xrealloc(buf, bufsz);
-        }
-        buf[len++] = c;
+        string_append(&s, c);
     }
 
-    if (!len) {
-        free(buf);
+    if (!s.len) {
+        string_free(&s);
         if (!*p->pos) {
             PARSER_ERROR(p, "unexpected EOF, expected key", *p->pos);
         } else {
@@ -40,14 +35,13 @@ static char *parse_key(struct parser *p) {
         }
     }
 
-    buf[len] = '\0';
-    return buf;
+    return s;
 }
 
 static struct format_node *parse_subst(struct parser *p) {
     assert(*p->pos++ == '{');
 
-    char *key = parse_key(p);
+    struct string key = parse_key(p);
 
     struct format_node *if_true = NULL;
     if (*p->pos == '?') {
@@ -88,9 +82,7 @@ static bool is_escapable(char c) {
 }
 
 static struct format_node *parse_literal(struct parser *p) {
-    size_t len = 0;
-    size_t bufsz = 32;
-    char *buf = xmalloc(bufsz);
+    struct string s = {0};
 
     while (*p->pos) {
         char c = *p->pos;
@@ -105,17 +97,13 @@ static struct format_node *parse_literal(struct parser *p) {
             break;
         }
 
-        if (len + 2 > bufsz) {
-            bufsz *= 2;
-            buf = xrealloc(buf, bufsz);
-        }
+        string_append(&s, c);
 
-        buf[len++] = c;
         p->pos += 1;
     }
 
-    if (!len) {
-        free(buf);
+    if (!s.len) {
+        string_free(&s);
         if (!*p->pos) {
             PARSER_ERROR(p, "unexpected EOF, expected literal", *p->pos);
         } else {
@@ -123,13 +111,11 @@ static struct format_node *parse_literal(struct parser *p) {
         }
     }
 
-    buf[len] = '\0';
-
     struct format_node *n = xmalloc(sizeof(*n));
     *n = (struct format_node){
         .type = FORMAT_NODE_LITERAL,
         .as.literal = {
-            .str = buf,
+            .str = s,
         },
     };
 
@@ -151,10 +137,10 @@ static void format_node_free_contents(struct format_node *node) {
 
     switch (node->type) {
     case FORMAT_NODE_LITERAL:
-        free(node->as.literal.str);
+        string_free(&node->as.literal.str);
         break;
     case FORMAT_NODE_SUBST:
-        free(node->as.subst.key);
+        string_free(&node->as.subst.key);
         struct format_node *a = node->as.subst.if_true;
         struct format_node *b = node->as.subst.if_false;
         format_node_free_contents(a);
@@ -201,7 +187,7 @@ static void format_node_render(const struct format_node *node,
         wstring_printf(res, L"%s", node->as.literal.str);
         break;
     case FORMAT_NODE_SUBST:;
-        const char *val = dict_get(dict, node->as.subst.key);
+        const char *val = dict_get(dict, node->as.subst.key.data);
         const struct format_node *if_true = node->as.subst.if_true;
         const struct format_node *if_false = node->as.subst.if_false;
         if (!if_true && !if_false) {
