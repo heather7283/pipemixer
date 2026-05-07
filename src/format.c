@@ -91,7 +91,7 @@ static void parse_key(struct parser *p, struct string *out) {
         if ((c < L'a' || c > L'z') && c != L'.') {
             break;
         }
-        string_append(out, consume(p));
+        string_appendwc(out, consume(p));
     }
 
     if (!out->len) {
@@ -142,7 +142,7 @@ static void parse_literal(struct parser *p, struct format_node **out) {
             break;
         }
 
-        wstring_append(s, consume(p));
+        wstring_appendwc(s, consume(p));
     }
 
     if (!s->len) {
@@ -204,7 +204,7 @@ static void format_node_render(const struct format_node *node,
                                const struct dict *dict, struct wstring *res) {
     switch (node->type) {
     case FORMAT_NODE_LITERAL:
-        wstring_printf(res, L"%s", node->as.literal.str);
+        wstring_appendwsn(res, node->as.literal.str.data, node->as.literal.str.len);
         break;
     case FORMAT_NODE_SUBST:;
         const char *val = dict_get(dict, node->as.subst.key.data);
@@ -226,7 +226,7 @@ static void format_node_render(const struct format_node *node,
             }
         } else {
             if (val) {
-                wstring_printf(res, L"%s", val);
+                wstring_appendsz(res, val);
             }
         }
         break;
