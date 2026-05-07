@@ -204,6 +204,21 @@ static bool bool_parser(struct parser_context ctx, void *_out) {
     }
 }
 
+static bool format_parser(struct parser_context ctx, void *_out) {
+    struct format **out = _out;
+
+    char *error = NULL;
+    struct format *fmt = format_parse(ctx.val, &error);
+    if (!fmt) {
+        PARSER_ERROR(ctx, "invalid format: %s", error);
+        free(error);
+        return false;
+    }
+
+    *out = fmt;
+    return true;
+}
+
 struct key_handler {
     const char *key;
     bool (*parser)(struct parser_context ctx, void *out);
@@ -251,6 +266,8 @@ static const struct section_handler section_handlers[] = {
             { "volume-frame-focus", wchar_parser, &config.volume_frame.f[0] },
             { "bar-full-char", wchar_parser, &config.bar_full_char[0] },
             { "bar-empty-char", wchar_parser, &config.bar_empty_char[0] },
+            { "node-format", format_parser, &config.node_format },
+            { "device-format", format_parser, &config.device_format },
             { 0 }
         }
     },

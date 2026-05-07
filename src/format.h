@@ -6,7 +6,7 @@
 
 /*
  * Grammar:
- * escapable = "{" | "}" | "?" | "!" ;
+ * escapable = "{" | "}" | "?" | "!" | "\" ;
  * literal_char = ? Any printable unicode character except escapable ? | ( "\" escapable ) ;
  * literal = literal_char { literal_char } ;
  *

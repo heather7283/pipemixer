@@ -1023,16 +1023,10 @@ static void on_device_props(struct device *dev, const struct dict *props, void *
     struct tui_tab_item *item = data;
     struct tui_tab_item_device_data *d = &item->as.device;
 
-    const char *device_description = dict_get(props, "device.description");
-
-    wstring_clear(&d->info);
-    if (config.display_ids) {
-        wstring_printf(&d->info, L"%u. ", d->id);
-    }
-    wstring_printf(&d->info, L"%s", device_description);
+    format_render(config.device_format, props, &d->info);
 
     wstring_clear(&d->description);
-    wstring_printf(&d->description, L"%s", device_description);
+    wstring_printf(&d->description, L"%s", dict_get(props, "device.description"));
 
     tui_tab_item_draw(item, TUI_TAB_ITEM_DRAW_DESCRIPTION);
     trigger_update();
@@ -1183,18 +1177,10 @@ static void on_node_props(struct node *node, const struct dict *props, void *dat
     struct tui_tab_item *item = data;
     struct tui_tab_item_node_data *d = &item->as.node;
 
+    format_render(config.node_format, props, &d->info);
+
     const char *node_description = dict_get(props, "node.description");
     const char *node_name = dict_get(props, "node.name");
-    const char *media_name = dict_get(props, "media.name");
-
-    wstring_clear(&d->info);
-    if (config.display_ids) {
-        wstring_printf(&d->info, L"%u. ", d->id);
-    }
-    wstring_printf(&d->info, L"%s", node_description ?: node_name);
-    if (media_name) {
-        wstring_printf(&d->info, L": %s", media_name);
-    }
 
     wstring_clear(&d->description);
     wstring_printf(&d->description, L"%s", node_description ?: node_name);

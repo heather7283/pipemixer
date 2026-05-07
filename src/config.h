@@ -4,6 +4,7 @@
 
 #include "collections/map.h"
 #include "tui/tui.h"
+#include "format.h"
 
 struct pipemixer_config {
     float volume_step;
@@ -26,6 +27,8 @@ struct pipemixer_config {
     unsigned tabs_count;
     enum tui_tab_type tabs[TUI_TAB_TYPE_COUNT];
     enum tui_tab_type default_tab;
+
+    struct format *node_format, *device_format;
 
     struct map binds;
 };
