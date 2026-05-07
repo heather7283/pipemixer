@@ -88,7 +88,7 @@ static void expect(struct parser *p, wchar_t expected) {
 static void parse_key(struct parser *p, struct string *out) {
     while (!eof(p)) {
         wchar_t c = peek(p);
-        if (!(c >= L'a' && c <= L'z') || c == L'.') {
+        if ((c < L'a' || c > L'z') && c != L'.') {
             break;
         }
         string_append(out, consume(p));
