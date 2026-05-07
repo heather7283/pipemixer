@@ -223,11 +223,15 @@ static void parse_format(struct parser *p, struct format **out) {
     while (!eof(p)) {
         wchar_t c = peek(p);
         if (c == L'!' || c == L'}') {
-            return;
+            break;
         }
 
         f = *out = xrealloc(f, sizeof(*f) + sizeof(f->nodes[0]) * ++f->nodes_count);
         parse_node(p, &f->nodes[f->nodes_count - 1]);
+    }
+
+    if (!f->nodes_count) {
+        PARSER_ERROR(p, "unexpected character: %s", format_wchar(peek(p)));
     }
 }
 
