@@ -16,11 +16,7 @@ enum media_class {
     MEDIA_CLASS_END,
 };
 
-struct node_props {
-    char *media_name;
-    char *node_name;
-    char *node_description;
-};
+struct node;
 
 struct node *node_create(struct pw_node *pw_node, uint32_t id, enum media_class media_class);
 

@@ -6,10 +6,6 @@
 #include "collections/dict.h"
 #include "events.h"
 
-struct device_props {
-    char *description;
-};
-
 struct device;
 
 struct device *device_create(struct pw_device *pw_device, uint32_t id);
