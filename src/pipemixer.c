@@ -75,6 +75,12 @@ int main(int argc, char **argv) {
     enum log_loglevel loglevel = LOG_DEBUG;
     bool log_force_colors = false;
 
+    /* for easily attaching gdb */
+    uint32_t startup_sleep;
+    if (spa_atou32(getenv("PIPEMIXER_STARTUP_SLEEP"), &startup_sleep, 10)) {
+        sleep(startup_sleep);
+    }
+
     static const char shortopts[] = "c:L:l:vCVh";
     static const struct option longopts[] = {
         { "config",      required_argument, NULL, 'c' },
