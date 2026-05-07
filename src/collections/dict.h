@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 struct dict_item {
-    size_t key_len, val_len;
     char *key, *val;
 };
 
