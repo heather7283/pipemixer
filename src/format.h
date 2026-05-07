@@ -13,8 +13,7 @@
  * key_char = ? Any lowercase English letter ? | "." ;
  * key = key_char { key_char } ;
  *
- * subst = "{" key [ "?" node ] [ "!" node ] "}" ;
- *
+ * subst = "{" key [ "?" format ] [ "!" format ] "}" ;
  * node = subst | literal ;
  * format = node { node } ;
  */
@@ -33,7 +32,7 @@ struct format_node {
         struct {
             struct string key;
             /* both can be NULL (in which case value for key is substituted) */
-            struct format_node *if_true, *if_false;
+            struct format *if_true, *if_false;
         } subst;
     } as;
 };

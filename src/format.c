@@ -27,7 +27,7 @@ struct parser {
     longjmp((pp)->jmp_buf, 67); \
 } while (0)
 
-static void parse_node(struct parser *p, struct format_node **out);
+static void parse_format(struct parser *p, struct format **out);
 
 static bool eof(struct parser *p) {
     return p->pos >= p->len && !p->has_wchar;
@@ -109,12 +109,12 @@ static void parse_subst(struct parser *p, struct format_node **out) {
 
     if (peek(p) == L'?') {
         consume(p);
-        parse_node(p, &n->as.subst.if_true);
+        parse_format(p, &n->as.subst.if_true);
     }
 
     if (peek(p) == L'!') {
         consume(p);
-        parse_node(p, &n->as.subst.if_false);
+        parse_format(p, &n->as.subst.if_false);
     }
 
     expect(p, L'}');
@@ -162,6 +162,11 @@ static void parse_format(struct parser *p, struct format **out) {
     struct format *f = *out = xzalloc(sizeof(*f));
 
     while (!eof(p)) {
+        wchar_t c = peek(p);
+        if (c == L'!' || c == L'}') {
+            return;
+        }
+
         f = *out = xrealloc(f, sizeof(*f) + sizeof(f->nodes[0]) * ++f->nodes_count);
         parse_node(p, &f->nodes[f->nodes_count - 1]);
     }
@@ -185,6 +190,9 @@ struct format *format_parse(const char *src, char **error) {
     }
 
     parse_format(&p, &f);
+    if (!eof(&p)) {
+        PARSER_ERROR(&p, "unexpected character: %s", format_wchar(peek(&p)));
+    }
 
     if (error) {
         *error = NULL;
@@ -200,21 +208,21 @@ static void format_node_render(const struct format_node *node,
         break;
     case FORMAT_NODE_SUBST:;
         const char *val = dict_get(dict, node->as.subst.key.data);
-        const struct format_node *if_true = node->as.subst.if_true;
-        const struct format_node *if_false = node->as.subst.if_false;
+        const struct format *if_true = node->as.subst.if_true;
+        const struct format *if_false = node->as.subst.if_false;
         if (if_true && if_false) {
             if (val) {
-                format_node_render(if_true, dict, res);
+                format_render(if_true, dict, res);
             } else {
-                format_node_render(if_false, dict, res);
+                format_render(if_false, dict, res);
             }
         } else if (if_true) {
             if (val) {
-                format_node_render(if_true, dict, res);
+                format_render(if_true, dict, res);
             }
         } else if (if_false) {
             if (!val) {
-                format_node_render(if_false, dict, res);
+                format_render(if_false, dict, res);
             }
         } else {
             if (val) {
@@ -247,10 +255,8 @@ static void format_node_free(struct format_node *node) {
         break;
     case FORMAT_NODE_SUBST:
         string_free(&node->as.subst.key);
-        struct format_node *a = node->as.subst.if_true;
-        struct format_node *b = node->as.subst.if_false;
-        format_node_free(a);
-        format_node_free(b);
+        format_free(node->as.subst.if_true);
+        format_free(node->as.subst.if_false);
         break;
     }
 
@@ -263,8 +269,7 @@ void format_free(struct format *fmt) {
     }
 
     for (unsigned i = 0; i < fmt->nodes_count; i++) {
-        struct format_node *node = fmt->nodes[i];
-        format_node_free(node);
+        format_node_free(fmt->nodes[i]);
     }
     free(fmt);
 }
