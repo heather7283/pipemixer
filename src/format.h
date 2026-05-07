@@ -28,7 +28,7 @@ struct format_node {
     enum format_node_type type;
     union {
         struct {
-            struct string str;
+            struct wstring str;
         } literal;
         struct {
             struct string key;
