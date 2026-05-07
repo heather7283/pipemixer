@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <wctype.h>
+#include <stdio.h>
 
 #include "format.h"
 #include "xmalloc.h"
@@ -63,16 +64,24 @@ static wchar_t consume(struct parser *p) {
     return p->wchar;
 }
 
+static const char *format_wchar(wchar_t wc) {
+    static char buf[sizeof("0xFFFFFFFF")];
+
+    if (wc == L'\0') {
+        strncpy(buf, "EOF", sizeof(buf));
+    } else if (!iswgraph(wc)) {
+        snprintf(buf, sizeof(buf), "0x%X", wc);
+    } else {
+        snprintf(buf, sizeof(buf), "%lc", wc);
+    }
+
+    return buf;
+}
+
 static void expect(struct parser *p, wchar_t expected) {
     wchar_t got = consume(p);
     if (got != expected) {
-        if (eof(p)) {
-            PARSER_ERROR(p, "expected %lc, got EOF", expected);
-        } else if (!iswgraph(got)) {
-            PARSER_ERROR(p, "expected %lc, got 0x%X", expected, got);
-        } else {
-            PARSER_ERROR(p, "expected %lc, got %lc", expected, got);
-        }
+        PARSER_ERROR(p, "expected %lc, got %s", expected, format_wchar(got));
     }
 }
 
@@ -86,11 +95,7 @@ static void parse_key(struct parser *p, struct string *out) {
     }
 
     if (!out->len) {
-        if (eof(p)) {
-            PARSER_ERROR(p, "unexpected EOF, expected key");
-        } else {
-            PARSER_ERROR(p, "expected key, got %lc", peek(p));
-        }
+        PARSER_ERROR(p, "expected key, got %s", format_wchar(peek(p)));
     }
 }
 
@@ -130,10 +135,8 @@ static void parse_literal(struct parser *p, struct format_node **out) {
         if (c == L'\\') {
             consume(p);
             c = peek(p);
-            if (!c) {
-                PARSER_ERROR(p, "trailing backslash");
-            } else if (!is_escapable(c)) {
-                PARSER_ERROR(p, "invalid escaped character");
+            if (!is_escapable(c)) {
+                PARSER_ERROR(p, "invalid escaped character: %s", format_wchar(c));
             }
         } else if (is_escapable(c)) {
             break;
@@ -143,12 +146,7 @@ static void parse_literal(struct parser *p, struct format_node **out) {
     }
 
     if (!s->len) {
-        wstring_free(s);
-        if (eof(p)) {
-            PARSER_ERROR(p, "unexpected EOF, expected literal");
-        } else {
-            PARSER_ERROR(p, "expected literal, got %lc", peek(p));
-        }
+        PARSER_ERROR(p, "expected literal, got %s", format_wchar(peek(p)));
     }
 }
 
