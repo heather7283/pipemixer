@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <stdbool.h>
 
 #if !defined(STRING_STRUCT_TYPE) || !defined(STRING_ELEMENT_TYPE)
 #error "define STRING_STRUCT_TYPE and STRING_ELEMENT_TYPE"
@@ -18,7 +19,14 @@ struct STRING_STRUCT_TYPE {
 #define STRING_FUNCTION(ret, name, ...) \
     _STRING_FUNCTION(ret, STRING_STRUCT_TYPE, name, ##__VA_ARGS__)
 
-STRING_FUNCTION(void, append, STRING_ELEMENT_TYPE c);
+STRING_FUNCTION(bool, appendc, char c);
+STRING_FUNCTION(bool, appendwc, wchar_t wc);
+
+STRING_FUNCTION(bool, appendsz, const char *suffix);
+STRING_FUNCTION(bool, appendsn, const char *suffix, size_t suffix_len);
+STRING_FUNCTION(bool, appendwsz, const wchar_t *suffix);
+STRING_FUNCTION(bool, appendwsn, const wchar_t *suffix, size_t suffix_len);
+
 STRING_FUNCTION(int, printf, const STRING_ELEMENT_TYPE *fmt, ...);
 
 STRING_FUNCTION(void, init);
