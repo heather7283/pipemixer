@@ -1023,6 +1023,7 @@ static void on_device_props(struct device *dev, const struct dict *props, void *
     struct tui_tab_item *item = data;
     struct tui_tab_item_device_data *d = &item->as.device;
 
+    wstring_clear(&d->info);
     format_render(config.device_format, props, &d->info);
 
     wstring_clear(&d->description);
@@ -1177,6 +1178,7 @@ static void on_node_props(struct node *node, const struct dict *props, void *dat
     struct tui_tab_item *item = data;
     struct tui_tab_item_node_data *d = &item->as.node;
 
+    wstring_clear(&d->info);
     format_render(config.node_format, props, &d->info);
 
     const char *node_description = dict_get(props, "node.description");
