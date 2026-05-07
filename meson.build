@@ -50,6 +50,7 @@ pipemixer_sources = [
   'src/tui/menu.c',
   'src/collections/vec.c',
   'src/collections/map.c',
+  'src/collections/string.c',
   'src/collections/wstring.c',
   'src/collections/dict.c',
   'src/pw/common.c',

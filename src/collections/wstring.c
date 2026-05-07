@@ -4,8 +4,23 @@
 #include "xmalloc.h"
 #include "macros.h"
 
+/* make space for len wide characters and a null terminator */
+static void make_space(struct wstring *ws, size_t _len) {
+    const size_t len = _len + 1;
+    if (ws->cap < len) {
+        ws->cap = ws->cap * 2 < len ? len : ws->cap * 2;
+        ws->data = xreallocarray(ws->data, ws->cap, sizeof(ws->data[0]));
+    }
+}
+
+void wstring_append(struct wstring *ws, wchar_t c) {
+    make_space(ws, ws->len + 1);
+    ws->data[ws->len++] = c;
+    ws->data[ws->len] = L'\0';
+}
+
 int wstring_printf(struct wstring *ws, const wchar_t *fmt, ...) {
-    /* fuck this shitty libc API */
+    /* fuck this shitty libc API. Surely this is enough :clueless: */
     static wchar_t buf[1024];
 
     va_list args;
@@ -17,11 +32,7 @@ int wstring_printf(struct wstring *ws, const wchar_t *fmt, ...) {
         return -1;
     }
 
-    if (ws->cap < ws->len + len + 1) {
-        ws->cap = ws->len + len + 1;
-        ws->data = xreallocarray(ws->data, ws->cap, sizeof(ws->data[0]));
-    }
-
+    make_space(ws, len);
     wmemcpy(&ws->data[ws->len], buf, len);
     ws->len += len;
     ws->data[ws->len] = L'\0';
