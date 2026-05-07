@@ -102,19 +102,27 @@ static void parse_key(struct parser *p, struct string *out) {
 static void parse_subst(struct parser *p, struct format_node **out) {
     struct format_node *n = *out = xzalloc(sizeof(*n));
     n->type = FORMAT_NODE_SUBST;
+    struct format_node_subst *s = &n->as.subst;
+    s->type = FORMAT_NODE_SUBST_BASIC;
 
     expect(p, L'{');
 
-    parse_key(p, &n->as.subst.key);
+    parse_key(p, &s->key);
 
     if (peek(p) == L'?') {
+        s->type = FORMAT_NODE_SUBST_IF_EXISTS;
         consume(p);
-        parse_format(p, &n->as.subst.if_true);
+        parse_format(p, &s->if_true);
     }
 
     if (peek(p) == L'!') {
+        if (s->type == FORMAT_NODE_SUBST_IF_EXISTS) {
+            s->type = FORMAT_NODE_SUBST_TERNARY;
+        } else {
+            s->type = FORMAT_NODE_SUBST_IF_ABSENT;
+        }
         consume(p);
-        parse_format(p, &n->as.subst.if_false);
+        parse_format(p, &s->if_false);
     }
 
     expect(p, L'}');
@@ -210,24 +218,29 @@ static void format_node_render(const struct format_node *node,
         const char *val = dict_get(dict, node->as.subst.key.data);
         const struct format *if_true = node->as.subst.if_true;
         const struct format *if_false = node->as.subst.if_false;
-        if (if_true && if_false) {
+        switch (node->as.subst.type) {
+        case FORMAT_NODE_SUBST_BASIC:
+            if (val) {
+                wstring_appendsz(res, val);
+            }
+            break;
+        case FORMAT_NODE_SUBST_IF_EXISTS:
+            if (val) {
+                format_render(if_true, dict, res);
+            }
+            break;
+        case FORMAT_NODE_SUBST_IF_ABSENT:
+            if (!val) {
+                format_render(if_false, dict, res);
+            }
+            break;
+        case FORMAT_NODE_SUBST_TERNARY:
             if (val) {
                 format_render(if_true, dict, res);
             } else {
                 format_render(if_false, dict, res);
             }
-        } else if (if_true) {
-            if (val) {
-                format_render(if_true, dict, res);
-            }
-        } else if (if_false) {
-            if (!val) {
-                format_render(if_false, dict, res);
-            }
-        } else {
-            if (val) {
-                wstring_appendsz(res, val);
-            }
+            break;
         }
         break;
     }

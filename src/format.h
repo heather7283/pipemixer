@@ -23,15 +23,22 @@ enum format_node_type {
     FORMAT_NODE_SUBST,
 };
 
+enum format_node_subst_type {
+    FORMAT_NODE_SUBST_BASIC, /* {key} */
+    FORMAT_NODE_SUBST_IF_EXISTS, /* {key?then} */
+    FORMAT_NODE_SUBST_IF_ABSENT, /* {key!else} */
+    FORMAT_NODE_SUBST_TERNARY, /* {key?then!else} */
+};
+
 struct format_node {
     enum format_node_type type;
     union {
         struct {
             struct wstring str;
         } literal;
-        struct {
+        struct format_node_subst {
             struct string key;
-            /* both can be NULL (in which case value for key is substituted) */
+            enum format_node_subst_type type;
             struct format *if_true, *if_false;
         } subst;
     } as;
