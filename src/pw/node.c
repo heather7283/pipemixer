@@ -423,14 +423,30 @@ void on_node_info(void *data, const struct pw_node_info *info) {
             const struct spa_dict_item *item = &props->items[i];
             dict_insert(&node->props, item->key, item->value);
 
-            if (streq(item->key, "node.name")) {
-                /* now we can start checking for default */
-                if (node->media_class == AUDIO_SINK || node->media_class == AUDIO_SOURCE) {
-                    if (!node->default_hook) {
-                        node->default_hook = pipewire_add_listener(&pipewire_events, node);
-                    }
-                }
-            }
+        }
+
+        const char *node_name;
+        const bool wants_default = !node->default_hook
+                                   && (node->media_class == AUDIO_SINK
+                                       || node->media_class == AUDIO_SOURCE)
+                                   && (node_name = dict_get(&node->props, "node.name"));
+        if (wants_default) {
+            /* now we can start checking for default */
+            node->default_hook = pipewire_add_listener(&pipewire_events, node);
+        }
+
+        const char *device;
+        const bool wants_device = !node->card_profile_device
+                                  && (device = dict_get(&node->props, "card.profile.device"));
+        if (wants_device) {
+            spa_atoi32(device, &node->card_profile_device, 10);
+        }
+
+        const char *device_id;
+        const bool wants_device_id = !node->device_id
+                                     && (device_id = dict_get(&node->props, "device.id"));
+        if (wants_device_id) {
+            spa_atou32(device_id, &node->device_id, 10);
         }
 
         if (first_props) {
