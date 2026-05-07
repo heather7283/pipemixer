@@ -13,7 +13,7 @@
  * key_char = ? Any lowercase English letter ? | "." ;
  * key = key_char { key_char } ;
  *
- * subst = "{" key [ "?" format ] [ "!" format ] "}" ;
+ * subst = "{" key [ "?" [ format ] ] [ "!" format ] "}" ;
  * node = subst | literal ;
  * format = node { node } ;
  */
@@ -28,6 +28,7 @@ enum format_node_subst_type {
     FORMAT_NODE_SUBST_IF_EXISTS, /* {key?then} */
     FORMAT_NODE_SUBST_IF_ABSENT, /* {key!else} */
     FORMAT_NODE_SUBST_TERNARY, /* {key?then!else} */
+    FORMAT_NODE_SUBST_FALLBACK, /* {key?!else} */
 };
 
 struct format_node {

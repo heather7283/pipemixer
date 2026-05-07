@@ -110,16 +110,20 @@ static void parse_subst(struct parser *p, struct format_node **out) {
     parse_key(p, &s->key);
 
     if (peek(p) == L'?') {
-        s->type = FORMAT_NODE_SUBST_IF_EXISTS;
         consume(p);
-        parse_format(p, &s->if_true);
+        if (peek(p) == L'!') {
+            s->type = FORMAT_NODE_SUBST_FALLBACK;
+        } else {
+            s->type = FORMAT_NODE_SUBST_IF_EXISTS;
+            parse_format(p, &s->if_true);
+        }
     }
 
     if (peek(p) == L'!') {
-        if (s->type == FORMAT_NODE_SUBST_IF_EXISTS) {
-            s->type = FORMAT_NODE_SUBST_TERNARY;
-        } else {
+        if (s->type == FORMAT_NODE_SUBST_BASIC) {
             s->type = FORMAT_NODE_SUBST_IF_ABSENT;
+        } else if (s->type == FORMAT_NODE_SUBST_IF_EXISTS) {
+            s->type = FORMAT_NODE_SUBST_TERNARY;
         }
         consume(p);
         parse_format(p, &s->if_false);
@@ -237,6 +241,13 @@ static void format_node_render(const struct format_node *node,
         case FORMAT_NODE_SUBST_TERNARY:
             if (val) {
                 format_render(if_true, dict, res);
+            } else {
+                format_render(if_false, dict, res);
+            }
+            break;
+        case FORMAT_NODE_SUBST_FALLBACK:
+            if (val) {
+                wstring_appendsz(res, val);
             } else {
                 format_render(if_false, dict, res);
             }
