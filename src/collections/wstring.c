@@ -71,7 +71,7 @@ int wstring_printf(struct wstring *ws, const wchar_t *fmt, ...) {
         return -1;
     }
 
-    make_space(ws, len);
+    make_space(ws, ws->len + len);
     wmemcpy(&ws->data[ws->len], buf, len);
     ws->len += len;
     ws->data[ws->len] = L'\0';
