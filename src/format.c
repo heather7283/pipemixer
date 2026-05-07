@@ -202,9 +202,11 @@ static void format_node_render(const struct format_node *node,
         const char *val = dict_get(dict, node->as.subst.key.data);
         const struct format_node *if_true = node->as.subst.if_true;
         const struct format_node *if_false = node->as.subst.if_false;
-        if (!if_true && !if_false) {
+        if (if_true && if_false) {
             if (val) {
-                wstring_printf(res, L"%s", val);
+                format_node_render(if_true, dict, res);
+            } else {
+                format_node_render(if_false, dict, res);
             }
         } else if (if_true) {
             if (val) {
@@ -216,9 +218,7 @@ static void format_node_render(const struct format_node *node,
             }
         } else {
             if (val) {
-                format_node_render(if_true, dict, res);
-            } else {
-                format_node_render(if_false, dict, res);
+                wstring_printf(res, L"%s", val);
             }
         }
         break;
