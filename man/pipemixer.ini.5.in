@@ -135,6 +135,48 @@ Unbind a key from any action.
 Configure various UI elements.
 
 .PP
+.B node-format, device-format
+.RS 4
+Strings controlling how information about nodes and devices is shown.
+A format string can include property substitution in the following forms:
+
+.IP \(bu 4
+{prop} - Substitute the value of property if it exists, otherwise empty.
+.IP \(bu 4
+{prop?fmt} - Expand fmt if property exists, otherwise empty.
+.IP \(bu 4
+{prop!fmt} - Expand fmt if property does not exist, otherwise empty.
+.IP \(bu 4
+{prop?fmt1!fmt2} - Expand fmt1 if property exists, otherwise expand fmt2.
+.IP \(bu 4
+{prop?!fmt} - This is a shortcut idential to {prop?{prop}!fmt}
+
+.PP
+Nested substitutions are allowed.
+Backslash can be used to escape characters {}?!, as well as itself.
+
+.PP
+You can obtain a list of properties for pipewire nodes with a command like:
+.PP
+.RS 4
+.EX
+pw-dump | jq '.[] | select(.type == "PipeWire:Interface:Node") | .info.props'
+.EE
+.RE
+
+.PP
+Example of a format string that will print the value of node.description if it
+is available and fall back to node.name otherwise, followed by a colon, a space,
+and the value of media.name if media.name key exists:
+.PP
+.RS 4
+.EX
+{node.description?!{node.name}}{media.name?: {media.name}}
+.EE
+.RE
+.RE
+
+.PP
 .B bar-empty-char, bar-full-char
 .RS 4
 Characters for drawing volume bars.
